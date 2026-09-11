@@ -1,0 +1,143 @@
+"""Process settings, loaded from environment / .env.
+
+Credentials only ever arrive via the environment. Nothing here carries a
+usable default for a secret, and ``SecretStr`` keeps values out of reprs and
+tracebacks.
+"""
+
+from __future__ import annotations
+
+from functools import lru_cache
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from deepflow.config.thresholds import Thresholds
+from deepflow.core.enums import RunMode
+from deepflow.core.errors import LiveModeNotConfirmedError
+
+#: Typed in by a human to enable LIVE mode. Deliberately awkward.
+LIVE_ACK_PHRASE = "I ACCEPT REAL CAPITAL RISK"
+
+
+class PolymarketSettings(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    environment: Literal["prod", "staging"] = "prod"
+    private_key: SecretStr | None = None
+    funder_address: str | None = None
+    http_timeout_seconds: float = Field(default=10.0, gt=0)
+    ws_ping_interval_seconds: float = Field(default=20.0, gt=0)
+    ws_reconnect_base_delay_seconds: float = Field(default=1.0, gt=0)
+    ws_reconnect_max_delay_seconds: float = Field(default=60.0, gt=0)
+
+    # Section 2 of the brief excludes Gamma from the data plane. The official
+    # SDK nevertheless serves market discovery metadata from Gamma internally
+    # (see docs/ADR-0002). This flag records the policy explicitly so the
+    # decision is visible rather than buried in an adapter.
+    allow_gamma_backed_discovery: bool = False
+
+    @property
+    def is_authenticated(self) -> bool:
+        return self.private_key is not None and self.funder_address is not None
+
+
+class DatabaseSettings(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    dsn: SecretStr = SecretStr("postgresql+asyncpg://deepflow:deepflow@localhost:5432/deepflow")
+    pool_size: int = Field(default=10, gt=0)
+    max_overflow: int = Field(default=5, ge=0)
+    echo: bool = False
+
+
+class RedisSettings(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    dsn: SecretStr = SecretStr("redis://localhost:6379/0")
+    enabled: bool = True
+
+
+class ApiSettings(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    host: str = "127.0.0.1"
+    port: int = Field(default=8000, gt=0, le=65535)
+    jwt_secret: SecretStr | None = None
+    jwt_ttl_seconds: int = Field(default=3600, gt=0)
+    cors_origins: tuple[str, ...] = ("http://localhost:3000",)
+
+
+class Settings(BaseSettings):
+    """Root settings object.
+
+    Nested values use a double-underscore delimiter, e.g.
+    ``DEEPFLOW_POLYMARKET__PRIVATE_KEY``.
+    """
+
+    model_config = SettingsConfigDict(
+        env_prefix="DEEPFLOW_",
+        env_nested_delimiter="__",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        frozen=True,
+    )
+
+    mode: RunMode = RunMode.PAPER
+    live_trading_confirmed: bool = False
+    live_trading_ack: str = ""
+
+    log_level: str = "INFO"
+    log_format: Literal["json", "console"] = "json"
+
+    polymarket: PolymarketSettings = PolymarketSettings()
+    database: DatabaseSettings = DatabaseSettings()
+    redis: RedisSettings = RedisSettings()
+    api: ApiSettings = ApiSettings()
+    thresholds: Thresholds = Thresholds()
+
+    @model_validator(mode="after")
+    def _guard_live_mode(self) -> Settings:
+        """LIVE is refused unless three independent things agree.
+
+        Section 25: live execution is disabled by default. A single stray
+        environment variable must not be able to arm real capital.
+        """
+        if self.mode is not RunMode.LIVE:
+            return self
+
+        if not self.live_trading_confirmed:
+            raise LiveModeNotConfirmedError(
+                "LIVE mode requires DEEPFLOW_LIVE_TRADING_CONFIRMED=true"
+            )
+        if self.live_trading_ack.strip() != LIVE_ACK_PHRASE:
+            raise LiveModeNotConfirmedError(
+                f"LIVE mode requires DEEPFLOW_LIVE_TRADING_ACK to be exactly {LIVE_ACK_PHRASE!r}"
+            )
+        if not self.polymarket.is_authenticated:
+            raise LiveModeNotConfirmedError(
+                "LIVE mode requires both a Polymarket private key and a funder address"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _guard_api_secret(self) -> Settings:
+        """The dashboard exposes kill switches; it is never left unauthenticated
+        outside a local paper run."""
+        if self.mode in (RunMode.SHADOW, RunMode.LIVE) and self.api.jwt_secret is None:
+            raise LiveModeNotConfirmedError(
+                "SHADOW and LIVE modes require DEEPFLOW_API__JWT_SECRET to be set"
+            )
+        return self
+
+    @property
+    def sends_real_orders(self) -> bool:
+        return self.mode is RunMode.LIVE
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    """Process-wide settings singleton."""
+    return Settings()

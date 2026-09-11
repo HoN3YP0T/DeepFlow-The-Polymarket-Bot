@@ -1,0 +1,51 @@
+services:
+  db:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_USER: deepflow
+      POSTGRES_PASSWORD: deepflow
+      POSTGRES_DB: deepflow
+    ports: ["5432:5432"]
+    volumes: ["dbdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U deepflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  bot:
+    build: .
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    environment:
+      DEEPFLOW_MODE: ${DEEPFLOW_MODE:-PAPER}
+      DEEPFLOW_DATABASE__DSN: postgresql+asyncpg://deepflow:deepflow@db:5432/deepflow
+      DEEPFLOW_REDIS__DSN: redis://redis:6379/0
+    # Secrets come from the environment or a secret manager, never from the
+    # image or a committed file.
+    env_file: [.env]
+
+  api:
+    build: .
+    command: ["uvicorn", "deepflow.api.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    ports: ["8000:8000"]
+    environment:
+      DEEPFLOW_DATABASE__DSN: postgresql+asyncpg://deepflow:deepflow@db:5432/deepflow
+      DEEPFLOW_REDIS__DSN: redis://redis:6379/0
+    env_file: [.env]
+
+volumes:
+  dbdata:

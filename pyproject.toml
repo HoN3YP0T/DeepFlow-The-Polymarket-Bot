@@ -1,0 +1,97 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "deepflow"
+version = "0.1.0"
+description = "Production-grade Polymarket quantitative trading system"
+readme = "README.md"
+# The official Polymarket SDK requires >=3.11. 3.12 is the deployment target
+# (see Dockerfile); 3.11 is kept installable so the toolchain runs on older hosts.
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+
+dependencies = [
+    # --- Polymarket integration -------------------------------------------
+    # Official unified SDK. NOTE: the legacy `py-clob-client` package is
+    # archived upstream and explicitly non-functional; do not add it.
+    "polymarket-client>=0.10,<1",
+
+    # --- Core runtime -----------------------------------------------------
+    "pydantic>=2.7,<3",
+    "pydantic-settings>=2.3,<3",
+    "httpx[http2]>=0.27,<1",
+    "websockets>=13,<16",
+    "tenacity>=8.3",
+
+    # --- Storage ----------------------------------------------------------
+    "sqlalchemy[asyncio]>=2.0,<3",
+    "asyncpg>=0.29",
+    "alembic>=1.13",
+    "redis>=5.0",
+
+    # --- API --------------------------------------------------------------
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "python-jose[cryptography]>=3.3",
+    "passlib[bcrypt]>=1.7",
+
+    # --- Observability ----------------------------------------------------
+    "structlog>=24.1",
+    "prometheus-client>=0.20",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "hypothesis>=6.100",
+    "respx>=0.21",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "types-passlib",
+]
+quant = ["numpy>=1.26", "pandas>=2.2", "scipy>=1.13"]
+
+[project.scripts]
+deepflow = "deepflow.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/deepflow"]
+
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "RUF", "ASYNC", "S"]
+ignore = ["S101"]  # assert is fine in tests
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "B"]
+
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+files = ["src/deepflow"]
+strict = true
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["polymarket.*"]
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "integration: requires external services (db, redis, network)",
+    "e2e: full pipeline end-to-end",
+]
