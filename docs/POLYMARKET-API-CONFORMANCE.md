@@ -570,6 +570,63 @@ Markets awaiting resolution stay `closed=False` with an end date already gone. A
 time-to-expiry arithmetic must treat a negative remainder as "pending resolution",
 not as a market about to settle.
 
+## 36. Resolution text comes in two shapes, and the second has no YES clause
+
+Measured over 250 live markets after normalising punctuation:
+
+| Shape | Share | Form |
+|---|---|---|
+| Explicit binary | 46% | `resolve to "Yes" if <condition>. Otherwise ... "No".` |
+| Group winner | 54% | `This market will resolve to the person who wins <event>.` |
+
+The group form is a negative-risk group: payout is winner-takes-all, so no market
+states its own YES condition. The condition is *this market's entity* winning, and
+the only field naming that entity is **`group_item_title`** — populated on 100% of
+group markets sampled.
+
+A validator demanding an explicit YES clause marks that 54% UNPARSEABLE and refuses
+over half the catalogue, for markets that are not ambiguous at all.
+
+The venue writes the group form at least six ways across 23 observed templates,
+including `resolve according to the party that wins`, `resolve according to the
+winner of`, `resolve based on`, a multi-word noun (`the listed candidate that
+wins`), and one typo of its own (`resolve to according to`). Generalising the
+pattern across these moved UNPARSEABLE from **47.5% to 16.7%**.
+
+## 37. The curly-quote trap
+
+Polymarket writes the payout clause with typographic quotes (U+201C / U+201D), not
+ASCII, on most markets. Matching ASCII quotes alone detects the clause on **7% of
+markets instead of 46%**.
+
+A validator built without normalising punctuation would reject nearly every market,
+and the cause would be one invisible character. Every text now passes through a
+substitution table before any pattern runs.
+
+## 38. `consensus of` is not an ambiguity marker
+
+It appears in **58% of live markets**, almost always as *"a consensus of official
+&lt;named&gt; sources"* — a specific, checkable authority. The scaffold's marker list
+included it, which would have graded most of the catalogue AMBIGUOUS over a turn of
+phrase. The genuinely vague cousin, *"consensus of credible reporting"*, is caught by
+a narrower marker.
+
+### Calibration, 360 live markets
+
+| Verdict | Share |
+|---|---|
+| VALID | 46.9% |
+| AMBIGUOUS | 36.4% |
+| UNPARSEABLE | 16.7% |
+
+Only `VALID` is tradeable, via `ResolutionCriteria.is_tradeable` — named explicitly
+so that widening it has to edit a tested property rather than being smuggled in as a
+comparison at a call site. The dominant reasons for holding a market back are a
+deadline with no stated timezone (75) and a judgement-call marker (56).
+
+**Roughly half of all markets are held back.** That is the safe direction, and it is
+also the largest single lever on how many markets this system can ever trade.
+
 ---
 
 ## Confirmed correct

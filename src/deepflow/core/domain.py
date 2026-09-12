@@ -83,6 +83,13 @@ class Market(Frozen):
     event_id: EventId | None = None
     question: str
     slug: str | None = None
+    group_item_title: str | None = None
+    """This market's entity within a negative-risk group, e.g. ``"Gavin Newsom"``.
+
+    Load-bearing for resolution parsing. A group market's text says only "resolve to
+    the person who wins X" -- the payout condition is *this* market's entity winning,
+    and nothing else in the text names it. Populated on 100% of group markets
+    sampled."""
     outcomes: tuple[Outcome, ...]
     active: bool
     closed: bool
@@ -198,6 +205,21 @@ class ResolutionCriteria(Frozen):
 
     @property
     def is_valid(self) -> bool:
+        return self.validity is ResolutionValidity.VALID
+
+    @property
+    def is_tradeable(self) -> bool:
+        """Whether a market with these criteria may be entered.
+
+        Identical to :attr:`is_valid`, and separate on purpose. ``AMBIGUOUS`` is a
+        useful diagnostic grade -- it says the payout condition parsed but something
+        about it needs a human -- and the risk of grading rather than pass/fail is
+        that "ambiguous" starts being read as "tradeable with care" under pressure.
+
+        Naming the tradeable predicate explicitly means any future widening has to
+        edit this property, where the decision is visible and tested, rather than
+        being smuggled in as a comparison at a call site.
+        """
         return self.validity is ResolutionValidity.VALID
 
 

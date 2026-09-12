@@ -97,6 +97,7 @@ def to_market(sdk_market: Any) -> Market:
         event_id=EventId(str(events[0].id)) if events else None,
         question=sdk_market.question,
         slug=sdk_market.slug,
+        group_item_title=getattr(sdk_market, "group_item_title", None),
         outcomes=_outcomes(sdk_market.outcomes),
         active=bool(state.active),
         closed=bool(state.closed),

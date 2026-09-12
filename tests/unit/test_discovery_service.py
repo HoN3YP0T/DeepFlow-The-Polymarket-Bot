@@ -16,7 +16,7 @@ from typing import Any
 
 from deepflow.config.thresholds import Thresholds
 from deepflow.core.domain import Market, Outcome
-from deepflow.core.enums import MarketCategory, OutcomeSide
+from deepflow.core.enums import MarketCategory, OutcomeSide, ResolutionValidity
 from deepflow.core.state_machine import MarketState
 from deepflow.core.types import ClobTokenId, ConditionId
 from deepflow.pipeline.classifier import MarketClassifier
@@ -29,6 +29,15 @@ from deepflow.pipeline.resolution import ResolutionValidator
 
 NOW = datetime(2026, 9, 12, 12, 0, tzinfo=UTC)
 
+#: A resolution text that parses to VALID. Markets default to it so a test about
+#: classification is not silently also a test of resolution parsing.
+VALID_TEXT = (
+    'This market will resolve to "Yes" if the event occurs before December 31, '
+    '2026, 11:59 PM ET. Otherwise, this market will resolve to "No". '
+    "The resolution source for this market is the Associated Press."
+)
+AMBIGUOUS_TEXT = VALID_TEXT + " Settled by a consensus of credible reporting."
+
 
 def _market(
     condition_id: str,
@@ -36,6 +45,7 @@ def _market(
     question: str = "Will something happen?",
     tag_ids: tuple[str, ...] = (),
     sports_market_type: str | None = None,
+    resolution_text: str | None = VALID_TEXT,
 ) -> Market:
     return Market(
         condition_id=ConditionId(condition_id),
@@ -49,6 +59,7 @@ def _market(
         accepting_orders=True,
         tag_ids=tag_ids,
         sports_market_type=sports_market_type,
+        resolution_text=resolution_text,
         game_start_time=NOW + timedelta(hours=2) if sports_market_type else None,
         end_date=NOW + timedelta(days=30),
     )
@@ -133,25 +144,23 @@ def _service(
 
 
 # --- Advancing ------------------------------------------------------------
-async def test_classifiable_market_reaches_classified() -> None:
+async def test_classifiable_market_with_readable_rules_reaches_monitored() -> None:
     service, _, _ = _service([_market("0x1", tag_ids=("264",))])
     report = await service.run_once()
 
-    assert report.classified == 1
-    assert report.rejected == 0
-    assert service.lifecycle_for("0x1").state is MarketState.CLASSIFIED
+    assert (report.classified, report.monitored, report.rejected) == (1, 1, 0)
+    assert service.lifecycle_for("0x1").state is MarketState.MONITORED
 
 
-async def test_nothing_reaches_monitored() -> None:
-    """The state machine has no CLASSIFIED -> MONITORED edge: that is the edge
-    enforcing 'never trade from the title alone'. No bypass exists while the
-    validator is unimplemented."""
-    service, _, _ = _service([_market("0x1", tag_ids=("264",))])
+async def test_a_market_with_unreadable_rules_never_reaches_monitored() -> None:
+    """The edge enforcing 'never trade from the title alone'. Classification alone
+    does not open it -- the resolution rules have to parse."""
+    service, _, _ = _service([_market("0x1", tag_ids=("264",), resolution_text=None)])
     await service.run_once()
 
     assert service.monitored_count == 0
-    assert service.classified_count == 1
     assert service.tradeable_tokens() == ()
+    assert service.lifecycle_for("0x1").state is MarketState.MARKET_INVALID
 
 
 async def test_category_tally_is_reported() -> None:
@@ -212,7 +221,7 @@ async def test_second_sweep_leaves_decided_markets_alone() -> None:
     before = len(journal.entries)
     second = await service.run_once()
 
-    assert (first.classified, first.rejected) == (1, 1)
+    assert (first.monitored, first.rejected) == (1, 1)
     assert (second.classified, second.rejected, second.unchanged) == (0, 0, 2)
     assert len(journal.entries) == before
 
@@ -227,6 +236,9 @@ async def test_classification_is_persisted_with_its_state() -> None:
     assert written["category"] == MarketCategory.POLITICS.value
     assert written["lifecycle_state"] == MarketState.CLASSIFIED.value
     assert written["confidence"] > Decimal("0.9")
+
+    # The final write records where the market actually ended up.
+    assert market_repo.classifications[-1]["lifecycle_state"] == MarketState.MONITORED.value
 
 
 async def test_rejected_market_is_persisted_as_invalid() -> None:
@@ -272,3 +284,89 @@ async def test_limit_is_passed_through() -> None:
     service, _, _ = _service([_market(f"0x{i}", tag_ids=("264",)) for i in range(10)])
     report = await service.run_once(limit=3)
     assert report.seen == 3
+
+
+# --- Resolution gating ----------------------------------------------------
+def _with_text(condition_id: str, text: str | None) -> Market:
+    return _market(condition_id, tag_ids=("264",), resolution_text=text)
+
+
+async def test_valid_resolution_reaches_monitored() -> None:
+    service, _, _ = _service([_with_text("0x1", VALID_TEXT)])
+    report = await service.run_once()
+
+    assert report.monitored == 1
+    assert service.lifecycle_for("0x1").state is MarketState.MONITORED
+    assert service.monitored_count == 1
+    assert len(service.tradeable_tokens()) == 2
+
+
+async def test_path_runs_through_validated() -> None:
+    """Two edges, not one. VALIDATED records that the rules were read and accepted;
+    MONITORED records that we are watching. Collapsing them loses the distinction a
+    post-mortem needs."""
+    service, _, _ = _service([_with_text("0x1", VALID_TEXT)])
+    await service.run_once()
+    states = [t.target for t in service.lifecycle_for("0x1").history]
+    assert states == [MarketState.CLASSIFIED, MarketState.VALIDATED, MarketState.MONITORED]
+
+
+async def test_ambiguous_resolution_is_rejected_not_monitored() -> None:
+    """The guard against grading drifting into permission: AMBIGUOUS parses fine and
+    still must not be traded."""
+    service, _, journal = _service([_with_text("0x2", AMBIGUOUS_TEXT)])
+    report = await service.run_once()
+
+    assert report.monitored == 0
+    assert report.rejected == 1
+    assert service.tradeable_tokens() == ()
+    entry = next(e for e in journal.entries if e["kind"] == KIND_MARKET_REJECTED)
+    assert "AMBIGUOUS" in entry["reason"]
+
+
+async def test_unreadable_resolution_is_rejected() -> None:
+    service, _, _ = _service([_with_text("0x3", "Prose that never says how it settles.")])
+    report = await service.run_once()
+    assert report.rejected == 1
+    assert service.lifecycle_for("0x3").state is MarketState.MARKET_INVALID
+
+
+async def test_classified_but_unvalidated_never_becomes_tradeable() -> None:
+    """A classified market whose payout condition nobody could read does not belong in
+    the streaming set, however liquid it looks."""
+    service, _, _ = _service(
+        [_with_text("0x1", VALID_TEXT), _with_text("0x2", AMBIGUOUS_TEXT), _with_text("0x3", None)]
+    )
+    report = await service.run_once()
+
+    assert report.classified == 3
+    assert report.monitored == 1
+    assert len(service.tradeable_tokens()) == 2  # only the valid market's two outcomes
+
+
+async def test_validity_tally_is_reported() -> None:
+    service, _, _ = _service([_with_text("0x1", VALID_TEXT), _with_text("0x2", AMBIGUOUS_TEXT)])
+    report = await service.run_once()
+    assert report.by_validity[ResolutionValidity.VALID] == 1
+    assert report.by_validity[ResolutionValidity.AMBIGUOUS] == 1
+
+
+async def test_resolution_validity_is_persisted() -> None:
+    service, market_repo, _ = _service([_with_text("0x2", AMBIGUOUS_TEXT)])
+    await service.run_once()
+    assert market_repo.classifications[-1]["resolution_validity"] == (
+        ResolutionValidity.AMBIGUOUS.value
+    )
+
+
+async def test_every_market_is_resolved_one_way_or_the_other() -> None:
+    """Phase 2's done-when, as a test: nothing is left in limbo."""
+    markets = [
+        _with_text("0x1", VALID_TEXT),
+        _with_text("0x2", AMBIGUOUS_TEXT),
+        _with_text("0x3", None),
+        _market("0x4", question="Unclassifiable widget question"),
+    ]
+    service, _, _ = _service(markets)
+    report = await service.run_once()
+    assert report.seen - report.monitored - report.rejected == 0

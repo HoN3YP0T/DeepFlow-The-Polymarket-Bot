@@ -7,12 +7,11 @@ Runs on a slow cadence deliberately: the market catalogue changes on the order
 of minutes, and re-validating resolution rules on every tick wastes calls that
 the trading path needs.
 
-**Current reach: CLASSIFIED.** The state machine has no ``CLASSIFIED -> MONITORED``
-edge -- that is the edge enforcing *never trade from the title alone* -- so nothing
-advances past classification until :class:`ResolutionValidator` is implemented. No
-bypass is added for the interim. A temporary hole in a safety interlock has a way of
-outliving the reason it was made, and the rejection corpus this sweep builds is
-exactly what the validator should be tested against.
+Nothing reaches ``MONITORED`` without passing :class:`ResolutionValidator`. The
+state machine routes ``CLASSIFIED -> VALIDATED -> MONITORED`` with no shortcut, and
+only ``ResolutionCriteria.is_tradeable`` opens the second edge -- which means
+``AMBIGUOUS`` and ``UNPARSEABLE`` markets are recorded, inspectable, and never
+monitored. Measured on live text, that holds back a little over half of them.
 
 Every rejection and every transition is journalled. The rejected set is the
 evidence for whether the gates are calibrated: the markets traded are a biased
@@ -27,7 +26,7 @@ from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass, field
 
 from deepflow.config.thresholds import Thresholds
-from deepflow.core.domain import Classification, Market
+from deepflow.core.domain import Classification, Market, ResolutionCriteria
 from deepflow.core.enums import MarketCategory, ResolutionValidity, RunMode
 from deepflow.core.errors import IllegalTransitionError
 from deepflow.core.logging import get_logger
@@ -60,7 +59,9 @@ class SweepReport:
     classified: int = 0
     rejected: int = 0
     unchanged: int = 0
+    monitored: int = 0
     by_category: dict[MarketCategory, int] = field(default_factory=dict)
+    by_validity: dict[ResolutionValidity, int] = field(default_factory=dict)
     rejection_reasons: dict[str, int] = field(default_factory=dict)
 
     @property
@@ -89,6 +90,8 @@ class DiscoveryService:
         self._mode = mode
         self._lifecycles: dict[str, MarketLifecycle] = {}
         self._classifications: dict[str, Classification] = {}
+        self._criteria: dict[str, ResolutionCriteria] = {}
+        self._monitored_tokens: set[str] = set()
 
     async def run_once(self, *, limit: int = 500) -> SweepReport:
         """One discovery sweep.
@@ -126,12 +129,31 @@ class DiscoveryService:
                 )
                 continue
 
-            await self._advance(market, lifecycle, classification, report)
+            if not await self._advance(market, lifecycle, classification, report):
+                continue
+
+            criteria = self._validator.validate(market)
+            self._criteria[key] = criteria
+            report.by_validity[criteria.validity] = report.by_validity.get(criteria.validity, 0) + 1
+
+            if not criteria.is_tradeable:
+                await self._reject(
+                    market,
+                    lifecycle,
+                    reason=f"resolution {criteria.validity.value}: "
+                    f"{'; '.join(criteria.notes) or 'no detail'}",
+                    report=report,
+                    criteria=criteria,
+                )
+                continue
+
+            await self._validate_and_monitor(market, lifecycle, criteria, report)
 
         log.info(
             "discovery.sweep",
             seen=report.seen,
             classified=report.classified,
+            monitored=report.monitored,
             rejected=report.rejected,
             unchanged=report.unchanged,
             rejection_rate=round(report.rejection_rate, 3),
@@ -145,10 +167,10 @@ class DiscoveryService:
         lifecycle: MarketLifecycle,
         classification: Classification,
         report: SweepReport,
-    ) -> None:
+    ) -> bool:
         reason = f"{classification.category.value} @ {classification.confidence}"
         if not self._move(lifecycle, MarketState.CLASSIFIED, reason, market):
-            return
+            return False
 
         report.classified += 1
         report.by_category[classification.category] = (
@@ -165,6 +187,50 @@ class DiscoveryService:
             confidence=classification.confidence,
             signals=list(classification.matched_signals),
         )
+        return True
+
+    async def _validate_and_monitor(
+        self,
+        market: Market,
+        lifecycle: MarketLifecycle,
+        criteria: ResolutionCriteria,
+        report: SweepReport,
+    ) -> None:
+        """Take a market with tradeable resolution rules through to monitoring.
+
+        Two edges rather than one. ``VALIDATED`` records that the rules were read and
+        accepted; ``MONITORED`` records that we are watching it. Collapsing them would
+        lose the distinction between "passed validation" and "being priced", which is
+        the distinction a post-mortem needs.
+        """
+        reason = f"resolution VALID: {criteria.yes_condition or 'condition extracted'}"
+        if not self._move(lifecycle, MarketState.VALIDATED, reason, market):
+            return
+        if not self._move(lifecycle, MarketState.MONITORED, "validated", market):
+            return
+
+        report.monitored += 1
+        for outcome in market.outcomes:
+            self._monitored_tokens.add(str(outcome.token_id))
+
+        await self._persist(
+            market,
+            lifecycle,
+            self._classifications.get(str(market.condition_id)),
+            criteria,
+            upsert_market=False,
+        )
+        await self._journal(
+            kind=KIND_TRANSITION,
+            reason=reason,
+            condition_id=str(market.condition_id),
+            source=MarketState.CLASSIFIED.value,
+            target=MarketState.MONITORED.value,
+            yes_condition=criteria.yes_condition,
+            source_named=criteria.primary_source,
+            deadline=criteria.deadline,
+            timezone=criteria.timezone_name,
+        )
 
     async def _reject(
         self,
@@ -173,6 +239,7 @@ class DiscoveryService:
         *,
         reason: str,
         report: SweepReport,
+        criteria: ResolutionCriteria | None = None,
     ) -> None:
         if not self._move(lifecycle, MarketState.MARKET_INVALID, reason, market):
             return
@@ -184,7 +251,7 @@ class DiscoveryService:
         report.rejection_reasons[bucket] = report.rejection_reasons.get(bucket, 0) + 1
 
         classification = self._classifications.get(str(market.condition_id))
-        await self._persist(market, lifecycle, classification)
+        await self._persist(market, lifecycle, classification, criteria)
         await self._journal(
             kind=KIND_MARKET_REJECTED,
             reason=reason,
@@ -222,6 +289,9 @@ class DiscoveryService:
         market: Market,
         lifecycle: MarketLifecycle,
         classification: Classification | None,
+        criteria: ResolutionCriteria | None = None,
+        *,
+        upsert_market: bool = True,
     ) -> None:
         """Write the market and its verdict.
 
@@ -232,7 +302,12 @@ class DiscoveryService:
         if self._uow_factory is None:
             return
         async with self._uow_factory() as unit:
-            await unit.markets.upsert(market)
+            # Only on the first write of a sweep. A market that advances through
+            # CLASSIFIED and then MONITORED would otherwise be upserted twice for
+            # one decision -- doubling the write volume of the sweep to restate
+            # venue facts that have not changed since a moment ago.
+            if upsert_market:
+                await unit.markets.upsert(market)
             await unit.markets.record_classification(
                 market.condition_id,
                 category=(
@@ -240,7 +315,9 @@ class DiscoveryService:
                 ).value,
                 confidence=classification.confidence if classification else None,
                 lifecycle_state=lifecycle.state.value,
-                resolution_validity=ResolutionValidity.NOT_CHECKED.value,
+                resolution_validity=(
+                    criteria.validity if criteria else ResolutionValidity.NOT_CHECKED
+                ).value,
             )
             await unit.commit()
 
@@ -264,12 +341,14 @@ class DiscoveryService:
     def tradeable_tokens(self) -> tuple[str, ...]:
         """Token ids of markets that reached the monitoring set.
 
-        Empty until the validator exists, because ``MONITORED`` is unreachable. That
-        is the honest answer rather than a convenient one: returning classified
-        markets here would hand the streaming set markets whose resolution rules
-        nobody has read.
+        Only markets whose resolution rules parsed to ``VALID``. A classified market
+        whose payout condition nobody could read does not belong in the streaming
+        set, however liquid it looks.
         """
-        return ()
+        return tuple(sorted(self._monitored_tokens))
+
+    def criteria_for(self, condition_id: str) -> ResolutionCriteria | None:
+        return self._criteria.get(condition_id)
 
     @property
     def monitored_count(self) -> int:

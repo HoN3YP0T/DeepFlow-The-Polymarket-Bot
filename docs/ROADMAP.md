@@ -41,7 +41,10 @@ when the clock is advanced past the budget.
    **done** — venue tag ids primary, seeded from `get_sports()` (§30-31); a sport tag
    alone does not mean a game (§32); related-category ties resolve by specificity
    (§33). Live: 360 markets, 1.9% UNKNOWN
-8. `ResolutionValidator` — the highest-value safety component in the system
+8. ~~`ResolutionValidator` — the highest-value safety component in the system~~
+   **done** — two resolution shapes parsed (§36), typographic quotes normalised
+   (§37), tiered verdicts with only VALID tradeable. Calibrated on 360 live markets:
+   47% VALID, 36% AMBIGUOUS, 17% UNPARSEABLE
 9. ~~`DiscoveryService` — lifecycle transitions and rejection journalling~~
    **done** — sweeps are idempotent, every transition and refusal is journalled with
    its reason, and nothing advances past `CLASSIFIED` because the validator does not
@@ -50,9 +53,13 @@ when the clock is advanced past the budget.
 **Done when:** every discovered market reaches `MONITORED` or a documented
 rejection.
 
-Items 7 and 9 are done; nothing reaches `MONITORED` until item 8 lands, which is the
-state machine working as intended rather than a gap to patch. The rejection corpus
-those sweeps produce is what item 8 should be tested against.
+**Verified** on 300 live markets against a real database: 161 monitored, 139
+rejected with a recorded reason, **0 unresolved**.
+
+The headline number to keep in view: roughly half of all markets are held back, and
+most of those are `AMBIGUOUS` rather than unreadable. That is the safe direction, and
+improving parser coverage is the largest single lever on how many markets this system
+can ever trade — see `docs/POLYMARKET-API-CONFORMANCE.md` §36-38.
 
 ## Phase 3 — Probability
 10. `FeatureEngine.compute` — microstructure
