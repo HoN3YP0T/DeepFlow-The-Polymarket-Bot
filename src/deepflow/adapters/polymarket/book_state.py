@@ -54,6 +54,8 @@ class BookState:
     bids: dict[Decimal, Decimal] = field(default_factory=dict)
     asks: dict[Decimal, Decimal] = field(default_factory=dict)
     updated_at: datetime | None = None
+    """When this book last *changed* -- which is not its freshness. See
+    :meth:`snapshot`."""
     tick_size: Decimal | None = None
 
     #: Touch as the venue last reported it, for cross-checking our own fold.
@@ -138,8 +140,31 @@ class BookState:
     def is_empty(self) -> bool:
         return not self.bids and not self.asks
 
-    def snapshot(self) -> OrderBook | None:
+    def snapshot(self, *, as_of: datetime | None = None) -> OrderBook | None:
         """Materialize an immutable :class:`OrderBook`, best price first.
+
+        ``as_of`` is when the book was last *confirmed correct*, and it becomes the
+        snapshot's ``captured_at``. Pass the feed's liveness time, not this book's
+        ``updated_at``.
+
+        The distinction is easy to miss and gets freshness backwards. ``updated_at``
+        is when this book last *changed*; on an order book, no update means no
+        change, so a book untouched for 30 seconds on a live feed is entirely
+        correct. Timestamping it with its last change makes every quiet market read
+        as stale -- and quiet markets in the 0.85-0.98 band are precisely the ones
+        this system exists to trade. Measured live, last-change ages across sixteen
+        tokens on one healthy connection ranged from 1.4s to 30.7s, which would have
+        blocked a quarter of them for no reason.
+
+        Feed liveness is connection-wide because that is what is actually being
+        asserted: while events keep arriving, our folded state for every subscribed
+        token is current. When the connection drops, liveness stops advancing and
+        the books age out into STALE on their own, which is the behaviour we want
+        and costs no extra bookkeeping.
+
+        Defaults to ``updated_at`` so a caller with no liveness signal -- a replay,
+        a test -- gets the conservative reading rather than a silently optimistic
+        one.
 
         ``None`` when the book is empty or has not been timestamped -- there is no
         such thing as a snapshot of a book we have never seen, and returning an
@@ -170,4 +195,9 @@ class BookState:
             self.mark_gap()
             return None
 
-        return OrderBook(token_id=self.token_id, bids=bids, asks=asks, captured_at=self.updated_at)
+        return OrderBook(
+            token_id=self.token_id,
+            bids=bids,
+            asks=asks,
+            captured_at=as_of or self.updated_at,
+        )

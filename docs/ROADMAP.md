@@ -18,7 +18,9 @@ SDK signatures both hid — see `docs/POLYMARKET-API-CONFORMANCE.md` §20-21.
 4. ~~`PolymarketStreams` — reconnection with explicit gap markers~~ **done** —
    one connection fanned out into per-feed queues; `price_change` folded as level
    replacement, cross-checked against the venue's reported touch (§24)
-5. `FeatureEngine.assess_quality` — freshness before anything trades on it
+5. ~~`FeatureEngine.assess_quality` — freshness before anything trades on it~~
+   **done** — freshness is feed liveness, not last change (§27); consistency
+   checked before age; a future timestamp is inconsistent, never fresh
 6. Repositories + Alembic migrations
 
 **Done when:** the system discovers markets, streams books, persists snapshots,

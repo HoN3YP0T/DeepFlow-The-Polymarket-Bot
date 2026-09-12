@@ -260,3 +260,30 @@ def test_health_counters_start_clean(streams: PolymarketStreams) -> None:
     assert not streams.is_connected
     assert streams.reconnect_count == 0
     assert streams.dropped_events == 0
+
+
+# --- Freshness signal -----------------------------------------------------
+def test_any_event_advances_feed_liveness(streams: PolymarketStreams) -> None:
+    """Liveness belongs to the socket. An event on a topic we ignore still proves
+    the connection is delivering."""
+    assert streams.last_event_at is None
+    streams._handle(SimpleNamespace(topic="perps", type="trade", payload=None))
+    assert streams.last_event_at is not None
+
+
+def test_snapshots_are_stamped_with_liveness_not_last_change(
+    streams: PolymarketStreams,
+) -> None:
+    """The bug this guards, found on a live run: 4 of 120 snapshots came back STALE
+    on a healthy connection with zero reconnects, because a quiet market's book was
+    timestamped with its own last change rather than the feed's."""
+    _seed(streams)
+    for state in streams._books.values():
+        assert state.updated_at == T0
+
+    live = streams.last_event_at
+    assert live is not None and live > T0
+
+    snapshot = streams._snapshot_for(ConditionId(COND), {ClobTokenId(YES), ClobTokenId(NO)})
+    assert snapshot is not None
+    assert all(book.captured_at == live for book in snapshot.books)

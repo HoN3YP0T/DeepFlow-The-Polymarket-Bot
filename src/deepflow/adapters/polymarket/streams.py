@@ -91,6 +91,12 @@ class PolymarketStreams:
         self._pump: asyncio.Task[None] | None = None
         self._stop = asyncio.Event()
 
+        # When the connection last delivered anything. This -- not each book's own
+        # last change -- is the freshness signal for every folded book; see
+        # BookState.snapshot. It stops advancing on a disconnect, so the books age
+        # out into STALE on their own with no extra bookkeeping.
+        self._last_event_at: datetime | None = None
+
         self._books: dict[ClobTokenId, BookState] = {}
         self._token_to_condition: dict[ClobTokenId, ConditionId] = {}
         self._market_queue: asyncio.Queue[ConditionId] = asyncio.Queue(QUEUE_MAXSIZE)
@@ -171,6 +177,11 @@ class PolymarketStreams:
 
     # --- Event handling ---------------------------------------------------
     def _handle(self, event: Any) -> None:
+        # Any event proves the socket is alive, including one for a topic we do not
+        # act on. Liveness belongs to the connection, not to whichever market
+        # happened to move.
+        self._last_event_at = self._clock.now()
+
         topic = getattr(event, "topic", None)
         if topic == "market":
             self._handle_market(event)
@@ -335,7 +346,7 @@ class PolymarketStreams:
         gapped = False
         for token in tokens:
             state = self._books[token]
-            book = state.snapshot()
+            book = state.snapshot(as_of=self._last_event_at)
             if book is None:
                 continue
             books.append(book)
@@ -422,3 +433,13 @@ class PolymarketStreams:
     def book_for(self, token_id: ClobTokenId) -> BookState | None:
         """Current folded state, for REST cross-checks and re-anchoring."""
         return self._books.get(token_id)
+
+    @property
+    def last_event_at(self) -> datetime | None:
+        """When the connection last delivered anything.
+
+        The freshness signal for every folded book. A breaker watching for a silent
+        feed reads this rather than any individual book's timestamp, because one
+        quiet market says nothing about the socket.
+        """
+        return self._last_event_at

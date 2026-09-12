@@ -200,3 +200,29 @@ def test_side_matching_is_case_insensitive(side: str) -> None:
     state = _state()
     state.apply_level(side=side, price=Decimal("0.90"), size=Decimal(7), timestamp=T0)
     assert state.bids[Decimal("0.90")] == Decimal(7)
+
+
+# --- Freshness is feed liveness, not last change --------------------------
+def test_snapshot_is_timestamped_with_feed_liveness() -> None:
+    """``as_of`` overrides the book's own last-change time.
+
+    A quiet book on a live feed is correct, not stale: on an order book, no update
+    means no change. Measured live, last-change ages across sixteen tokens on one
+    healthy connection spanned 1.4s to 30.7s -- timestamping by last change would
+    have read a quarter of them as expired.
+    """
+    state = _state()
+    later = T0 + timedelta(seconds=30)
+    book = state.snapshot(as_of=later)
+    assert book is not None
+    assert book.captured_at == later
+    assert state.updated_at == T0  # last change is kept, for diagnostics
+
+
+def test_snapshot_falls_back_to_last_change_without_a_liveness_signal() -> None:
+    """A replay or a test has no feed to ask, so it gets the conservative reading
+    rather than a silently optimistic one."""
+    state = _state()
+    book = state.snapshot()
+    assert book is not None
+    assert book.captured_at == T0

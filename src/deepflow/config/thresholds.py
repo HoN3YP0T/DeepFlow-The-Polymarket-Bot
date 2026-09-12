@@ -239,6 +239,16 @@ class CircuitBreakerThresholds(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     max_data_age_seconds: float = Field(default=10.0, gt=0)
+    degraded_age_fraction: Decimal = Field(default=Decimal("0.5"), gt=0, lt=1)
+    """Fraction of the age budget past which a snapshot is DEGRADED rather than
+    FRESH.
+
+    The grey zone exists because freshness is not a step function. A snapshot at
+    90% of its budget is about to expire, and opening a position on it means the
+    data is stale before the order is even acknowledged. Degrading early stops new
+    entries while still permitting exits, which is the asymmetry that matters:
+    refusing to act on an open position is the worse failure."""
+
     max_settlement_failures_per_hour: int = Field(default=1, ge=0)
     """A matched trade that fails to settle on chain means local state and the
     venue's disagree about a position we thought was confirmed. One is enough to

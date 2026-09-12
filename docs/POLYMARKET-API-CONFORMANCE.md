@@ -435,6 +435,35 @@ async with await client.subscribe([MarketSpec(token_ids=[...])]) as stream:
 The documentation shows this correctly; the type signature does not. Trusting the
 annotation gives `AttributeError: __aenter__` on a coroutine.
 
+## 27. Ours, not the venue's: freshness is feed liveness, not last change
+
+Found by running the quality check against the live stream, which reported
+**4 STALE and 2 DEGRADED out of 120 snapshots on a healthy connection with zero
+reconnects**. The venue was fine; the implementation was wrong.
+
+The mistake was timestamping a folded book with `updated_at` — when that book last
+*changed*. On an order book, no update means **no change**, so a book untouched
+for thirty seconds on a live feed is entirely correct. Measured across sixteen
+tokens on one connection, last-change ages spanned **1.4 s to 30.7 s** — a quarter
+would have read as expired.
+
+The consequence is the wrong way round from a normal bug: it silently *blocks*
+trading, and it blocks it hardest on quiet markets — which in the 0.85–0.98 band
+are exactly the ones this system exists to trade. Nothing would have crashed. The
+system would simply have found fewer opportunities than it should, indefinitely,
+and the reason would have looked like conservative risk settings.
+
+**Fixed:** freshness is now connection-wide feed liveness
+(`PolymarketStreams.last_event_at`), passed into `BookState.snapshot(as_of=...)`
+and used as the snapshot's `captured_at`. `updated_at` is kept for diagnostics.
+This also gives staleness detection for free: when the connection drops, liveness
+stops advancing and every book ages into STALE with no extra bookkeeping. Live run
+after the fix: **276/276 FRESH**.
+
+Recorded here rather than in a commit message alone because it is the kind of
+error a later refactor would reintroduce — `updated_at` is the obvious field to
+reach for, and it is wrong.
+
 ## Confirmed correct
 
 Worth recording, since these were guesses that happened to be right:

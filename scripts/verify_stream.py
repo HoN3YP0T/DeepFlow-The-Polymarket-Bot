@@ -21,7 +21,10 @@ from deepflow.adapters.polymarket.discovery import SdkMarketDiscovery
 from deepflow.adapters.polymarket.sdk_client import PolymarketSession
 from deepflow.adapters.polymarket.streams import PolymarketStreams
 from deepflow.config.settings import Settings
+from deepflow.core.clock import SystemClock
+from deepflow.core.enums import DataQuality
 from deepflow.core.types import ClobTokenId
+from deepflow.pipeline.features import FeatureEngine
 
 FOLD_SECONDS = 25
 MARKETS = 8
@@ -38,13 +41,17 @@ async def main() -> int:
         tokens = [o.token_id for m in markets for o in m.outcomes]
         print(f"subscribing: {len(tokens)} tokens across {len(markets)} markets\n")
 
+        features = FeatureEngine(settings.thresholds, SystemClock())
         snapshots = 0
         sports_seen = 0
+        quality_counts: dict[DataQuality, int] = {}
 
         async def drain_markets() -> None:
             nonlocal snapshots
-            async for _ in streams.subscribe_markets(tokens):
+            async for snapshot in streams.subscribe_markets(tokens):
                 snapshots += 1
+                verdict = features.assess_snapshot(snapshot)
+                quality_counts[verdict] = quality_counts.get(verdict, 0) + 1
 
         async def drain_sports() -> None:
             nonlocal sports_seen
@@ -66,7 +73,16 @@ async def main() -> int:
             f"  connected={streams.is_connected} reconnects={streams.reconnect_count} "
             f"dropped={streams.dropped_events}"
         )
-        print(f"  snapshots emitted={snapshots} sports events={sports_seen}\n")
+        print(f"  snapshots emitted={snapshots} sports events={sports_seen}")
+        counts = ", ".join(f"{q.value}={n}" for q, n in sorted(quality_counts.items()))
+        print(f"  quality verdicts: {counts or 'none'}\n")
+
+        # A live stream with a healthy connection should be producing FRESH
+        # snapshots. Anything else means the feed is lagging or the fold drifted,
+        # and both are worth failing on here rather than discovering in Phase 4.
+        problems = sum(n for q, n in quality_counts.items() if q is not DataQuality.FRESH)
+        if problems:
+            print(f"  note: {problems} non-FRESH snapshot(s) on a healthy connection")
 
         return await _compare(clob, streams, tokens)
 
