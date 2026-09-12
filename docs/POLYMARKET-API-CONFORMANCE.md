@@ -347,6 +347,46 @@ configured for staging would have pointed at the live exchange.
 **Fixed:** `PolymarketSession.start` raises `ConfigurationError` for anything but
 `prod`.
 
+## 22. `get_order_books` does not return books in request order
+
+Observed differing on **5 of 5 trials** with 12 tokens, at *varying* positions
+(index 0 on four trials, index 2 on the fifth). With two tokens it happened to
+match — which is the worst possible property, because a two-token test passes and
+production does not.
+
+Zipping positionally is not merely wrong here, it is silently plausible. A binary
+market's YES and NO books are complements: attribute the NO book to the YES token
+and a 0.04 outcome prices at 0.96. Both are valid prices. Every gate downstream
+agrees with the reflection of the truth, and in the 0.85–0.98 target band the
+mistake lands exactly where the system is most willing to trade.
+
+**Fixed:** `ClobMarketData.get_order_books` keys results by `asset_id` and
+re-projects onto the requested order, and raises if any token is missing rather
+than returning a shorter sequence. The unit-test fake deliberately returns results
+in a *different* order from the request, so a positional zip cannot pass its tests.
+
+**Cheap live detector, now in the slice script:** a binary market's two best asks
+must sum to roughly 1. A swap breaks it. Depth is mirrored too — `Yes: 35x128`
+against `No: 128x35` — which is a second, independent confirmation.
+
+## 23. Two smaller call-shape traps
+
+- **`get_market` has no condition-id lookup.** It accepts `id`, `slug` or `url`
+  only. `MarketDiscoveryPort.get_market(condition_id)` was therefore
+  unimplementable as literally specified; it routes through
+  `list_markets(condition_ids=...)`. The condition id is what our database, the
+  venue's position endpoints and analytics all key on, so translating inside the
+  adapter beats leaking Gamma's numeric id upward.
+- **`page_size` silently caps at 100.** Requesting 500 returns 100, no error, no
+  warning. `list_active_markets(limit=500)` reading a single page would have shown
+  a fifth of the universe and looked successful. Now capped explicitly and paged.
+
+**Also useful:** `list_markets` supports far more server-side filtering than the
+scaffold assumed — `liquidity_num_min`, `volume_num_min`, `condition_ids`,
+`clob_token_ids`, `sports_market_types`, `game_id`, `end_date_min/max`, `tag_id`.
+The liquidity floor is now pushed to the venue instead of paging the catalogue to
+discard most of it.
+
 ## Confirmed correct
 
 Worth recording, since these were guesses that happened to be right:

@@ -12,7 +12,9 @@ SDK signatures both hid — see `docs/POLYMARKET-API-CONFORMANCE.md` §20-21.
 1. ~~`PolymarketSession` — client construction, auth, lifecycle~~ **done**
 2. ~~`mapping.py` — SDK → domain, against real payloads~~ **done** (real payloads
    recorded in `tests/fixtures/polymarket_payloads.json`)
-3. `SdkMarketDiscovery`, `ClobMarketData`
+3. ~~`SdkMarketDiscovery`, `ClobMarketData`~~ **done** — batched books are keyed
+   by `asset_id`, never zipped positionally (§22); `page_size` capped at the
+   venue's real maximum of 100 (§23)
 4. `PolymarketStreams` — reconnection with explicit gap markers
 5. `FeatureEngine.assess_quality` — freshness before anything trades on it
 6. Repositories + Alembic migrations
