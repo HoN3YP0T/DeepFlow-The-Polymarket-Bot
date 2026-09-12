@@ -37,7 +37,10 @@ rows written and read back, all FRESH, and the same book correctly reported STAL
 when the clock is advanced past the budget.
 
 ## Phase 2 — Classification and validation
-7. `MarketClassifier` — calibration at the low end matters more than accuracy
+7. ~~`MarketClassifier` — calibration at the low end matters more than accuracy~~
+   **done** — venue tag ids primary, seeded from `get_sports()` (§30-31); a sport tag
+   alone does not mean a game (§32); related-category ties resolve by specificity
+   (§33). Live: 360 markets, 1.9% UNKNOWN
 8. `ResolutionValidator` — the highest-value safety component in the system
 9. `DiscoveryService` — lifecycle transitions and rejection journalling
 

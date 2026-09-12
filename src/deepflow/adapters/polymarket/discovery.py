@@ -58,6 +58,11 @@ class SdkMarketDiscovery:
 
         pages = self._session.public.list_markets(
             closed=False,
+            # Without this the venue omits tags entirely. They are the
+            # classifier's primary signal, so discovery that does not ask for them
+            # leaves it guessing from question text -- which is how a cricket
+            # market gets routed to a football model.
+            include_tag=True,
             liquidity_num_min=min_liquidity or None,
             page_size=min(limit, MAX_PAGE_SIZE),
         )
@@ -94,7 +99,9 @@ class SdkMarketDiscovery:
         keys on (positions, analytics, our own database), so translating here is
         cheaper than leaking the venue's Gamma id upward.
         """
-        page = await self._session.public.list_markets(condition_ids=str(condition_id)).first_page()
+        page = await self._session.public.list_markets(
+            condition_ids=str(condition_id), include_tag=True
+        ).first_page()
         for sdk_market in page.items:
             if str(sdk_market.condition_id) != str(condition_id):
                 continue

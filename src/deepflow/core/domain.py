@@ -87,8 +87,29 @@ class Market(Frozen):
     active: bool
     closed: bool
     accepting_orders: bool
+    start_date: datetime | None = None
+    """When the market opened.
+
+    Carried because ``end_date - start_date`` is the market's *window*, which is
+    what separates a short-dated strike market from a long-horizon forecast. Time
+    remaining cannot answer that: any market is short-dated an hour before it
+    settles."""
     end_date: datetime | None = None
     tags: tuple[str, ...] = ()
+    """Venue tag slugs, e.g. ``("sports", "cricket")``.
+
+    Populated only when discovery asks for them -- the venue omits tags unless
+    ``include_tag=True`` is passed, and an empty tuple therefore means "not
+    requested" as often as it means "untagged". Kept as slugs because they are what
+    a human reads in a journal entry."""
+
+    tag_ids: tuple[str, ...] = ()
+    """Venue tag ids, e.g. ``("1", "517")``.
+
+    The classifier keys on these rather than on slugs: ``get_sports()`` publishes
+    its league-to-tag mapping as ids, so ids are the join key to venue-maintained
+    metadata, and a slug rename would silently break a match where an id would
+    not."""
     resolution_source: str | None = None
     resolution_text: str | None = None
     minimum_tick_size: Decimal | None = None
@@ -105,6 +126,14 @@ class Market(Frozen):
     the EIP-712 verifying contract, so it is a signing input, not a label."""
     enable_order_book: bool = True
     """A market can exist and be discoverable before its book opens."""
+
+    fee_type: str | None = None
+    """The venue's own fee category, e.g. ``politics_fees``, ``sports_fees_v2``.
+
+    A coarse but authoritative category hint. Coarse because it distinguishes
+    politics from sports and nothing finer; authoritative because the venue charges
+    on it. Used to corroborate a classification, never to create one -- and it is
+    absent on a noticeable share of markets."""
 
     fees_enabled: bool = False
     fee_schedule: FeeSchedule | None = None

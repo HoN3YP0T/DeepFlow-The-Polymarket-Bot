@@ -46,6 +46,16 @@ def _fee_schedule(sdk_schedule: Any) -> FeeSchedule | None:
     )
 
 
+def _tag_attr(sdk_tag: Any, attribute: str) -> str:
+    """Read one field off a venue tag.
+
+    Tags arrive as ``MarketTag(id, slug, label)`` objects, not strings. Coercing
+    the object with ``str()`` -- which the earlier version did -- produced the
+    repr, so every tag looked unique and none ever matched.
+    """
+    return str(getattr(sdk_tag, attribute, "") or "")
+
+
 def _outcomes(sdk_outcomes: Any) -> tuple[Outcome, ...]:
     """Flatten the SDK's ``{yes, no}`` pair into our ordered tuple.
 
@@ -91,8 +101,10 @@ def to_market(sdk_market: Any) -> Market:
         active=bool(state.active),
         closed=bool(state.closed),
         accepting_orders=bool(state.accepting_orders),
+        start_date=state.start_date,
         end_date=state.end_date,
-        tags=tuple(str(t) for t in (sdk_market.tags or ())),
+        tags=tuple(_tag_attr(t, "slug") for t in (sdk_market.tags or ())),
+        tag_ids=tuple(_tag_attr(t, "id") for t in (sdk_market.tags or ())),
         # The rules text is ``description``. ``resolution.source`` is UMA
         # plumbing and was empty on every market sampled, so it is recorded only
         # when actually populated rather than written in as an empty string that
@@ -103,6 +115,7 @@ def to_market(sdk_market: Any) -> Market:
         minimum_order_size=trading.minimum_order_size,
         negative_risk=bool(state.neg_risk),
         enable_order_book=bool(state.enable_order_book),
+        fee_type=getattr(trading, "fee_type", None),
         fees_enabled=bool(trading.fees_enabled),
         fee_schedule=_fee_schedule(trading.fee_schedule),
         # ``seconds_delay`` is ``None`` on an undelayed market, and ``None`` must

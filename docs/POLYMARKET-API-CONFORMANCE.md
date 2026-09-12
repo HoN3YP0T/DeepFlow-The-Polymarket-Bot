@@ -497,6 +497,81 @@ without an intent raises, because an order nobody can attribute to a token and
 size is unreconcilable against the venue, which is the one thing the table exists
 to support.
 
+# Round three — findings from Phase 2 classification
+
+## 30. `tags` are omitted unless you ask for them
+
+The venue returns no tags at all without `include_tag=True`. Phase 1's discovery
+adapter did not pass it, so every market arrived untagged — and tags are the
+classifier's primary signal. A classifier reduced to keyword-matching question text
+is how a cricket market gets routed to a football model.
+
+Worse, `mapping.to_market` coerced each tag with `str()`. Tags are
+`MarketTag(id, slug, label)` objects, so that produced the repr: every tag looked
+unique and none would ever have matched.
+
+**Fixed:** discovery passes `include_tag=True`; `Market` carries `tags` (slugs, for
+reading) and `tag_ids` (for matching). Ids are the join key because `get_sports()`
+publishes its league mapping as ids, and a slug rename would silently stop a match.
+
+## 31. The venue publishes its own league→tag map
+
+`get_sports()` returns **465 leagues** with their tag ids
+(`cricpsl → 1,100639,517,103805`). A league the venue adds becomes classifiable
+without a release. Live, this taught the classifier **70 tag ids** the static map
+did not have.
+
+Two traps in using it: the generic ids (`1` sports, `100639` games) appear on every
+league, so mapping them to whichever sport was iterated first poisons the map; and
+the call must be allowed to fail without stopping classification, or a Gamma hiccup
+takes the pipeline down.
+
+## 32. A sport tag does not mean the market is a game
+
+Of **20 sport-tagged markets sampled live, zero carried a `sports_market_type`** —
+they were awards and season milestones ("Will Mbappé win the 2026 Ballon d'Or?"),
+correctly tagged `soccer`. Every real fixture carried both a market type and a
+`game_start_time`.
+
+The sport engines model **in-play** state — score, clock, wickets. An awards market
+routed to one would be asked for state it cannot have. Tag-only classification put
+36 markets in FOOTBALL; with the match-evidence gate, 17.
+
+**Fixed:** a market in a match category must show venue evidence of a fixture
+(`sports_market_type` or `game_start_time`), otherwise it becomes `OTHER_SPORTS` —
+which has no engine, so it records what the market is and still cannot trade.
+
+## 33. `politics` and `geopolitics` overlap on purpose
+
+Every "leader out by" market carries both tags, at equal confidence, which the
+naive separation check called ambiguous and refused to trade. They are not
+ambiguous — they are both true.
+
+**Fixed:** a tie between *related* categories resolves by specificity
+(`GEOPOLITICS > POLITICS`, `BTC_5M > CRYPTO`); a tie between unrelated categories
+(cricket vs politics) still abstains, because that means the tags or our reading of
+them are wrong. UNKNOWN fell from 13 to 7 of 360.
+
+## 34. Correction to §5: cricket markets exist
+
+§5 said cricket and badminton "have no data source". Too strong. Cricket **markets
+exist and are tradeable** — "BPL: Chattogram Challengers vs Durbar Rajshahi", tagged
+`cricket`, type `moneyline` — and `get_sports()` lists many cricket leagues.
+
+What is missing is **live game state**. That market has `game_id=None`, so it cannot
+be joined to the sports stream, and cricket is absent from the stream's status
+vocabulary. The markets are there; the in-play feed is not. Since the 0.85–0.98 band
+this system targets is an in-play phenomenon, the engines stay disabled — but the
+markets classify correctly and get recorded rejections rather than being misrouted.
+
+## 35. Open markets can have an `end_date` in the past
+
+Markets awaiting resolution stay `closed=False` with an end date already gone. Any
+time-to-expiry arithmetic must treat a negative remainder as "pending resolution",
+not as a market about to settle.
+
+---
+
 ## Confirmed correct
 
 Worth recording, since these were guesses that happened to be right:
