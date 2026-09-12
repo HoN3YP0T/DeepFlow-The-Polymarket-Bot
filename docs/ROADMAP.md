@@ -62,7 +62,9 @@ improving parser coverage is the largest single lever on how many markets this s
 can ever trade — see `docs/POLYMARKET-API-CONFORMANCE.md` §36-38.
 
 ## Phase 3 — Probability
-10. `FeatureEngine.compute` — microstructure
+10. ~~`FeatureEngine.compute` — microstructure~~ **done** — depth measured inside a
+    band around the touch, never whole-book (§39); imbalance withheld when its sign
+    is not robust across bands; slippage `None` rather than a partial walk
 11. `TennisEngine` first: the cleanest analytic model, so the engine
     scaffolding gets validated against a model that can be checked exactly
 12. `FootballEngine` — the venue feed supplies score, period and clock only, so

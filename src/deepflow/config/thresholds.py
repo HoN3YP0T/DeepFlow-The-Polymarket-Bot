@@ -233,6 +233,49 @@ class ExecutionThresholds(BaseModel):
     the fee is a material fraction of the whole edge."""
 
 
+class MicrostructureThresholds(BaseModel):
+    """Section 5. How order-flow features are measured."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    depth_band: Decimal = Field(default=Decimal("0.01"), gt=0, lt=1)
+    """Price distance from the touch within which depth counts toward imbalance.
+
+    Not a tuning detail -- it is the definition. Measured on live books, imbalance
+    computed over the whole book is dominated by dust resting at 0.001 and 0.999,
+    and the sign flips with the band: one market read -0.88 within a cent, +0.17
+    within five, and -0.87 across the whole book. A number called "book imbalance"
+    without a stated band is an artifact of where people park orders, not a signal.
+
+    One cent is the default because these are 0-1 contracts, so a cent is
+    comparable at any price level, and it is roughly the depth a taker of ordinary
+    size actually sweeps."""
+
+    confirm_band_multiple: Decimal = Field(default=Decimal(5), gt=1)
+    """Second, wider band used only to check the first one's robustness."""
+
+    min_depth_for_imbalance: Decimal = Field(default=Decimal(100), gt=0)
+    """Below this combined depth inside the band, imbalance is not computed at all.
+    A ratio of two tiny numbers is noise wearing a signal's clothing."""
+
+    strong_imbalance: Decimal = Field(default=Decimal("0.40"), gt=0, le=1)
+    weak_imbalance: Decimal = Field(default=Decimal("0.15"), gt=0, le=1)
+    """Thresholds separating STRONG_BUY / BUY / NEUTRAL and their mirrors."""
+
+    concentration_warning: Decimal = Field(default=Decimal("0.60"), gt=0, le=1)
+    """Fraction of banded depth at a single level above which the book is treated as
+    one cancellation from empty rather than liquid."""
+
+    abnormal_move_sigma: Decimal = Field(default=Decimal(3), gt=0)
+    """Move size, in multiples of the market's own recent volatility, that counts as
+    abnormal. Relative rather than absolute: a 2c move is nothing on a 0.50 market
+    and enormous on a 0.02 one."""
+
+    min_history_for_velocity: int = Field(default=3, ge=2)
+    """Snapshots needed before velocity is reported. Two points give a slope with no
+    way to tell a trend from a single tick."""
+
+
 class CircuitBreakerThresholds(BaseModel):
     """Section 21."""
 
@@ -267,6 +310,7 @@ class Thresholds(BaseModel):
 
     classification_min_confidence: Decimal = Field(default=Decimal("0.75"), ge=0, le=1)
     sports: SportsThresholds = SportsThresholds()
+    microstructure: MicrostructureThresholds = MicrostructureThresholds()
     late_game: LateGameThresholds = LateGameThresholds()
     btc_5m: Btc5mThresholds = Btc5mThresholds()
     smart_money: SmartMoneyThresholds = SmartMoneyThresholds()

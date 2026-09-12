@@ -627,6 +627,39 @@ deadline with no stated timezone (75) and a judgement-call marker (56).
 **Roughly half of all markets are held back.** That is the safe direction, and it is
 also the largest single lever on how many markets this system can ever trade.
 
+## 39. Book imbalance is meaningless without a stated depth band
+
+Measured on live books, the sign of book imbalance **flips with the band**:
+
+| Market (mid) | within 1¢ | within 5¢ | whole book |
+|---|---|---|---|
+| Xi Jinping (0.0405) | +0.18 | +0.98 | +0.57 |
+| Newsom (0.1385) | **−0.88** | **+0.17** | **−0.87** |
+| AOC (0.1755) | **+0.51** | +0.38 | **−0.89** |
+
+These books span the full 0–1 range, so a whole-book total compares "all buy
+interest below the touch" against "all sell interest above it" — including people
+resting at 0.999. The whole-book figure is dominated by dust and is an artifact of
+where participants park orders, not a property of the market.
+
+So the band is the definition, not a parameter. Depth is measured inside
+`MicrostructureThresholds.depth_band` (one cent by default — comparable at any price
+level on a 0–1 contract, and roughly what a taker of ordinary size sweeps), and the
+same measure is recomputed at five times the band as a robustness check: **if the
+signs disagree, no imbalance is reported at all.** On live books that check fires on
+3 of 5 markets.
+
+Two related observations from the same run:
+
+* **Depth is highly concentrated near the touch** — 63% to 91% of banded depth at a
+  single level on most politics markets sampled. Such a book is one cancellation
+  from empty however large the total looks, which is why unmeasurable concentration
+  reads as *not* liquidity-ok rather than as fine.
+* **Slippage is brutal at size on cheap contracts.** Sweeping 500,000 shares of a 4¢
+  market walks the book to 0.999 — 133,870 bps over the touch, a 13× price. Correct
+  arithmetic, and the reason the estimate returns `None` rather than a partial walk
+  when the book cannot fill the size.
+
 ---
 
 ## Confirmed correct
