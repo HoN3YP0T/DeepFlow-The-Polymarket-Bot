@@ -43,7 +43,17 @@ from deepflow.core.enums import MarketCategory
 
 
 class League(StrEnum):
-    """League abbreviations the sports stream is documented to emit."""
+    """Sport *families* the documentation groups its status vocabularies under.
+
+    **These are not the values the feed sends.** The docs group status values by
+    family (NFL, Soccer, Tennis, ...), but ``league_abbreviation`` on the wire is a
+    league code: ``lal``, ``cfb``, ``wta``, ``grand slam``, ``cs2``, ``nor``,
+    ``cze1``. Matching an event against this enum matches nothing.
+
+    Kept only because :data:`STATUS_VALUES` below is keyed by family. Resolving a
+    league to its sport is :class:`deepflow.engines.sports.rules.SportRegistry`,
+    which knows 304 leagues and falls back to the payload's own shape.
+    """
 
     NFL = "NFL"
     NHL = "NHL"
@@ -57,6 +67,8 @@ class League(StrEnum):
 
 
 SUPPORTED_LEAGUES: Final = frozenset(League)
+"""Documented status-vocabulary families -- **not** a list of league codes. See
+:class:`League`."""
 
 #: Status vocabularies are **case-sensitive and vary by sport**. Tennis and
 #: esports use lowercase; the North American leagues use PascalCase. Comparing

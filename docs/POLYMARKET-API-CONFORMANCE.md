@@ -660,6 +660,96 @@ Two related observations from the same run:
   arithmetic, and the reason the estimate returns `None` rather than a partial walk
   when the book cannot fill the size.
 
+# Round four — the sports feed, per sport
+
+Captured live: 185 events across 22 leagues, saved to
+`tests/fixtures/sports_feed_capture.json`.
+
+## 40. The feed's eight fields mean different things per sport
+
+| sport | `score` | `period` | `elapsed` |
+|---|---|---|---|
+| soccer | `'2-0'` goals | `'1H'` | `'23'` minutes, counting **up** |
+| american football | `'0-10'` points | `'Q1'` | `'05:04'` mm:ss, counting **down** in the quarter |
+| tennis | `'2-3'` games **in the current set** | `'S1'` | absent |
+| esports | `'0-0\|0-1\|Bo5'` rounds\|maps\|format | `'2/5'` | absent |
+
+Reading any with another sport's rules gives a confident wrong answer, not an error.
+`'05:04'` as soccer minutes is 5 played and 85 left, when the truth is ~50 left.
+`'2-3'` as a tennis *set* score is a match nearly over, when it is barely begun.
+`'2-0|0-1|Bo5'` read on its first field is a player ahead, when they are behind in
+the series.
+
+Hence one rule module per sport, not one parser: `engines/sports/rules/{soccer,
+gridiron,tennis,esports}.py`, with a registry resolving league → sport.
+
+## 41. Tennis parses cleanly and is still unmodellable
+
+A `wta` match went `'2-1'` then `'2-3'` while `period` stayed `'S1'`; a
+`grand slam` match moved `S1 → S2` with the score resetting to `'0-0'`. So `score`
+is **games in the current set**, and the **set score is never transmitted**.
+
+That is disqualifying rather than degrading. A player 2-3 down in games during set
+three could be two sets up or two sets down — the same payload describes a match
+nearly won and one nearly lost. Serve, point score and match length (Bo3 vs Bo5) are
+absent too.
+
+So `MatchState` separates `blocking_gaps` from `unavailable`: soccer's missing
+stoppage widens the uncertainty band, tennis's missing set score forbids a number at
+all. `is_modellable` is False for tennis while `is_live` and both scores are present
+— which is the honest combination.
+
+## 42. Esports is better-specified than soccer
+
+`Bo5` states the series length, so the target is **known** rather than assumed, and
+maps-won is a small discrete state space. Soccer's format is fixed but its stoppage
+time is not reported at all — and at 87' an assumed 2 minutes against an actual 7
+understates the chance of an equaliser by more than a third, in exactly the window
+the late-game strategy targets.
+
+## 43. Period vocabularies resolve the sport offline
+
+The venue's league list (`get_sports()`, 465 leagues) resolves soccer, cricket and
+esports by tag id — 272 leagues learned, 304 known in total. But it is a network
+call, and without it soccer was unresolvable, which is the sport the system most
+wants to trade.
+
+Period labels turn out to be sport-specific and reliable: only soccer uses
+`1H`/`2H`/`HT`, only tennis `S1`/`TB1`, only gridiron `Q1`, only baseball `End 1`.
+That became the offline resolution tier. Result: **22/22 captured leagues resolved,
+0 unknown.**
+
+Tag ids are *not* reliable beyond three sports — `678` appears on both baseball and
+basketball leagues — so those sports are named explicitly, and an explicit mapping
+beats the venue's.
+
+## 44. Correction: the `League` enum was the wrong vocabulary
+
+`sports_feed.py` listed `NFL, NHL, MLB, NBA, CBB, CFB, Soccer, Esports, Tennis`.
+Those are the documentation's **status-vocabulary families**, not what the feed
+sends. The wire values are league codes: `lal`, `nor`, `cze1`, `wta`,
+`grand slam`, `cs2`, `lol`.
+
+The overlap is what made it subtle — `NFL`, `NBA` and `CFB` are both a family and a
+league code, so a naive match appears to work while silently missing every soccer,
+tennis and esports league.
+
+## 45. The market ↔ live-game join does not exist
+
+Two independent blockers found while trying to connect an engine to a market:
+
+- **No shared key.** The feed always carries `game_id` and never a `slug`; soccer
+  markets always carry a structured `slug` (`isp-che-pun-2026-03-22-che`) and
+  **never a `game_id`** (0 of 26 sampled). The only remaining link is fuzzy
+  team-name matching across two naming systems.
+- **No in-play window.** Across 600 open moneyline markets — 158 soccer, 144 NFL, 81
+  baseball, 31 esports, 23 cricket — **0 had a kickoff within −3h..+24h**, while the
+  feed streamed 17 live clock-running games. Exact team-name overlap between the two:
+  **0**.
+
+Also: `start_date_min`/`max` filter on the *market's* open date, not `game_start_time`,
+and 144 of 300 open moneyline markets carry no `game_start_time` at all.
+
 ---
 
 ## Confirmed correct

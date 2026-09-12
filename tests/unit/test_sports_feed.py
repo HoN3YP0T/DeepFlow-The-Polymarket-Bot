@@ -60,6 +60,22 @@ def test_possession_is_absent_outside_nfl_and_cfb() -> None:
     assert _event().turn is None
 
 
+def test_league_enum_is_families_not_league_codes() -> None:
+    """The enum holds status-vocabulary *families*, not the codes the feed sends.
+
+    The overlap is what makes this trap subtle: NFL, NBA, CFB and friends happen to
+    be both a family and a league code, so a naive match appears to work. Every
+    soccer, tennis and esports code the feed actually sends is absent -- and those
+    are 189 of the venue's 304 known leagues.
+    """
+    families = {league.value.lower() for league in League}
+    real_codes = {"lal", "nor", "cze1", "wta", "grand slam", "cs2", "lol", "dota2"}
+    assert not real_codes & families
+
+    # The misleading half, asserted so the overlap is on the record.
+    assert {"nfl", "cfb", "nba"} <= families
+
+
 def test_documented_league_coverage() -> None:
     expected = {
         League.NFL,

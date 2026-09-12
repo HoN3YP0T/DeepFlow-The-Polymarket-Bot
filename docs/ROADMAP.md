@@ -65,8 +65,12 @@ can ever trade — see `docs/POLYMARKET-API-CONFORMANCE.md` §36-38.
 10. ~~`FeatureEngine.compute` — microstructure~~ **done** — depth measured inside a
     band around the touch, never whole-book (§39); imbalance withheld when its sign
     is not robust across bands; slippage `None` rather than a partial walk
-11. `TennisEngine` first: the cleanest analytic model, so the engine
-    scaffolding gets validated against a model that can be checked exactly
+11. ~~`TennisEngine` first~~ **dropped** — tennis is the cleanest model on paper and
+    the least supported in practice: the feed sends games-in-current-set and never the
+    set score, so the same payload describes a match nearly won and one nearly lost
+    (§41). Rules parse it; `is_modellable` is False with the reason named.
+    Per-sport rule modules landed instead — soccer, gridiron, tennis, esports —
+    resolving 22/22 captured leagues (§40, §43)
 12. `FootballEngine` — the venue feed supplies score, period and clock only, so
     build the score-and-clock model first and treat xG/shots/cards as a later
     upgrade gated on a third-party feed
