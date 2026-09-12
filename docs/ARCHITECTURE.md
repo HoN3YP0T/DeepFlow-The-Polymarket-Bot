@@ -30,6 +30,13 @@ evidence that produced it.
 Arrows point at dependencies. Nothing in `core/` or `ports/` imports an adapter.
 Only `adapters/polymarket/` imports the `polymarket` SDK.
 
+One deliberate exception: `adapters/polymarket/venue.py` holds published
+exchange rules — the fee formula, the tick-size precision grid, contract
+addresses, order-lifetime minimums — and imports nothing at all. Any layer may
+import it. The fee formula is an input to expected value, and hiding it behind a
+port would have implied it is a substitutable modelling choice rather than
+arithmetic the venue fixes. See ADR-0003.
+
 ## Market lifecycle
 
 ```
@@ -40,6 +47,18 @@ DISCOVERED → CLASSIFIED → VALIDATED → MONITORED → CANDIDATE → SIGNAL
 
 Failure states: `DATA_STALE`, `MARKET_INVALID`, `EXECUTION_UNKNOWN`,
 `RECONCILIATION_REQUIRED`, `HALTED`.
+
+Two venue realities the lifecycle has to absorb (see
+`docs/POLYMARKET-API-CONFORMANCE.md` §3 and §4):
+
+- **`ORDER_PENDING` covers a venue `delayed` status.** A market with
+  `seconds_delay` accepts an order without matching it — no fills, no trade ids.
+  That is pending, not partial and not rejected. Such markets are excluded by
+  default (`max_seconds_delay = 0`).
+- **`FILLED` requires settlement, not just a match.** A matched trade progresses
+  `MATCHED → MINED → CONFIRMED` and can instead go `RETRYING` or `FAILED`, so
+  `MATCHED_UNSETTLED` sits between them. Booking a position at match time
+  produces a holding the venue does not believe in.
 
 Enforced by `core/state_machine.py`. The transition table is the single source
 of truth and the guard lives in one place, so no call site can bypass it.
@@ -121,10 +140,13 @@ market is the difference between positive and negative EV.
 | Core (state machine, sizing, gate, idempotency) | Pure unit tests, no I/O |
 | Engines | Fixture game states → expected probability bands |
 | Adapters | `respx`-mocked HTTP; recorded WebSocket frames |
+| Venue rules | Fee tables, tick grid and GTD arithmetic pinned against the published values (`test_venue.py`) |
 | Execution | Simulated venue: timeouts, partials, duplicates, rejections |
 | Recovery | Kill/restart mid-order, reconciliation divergence |
 | E2E | Full pipeline against a replayed session |
 
 Failure cases that must have tests before live: duplicate orders, partial
 fills, API timeout, WebSocket disconnect with a gap, stale data, database
-outage, process restart mid-order, reconciliation failure, extreme volatility.
+outage, process restart mid-order, reconciliation failure, extreme volatility,
+HTTP 425 during a matching-engine restart, the post-only window that follows it,
+a `delayed` order acceptance, and a matched trade that settles `FAILED`.

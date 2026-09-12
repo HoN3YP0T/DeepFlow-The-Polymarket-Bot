@@ -187,6 +187,8 @@ correctly protective gate from one that never fires.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — module map, data flow, lifecycle
 - [`docs/ADR-0001-sdk-choice.md`](docs/ADR-0001-sdk-choice.md) — why `polymarket-client`
 - [`docs/ADR-0002-market-discovery.md`](docs/ADR-0002-market-discovery.md) — the Gamma constraint
+- [`docs/ADR-0003-venue-rules-vs-thresholds.md`](docs/ADR-0003-venue-rules-vs-thresholds.md) — why exchange rules are code, not config
+- [`docs/POLYMARKET-API-CONFORMANCE.md`](docs/POLYMARKET-API-CONFORMANCE.md) — review against the published API docs, and what it changed
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — build order
 
 ## Security

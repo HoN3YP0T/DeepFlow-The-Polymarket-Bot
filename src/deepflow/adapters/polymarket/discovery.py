@@ -35,9 +35,17 @@ class SdkMarketDiscovery:
     async def list_active_markets(self, *, limit: int = 500) -> Sequence[Market]:
         """Page active, order-accepting markets and normalize them.
 
-        TODO(skeleton): call ``public.list_markets(...)`` with the SDK's
-        pagination helper, filter to ``active and not closed and
-        accepting_orders``, and map via ``mapping.to_market``.
+        TODO(skeleton): ``pages = public.list_markets(closed=False, page_size=...)``
+        -- a paginator, not a coroutine -- then ``await pages.first_page()`` or
+        ``async for market in pages.iter_items()``. ``page.next_cursor`` is an
+        opaque token to resume a later scan via ``pages.from_cursor(...)``.
+        Filter to ``active and not closed and accepting_orders and
+        enable_order_book``, and map via ``mapping.to_market``.
+
+        Useful server-side filters that save paging the whole catalogue:
+        ``sports_market_types=["moneyline"]`` (a win-probability model must not
+        be pointed at a spread or a total), plus the tag filters from
+        ``get_sports()``.
         """
         raise NotImplementedError("SdkMarketDiscovery.list_active_markets")
 

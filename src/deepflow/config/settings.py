@@ -26,7 +26,32 @@ class PolymarketSettings(BaseModel):
 
     environment: Literal["prod", "staging"] = "prod"
     private_key: SecretStr | None = None
+    """Order signer. Sufficient to sign and place orders; not sufficient for
+    gasless relayer operations."""
+
+    wallet_address: str | None = None
+    """Account wallet that holds collateral and positions.
+
+    Required rather than derived: for a Deposit, Safe or Proxy wallet the signer
+    is not the wallet, and the signature type baked into every order depends on
+    which of the four it is. Given only a key, the SDK would sign as an EOA.
+    """
+
+    wallet_type: Literal["deposit", "proxy", "safe", "eoa"] = "deposit"
+    """Deposit Wallet is the default for accounts created on or after
+    2026-05-04; Proxy and Safe are legacy. Selects the order ``signature_type``
+    (3 / 1 / 2 / 0)."""
+
+    relayer_api_key: SecretStr | None = None
+    relayer_api_key_address: str | None = None
+    """Needed for gasless approvals, redemptions, splits and merges. Without one,
+    ``ensure_allowances`` and ``redeem_positions`` cannot run even though order
+    placement works -- which surfaces as every order being rejected for
+    allowance on a fresh wallet."""
+
     funder_address: str | None = None
+    """Deprecated alias for ``wallet_address``, kept so existing .env files keep
+    working."""
     http_timeout_seconds: float = Field(default=10.0, gt=0)
     ws_ping_interval_seconds: float = Field(default=20.0, gt=0)
     ws_reconnect_base_delay_seconds: float = Field(default=1.0, gt=0)
@@ -39,8 +64,22 @@ class PolymarketSettings(BaseModel):
     allow_gamma_backed_discovery: bool = False
 
     @property
+    def account_wallet(self) -> str | None:
+        return self.wallet_address or self.funder_address
+
+    @property
     def is_authenticated(self) -> bool:
-        return self.private_key is not None and self.funder_address is not None
+        return self.private_key is not None and self.account_wallet is not None
+
+    @property
+    def can_submit_relayer_transactions(self) -> bool:
+        """Whether approvals and redemptions are reachable.
+
+        Checked separately from :attr:`is_authenticated` because the failure is
+        separate: a key-only LIVE run places orders right up until the first one
+        needs an allowance that was never granted.
+        """
+        return self.is_authenticated and self.relayer_api_key is not None
 
 
 class DatabaseSettings(BaseModel):
@@ -118,7 +157,14 @@ class Settings(BaseSettings):
             )
         if not self.polymarket.is_authenticated:
             raise LiveModeNotConfirmedError(
-                "LIVE mode requires both a Polymarket private key and a funder address"
+                "LIVE mode requires both a Polymarket private key and an account "
+                "wallet address (DEEPFLOW_POLYMARKET__WALLET_ADDRESS)"
+            )
+        if not self.polymarket.can_submit_relayer_transactions:
+            raise LiveModeNotConfirmedError(
+                "LIVE mode requires DEEPFLOW_POLYMARKET__RELAYER_API_KEY: without it "
+                "exchange approvals cannot be granted and resolved positions cannot "
+                "be redeemed"
             )
         return self
 

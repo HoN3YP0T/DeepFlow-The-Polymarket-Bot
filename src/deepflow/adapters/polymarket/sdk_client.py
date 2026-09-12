@@ -22,6 +22,22 @@ class PolymarketSession:
     Public reads work with no credentials. The secure client is only built when
     a signing key is configured -- PAPER and BACKTEST runs never need one, and
     a run that cannot sign is a run that cannot accidentally trade.
+
+    Credentials come in two tiers, and conflating them is why "it signs fine but
+    approvals fail" happens:
+
+    * ``AsyncSecureClient.create(private_key=...)`` is enough to sign and place
+      orders.
+    * Gasless relayer operations -- the four trading approvals, redemptions,
+      splits and merges -- additionally need the account **wallet address** plus a
+      Relayer or Builder API key. A signer-only client cannot submit them.
+
+    The wallet type also decides the signature type baked into every order
+    (Deposit Wallet 3, Safe 2, Proxy 1, EOA 0) and, for a Deposit Wallet, that
+    the signature is wrapped for ERC-7739. The SDK handles this, which is exactly
+    why the wallet address must be configured rather than derived: given only a
+    key, the SDK has no way to know the key is a session signer for a smart
+    wallet rather than the wallet itself.
     """
 
     def __init__(self, settings: Settings) -> None:
@@ -32,10 +48,12 @@ class PolymarketSession:
     async def start(self) -> None:
         """Construct clients.
 
-        TODO(skeleton): build ``AsyncPublicClient`` and, when credentials are
-        present, ``AsyncSecureClient.create(...)``. Left unwired so that
-        importing this module never opens a socket; the runner calls
-        ``start()`` explicitly.
+        TODO(skeleton): build ``AsyncPublicClient()`` and, when credentials are
+        present, ``await AsyncSecureClient.create(private_key=..., wallet=...)``
+        -- note ``create`` is itself awaitable on the async client. Pass the
+        relayer/builder API key when one is configured, so approvals and
+        redemptions are available. Left unwired so that importing this module
+        never opens a socket; the runner calls ``start()`` explicitly.
         """
         raise NotImplementedError("PolymarketSession.start")
 

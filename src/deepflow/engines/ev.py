@@ -14,9 +14,11 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from deepflow.adapters.polymarket import venue
 from deepflow.core.domain import (
     CostBreakdown,
     EvAssessment,
+    Market,
     MarketSnapshot,
     ProbabilityEstimate,
 )
@@ -63,6 +65,25 @@ class EvEngine:
         """Implied probability at the price we would actually transact."""
         raise NotImplementedError("EvEngine._market_probability")
 
+    @staticmethod
+    def fee_bps(market: Market, *, price: Decimal) -> Decimal:
+        """Taker fee in bps of notional for a fill at ``price``.
+
+        Implemented rather than left to the caller because it is arithmetic the
+        venue fixes, and because the sign of the mistake is always the same: a
+        system that omits it books an edge it does not have. Reads the market's
+        own schedule; a market with fees enabled but no schedule attached falls
+        back to nothing, which is the one case worth flagging upstream rather
+        than guessing a rate for.
+
+        Makers pay nothing, so a resting (``post_only``) intent carries no fee
+        term at all -- the difference is a whole cost line, not a discount.
+        """
+        if not market.fees_enabled or market.fee_schedule is None:
+            return Decimal(0)
+        schedule = market.fee_schedule
+        return venue.taker_fee_bps(price=price, rate=schedule.rate, exponent=schedule.exponent)
+
     def _costs(
         self,
         *,
@@ -77,5 +98,10 @@ class EvEngine:
         a probability we hold loosely is worth less than acting on one we hold
         tightly, and pricing that difference is what stops the system from
         trading its own noise.
+
+        TODO(skeleton): populate ``fee_bps`` from :meth:`fee_bps` at the price
+        actually crossed, then spread, slippage and the buffer. The fee is the
+        only term here that is not an estimate, so it is the one that must never
+        be left at zero.
         """
         raise NotImplementedError("EvEngine._costs")

@@ -6,6 +6,11 @@ Verified available on the SDK client (0.10.0): ``get_order_book``,
 ``get_order_books``, ``get_midpoint(s)``, ``get_price(s)``, ``get_spread(s)``,
 ``get_last_trade_price(s)``, ``estimate_market_price``.
 
+The book response is also where the authoritative *trading constraints* live --
+``tick_size``, ``min_order_size`` and ``neg_risk`` come back alongside the
+levels. ``neg_risk`` in particular is a signing input (it selects the EIP-712
+verifying contract), so it is read from here rather than inferred.
+
 REST is the cross-check, not the primary feed. The stream drives trading; these
 calls prime state on startup and re-anchor it after a reconnect, because a
 stream that reconnected may have missed the update that moved the book.
@@ -45,9 +50,7 @@ class ClobMarketData:
     ) -> Sequence[PublicTrade]:
         raise NotImplementedError("ClobMarketData.get_last_trades")
 
-    async def estimate_fill_price(
-        self, token_id: ClobTokenId, *, size_shares: object
-    ) -> object:
+    async def estimate_fill_price(self, token_id: ClobTokenId, *, size_shares: object) -> object:
         """Walk the book for an expected fill price.
 
         Backs the slippage term in the EV calculation. The SDK exposes

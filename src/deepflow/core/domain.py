@@ -23,6 +23,7 @@ from deepflow.core.enums import (
     OutcomeSide,
     ResolutionValidity,
     SignalAction,
+    TimeInForce,
 )
 from deepflow.core.types import (
     ClientOrderKey,
@@ -54,6 +55,27 @@ class Outcome(Frozen):
     """Set when the outcome maps cleanly onto binary YES/NO."""
 
 
+class FeeSchedule(Frozen):
+    """A market's fee parameters, as the venue reports them.
+
+    Read from the market rather than inferred from its category. The published
+    per-category table (see ``adapters.polymarket.venue``) is a planning
+    fallback; a recategorised market will disagree with it, and the market is
+    authoritative.
+    """
+
+    rate: Decimal = Field(ge=0)
+    """Base taker rate, e.g. 0.04."""
+    exponent: Decimal = Decimal(1)
+    """Exponent on the ``p * (1 - p)`` price component."""
+    taker_only: bool = True
+    """Makers are never charged on Polymarket."""
+    rebate_rate: Decimal = Decimal(0)
+    """Maker rebate as a fraction of the taker fee. Income for resting orders,
+    not a cost -- excluded from :class:`CostBreakdown` and relevant only if this
+    system ever quotes rather than takes."""
+
+
 class Market(Frozen):
     """A normalized market as discovered, before any pricing is attached."""
 
@@ -70,8 +92,38 @@ class Market(Frozen):
     resolution_source: str | None = None
     resolution_text: str | None = None
     minimum_tick_size: Decimal | None = None
+    """Minimum price increment. Changes at runtime -- the market stream emits
+    ``tick_size_change`` -- and an order priced off a stale value is rejected,
+    so a stored tick size must be refreshed from that event rather than cached
+    for the life of the market."""
     minimum_order_size: Decimal | None = None
+    """Venue-documented as a minimum *collateral notional* per order, not a
+    share count. Sizing must therefore check ``shares * price``; comparing a
+    share quantity against it passes the check at 0.95 and fails it at 0.05."""
     negative_risk: bool = False
+    """Member of a negative-risk group. Selects the exchange contract used as
+    the EIP-712 verifying contract, so it is a signing input, not a label."""
+    enable_order_book: bool = True
+    """A market can exist and be discoverable before its book opens."""
+
+    fees_enabled: bool = False
+    fee_schedule: FeeSchedule | None = None
+    """``None`` means unknown, not free. Only geopolitics markets are documented
+    as genuinely fee-free; everything else charges the taker."""
+
+    seconds_delay: int = 0
+    """Venue-imposed matching delay. A submitted order comes back ``delayed``
+    rather than ``matched``, with no fills and no trade ids. On such a market an
+    entry cannot be confirmed inside a short order timeout, which makes it
+    incompatible with a strategy whose edge decays in seconds."""
+
+    game_start_time: datetime | None = None
+    """Scheduled start, for sports markets."""
+
+    sports_market_type: str | None = None
+    """``moneyline`` / ``spreads`` / ``totals``. A win-probability model applies
+    only to a moneyline; pointing it at a spread or a total prices the wrong
+    question with an answer that looks plausible."""
 
     def outcome_for(self, token_id: ClobTokenId) -> Outcome | None:
         return next((o for o in self.outcomes if o.token_id == token_id), None)
@@ -238,7 +290,13 @@ class ProbabilityEstimate(Frozen):
 
 
 class CostBreakdown(Frozen):
-    """Every cost between a quoted edge and a realized one."""
+    """Every cost between a quoted edge and a realized one.
+
+    All terms are basis points of notional so they sum. The fee term is the one
+    the venue fixes for us: it is ``rate * (1 - p)`` in bps at the documented
+    exponent of 1, which means it *grows* as a fraction of the entry as the
+    price falls, even though the collateral fee is symmetric about 0.50.
+    """
 
     fee_bps: Decimal = Decimal(0)
     spread_cost_bps: Decimal = Decimal(0)
@@ -247,9 +305,7 @@ class CostBreakdown(Frozen):
 
     @property
     def total_bps(self) -> Decimal:
-        return (
-            self.fee_bps + self.spread_cost_bps + self.slippage_bps + self.uncertainty_buffer_bps
-        )
+        return self.fee_bps + self.spread_cost_bps + self.slippage_bps + self.uncertainty_buffer_bps
 
 
 class EvAssessment(Frozen):
@@ -346,6 +402,22 @@ class OrderIntent(Frozen):
     limit_price: Decimal
     max_slippage_bps: Decimal
     expires_at: datetime | None = None
+    """Only meaningful for a GTD order, and the venue's minimum applies: an
+    expiry under ~2 minutes away is not expressible. Short working orders leave
+    this ``None`` and are cancelled client-side."""
+
+    time_in_force: TimeInForce = TimeInForce.GTC
+    post_only: bool = False
+    """Reject rather than take if the order would cross. Required during the
+    two-minute post-only window after a matching-engine restart, and the only
+    way to guarantee maker treatment (and so a zero fee)."""
+
+    max_spend: Decimal | None = None
+    """All-in collateral cap for a BUY, fees included.
+
+    A market BUY's amount is the *pre-fee* notional, with taker fees charged on
+    top. Without this cap a position sized to the last cent of available
+    collateral fails on balance, because the fee was never in the budget."""
 
 
 class OrderRecord(Frozen):

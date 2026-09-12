@@ -50,6 +50,14 @@ class OrderSide(StrEnum):
 
 
 class OrderType(StrEnum):
+    """DeepFlow's *intent* vocabulary, which is narrower than the venue's.
+
+    Mapped onto venue order types in ``adapters.polymarket.execution``:
+    ``LIMIT`` -> a GTC limit, ``MARKETABLE_LIMIT`` -> a limit priced through the
+    book (still a limit, so the worst price is bounded), ``MARKET`` -> a venue
+    market order with ``FAK``/``FOK``.
+    """
+
     LIMIT = "LIMIT"
     """Passive limit, rests on the book."""
     MARKETABLE_LIMIT = "MARKETABLE_LIMIT"
@@ -60,9 +68,38 @@ class OrderType(StrEnum):
     exit on a genuine state change)."""
 
 
+class TimeInForce(StrEnum):
+    """Venue order lifetimes.
+
+    ``GTD`` is not usable for short-lived working orders: the venue requires the
+    expiration to be at least three minutes out and expires the order a minute
+    early, so the shortest expressible lifetime is about two minutes. A 10-second
+    working order is ``GTC`` plus a client-side cancel. See
+    ``adapters.polymarket.venue.gtd_expiration``.
+    """
+
+    GTC = "GTC"
+    """Good till cancelled."""
+    GTD = "GTD"
+    """Good till date. Minimum ~2 minutes of effective life."""
+    FAK = "FAK"
+    """Fill and kill. Takes what is available, cancels the remainder. The venue
+    default for market orders."""
+    FOK = "FOK"
+    """Fill or kill. All of it immediately, or none of it."""
+
+
 class OrderStatus(StrEnum):
     PENDING_NEW = "PENDING_NEW"
     OPEN = "OPEN"
+    DELAYED = "DELAYED"
+    """Accepted by the venue but not yet matched, because the market imposes a
+    matching delay (``market.trading.seconds_delay``). Filled amounts are zero
+    and no trade ids exist yet, so this is a *pending* order and must not be
+    read as a partial fill or as a rejection. Common on sports markets."""
+    MATCHED_UNSETTLED = "MATCHED_UNSETTLED"
+    """Matched, but settlement has not confirmed on chain. The position is
+    probable, not real: a matched trade can still end up FAILED."""
     PARTIALLY_FILLED = "PARTIALLY_FILLED"
     FILLED = "FILLED"
     CANCELLED = "CANCELLED"
@@ -70,6 +107,31 @@ class OrderStatus(StrEnum):
     UNKNOWN = "UNKNOWN"
     """Submission outcome indeterminate. Must be resolved by reconciliation
     before any retry -- never re-send an order in this state."""
+
+
+class TradeSettlementStatus(StrEnum):
+    """On-chain settlement lifecycle of a fill, from the user stream.
+
+    Kept distinct from :class:`OrderStatus` because the two answer different
+    questions: the order status says whether the venue accepted and matched us,
+    while this says whether the resulting transfer actually happened. Only
+    ``CONFIRMED`` justifies treating a position as settled.
+    """
+
+    MATCHED = "MATCHED"
+    MATCHED_NOT_BROADCASTED = "MATCHED_NOT_BROADCASTED"
+    MINED = "MINED"
+    CONFIRMED = "CONFIRMED"
+    RETRYING = "RETRYING"
+    FAILED = "FAILED"
+
+    @property
+    def is_terminal(self) -> bool:
+        return self in (TradeSettlementStatus.CONFIRMED, TradeSettlementStatus.FAILED)
+
+    @property
+    def is_settled(self) -> bool:
+        return self is TradeSettlementStatus.CONFIRMED
 
 
 class ResolutionValidity(StrEnum):
@@ -118,6 +180,10 @@ class BreakerReason(StrEnum):
     EXCESSIVE_DRAWDOWN = auto()
     ABNORMAL_MARKET_BEHAVIOUR = auto()
     MANUAL_HALT = auto()
+    SETTLEMENT_FAILURE = auto()
+    """A matched trade failed to settle on chain. Distinct from an execution
+    error: the venue accepted and matched the order, so retrying the submission
+    is exactly the wrong response."""
 
 
 class ComponentHealth(StrEnum):

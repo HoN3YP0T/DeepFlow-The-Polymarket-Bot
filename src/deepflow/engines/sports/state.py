@@ -7,6 +7,21 @@ and state interpretation (the model) fail differently and are tested apart.
 Every field is optional. Live feeds drop fields, and a missing red-card count
 must read as "unknown", not as "zero" -- the difference decides whether the
 model abstains or trades.
+
+**Provenance warning.** Polymarket's sports stream supplies only a small subset
+of what is modelled here: a combined score string, period, elapsed clock, status,
+and possession for NFL/CFB. Everything else -- xG, shots, cards, possession
+percentage, server, wickets, rally streaks -- must come from a third-party
+provider. Two consequences:
+
+* a field left ``None`` because nobody wired a provider is indistinguishable, to
+  the model, from a field the feed happened to drop, and both produce an
+  abstention. The models will therefore abstain permanently on the venue feed
+  alone, which is correct but is a procurement gap, not a bug to fix in code.
+* cricket and badminton are absent from the venue feed entirely.
+
+See :mod:`deepflow.adapters.polymarket.sports_feed` for the exact wire payload
+and the documented league list.
 """
 
 from __future__ import annotations
@@ -61,7 +76,10 @@ class FootballState(GameState):
 
 
 class CricketState(GameState):
-    """Section 6, cricket."""
+    """Section 6, cricket.
+
+    No venue-native source. Every field here requires an external provider.
+    """
 
     match_format: str | None = None
     """TEST / ODI / T20. Changes the model entirely, not just its parameters."""
@@ -104,7 +122,10 @@ class TennisState(GameState):
 
 
 class BadmintonState(GameState):
-    """Section 6, badminton."""
+    """Section 6, badminton.
+
+    No venue-native source. Every field here requires an external provider.
+    """
 
     games_home: int | None = None
     games_away: int | None = None

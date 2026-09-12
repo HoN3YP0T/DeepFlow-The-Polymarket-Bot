@@ -47,6 +47,12 @@ class StrategyThresholds(BaseModel):
     """Model probability must exceed market probability by at least this much."""
     min_net_ev: Decimal = Field(default=Decimal("0.005"), ge=0)
     min_liquidity_usdc: Decimal = Field(default=Decimal(5000), ge=0)
+    """Collateral is pUSD, not USDC; the name is kept for continuity."""
+    require_moneyline: bool = True
+    """Sports markets also list spreads and totals. A win-probability model
+    applied to a spread or an over/under prices a different question and returns
+    a plausible-looking answer, so the market type is checked rather than
+    assumed. Filterable at discovery via ``sports_market_types``."""
     max_spread_bps: Decimal = Field(default=Decimal(150), ge=0)
     max_slippage_bps: Decimal = Field(default=Decimal(100), ge=0)
     max_data_age_seconds: float = Field(default=5.0, gt=0)
@@ -54,7 +60,22 @@ class StrategyThresholds(BaseModel):
 
 
 class SportsThresholds(BaseModel):
-    """Section 7 candidate zones. Ranges, not buy conditions."""
+    """Section 7 candidate zones. Ranges, not buy conditions.
+
+    Data-availability caveat, which the bands cannot express: Polymarket's own
+    sports feed covers NFL, NHL, MLB, NBA, CBB, CFB, Soccer, Esports and Tennis,
+    and carries only score / period / elapsed / status (plus possession for NFL
+    and CFB). So:
+
+    * ``football`` and ``tennis`` have a venue-native state feed, but a
+      score-and-clock one -- no xG, shots, cards, or server. The richer
+      ``FootballState`` / ``TennisState`` fields need a third-party provider.
+    * ``cricket`` and ``badminton`` have **no** venue-native feed at all. Their
+      engines stay disabled until an external state source is wired in;
+      enabling them without one yields a permanent abstention at best.
+
+    See :mod:`deepflow.adapters.polymarket.sports_feed`.
+    """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -64,12 +85,14 @@ class SportsThresholds(BaseModel):
     cricket: StrategyThresholds = StrategyThresholds(
         candidate_band=ProbabilityBand(low=Decimal("0.80"), high=Decimal("0.98"))
     )
+    """Requires an external state feed. No venue-native source."""
     tennis: StrategyThresholds = StrategyThresholds(
         candidate_band=ProbabilityBand(low=Decimal("0.85"), high=Decimal("0.98"))
     )
     badminton: StrategyThresholds = StrategyThresholds(
         candidate_band=ProbabilityBand(low=Decimal("0.85"), high=Decimal("0.98"))
     )
+    """Requires an external state feed. No venue-native source."""
 
 
 class LateGameThresholds(BaseModel):
@@ -168,12 +191,46 @@ class ExecutionThresholds(BaseModel):
 
     default_order_type_is_marketable_limit: bool = True
     order_timeout_seconds: float = Field(default=10.0, gt=0)
+    """Client-side timeout, enforced by cancelling. It cannot be delegated to a
+    GTD expiry: the venue requires an expiration at least 3 minutes out and
+    expires the order a minute early, so ~2 minutes is the shortest GTD life
+    available. Anything shorter is GTC plus our own cancel."""
     max_reprice_attempts: int = Field(default=3, ge=0)
     reprice_interval_seconds: float = Field(default=2.0, gt=0)
     max_submit_retries: int = Field(default=2, ge=0)
     """Only ever applied to errors proven not to have executed."""
     allow_market_orders: bool = False
     max_consecutive_execution_errors: int = Field(default=5, ge=1)
+
+    max_seconds_delay: int = Field(default=0, ge=0)
+    """Refuse markets whose venue-imposed matching delay
+    (``market.trading.seconds_delay``) exceeds this.
+
+    Zero by default, which excludes delayed-matching markets entirely. On such a
+    market an order is accepted as ``delayed`` with no fill and no trade id, so
+    every entry outlives ``order_timeout_seconds`` and every fill arrives after
+    the edge it was priced on has gone. Raising this is a deliberate choice to
+    trade blind through the delay window."""
+
+    require_order_heartbeat: bool = True
+    """Arm the venue-side dead-man's switch, which cancels our resting orders if
+    no heartbeat arrives within 10 seconds.
+
+    On by default because it is the only protection that survives this process
+    dying: every circuit breaker here assumes a live supervisor, and a crashed
+    bot otherwise leaves orders resting with nothing watching them."""
+
+    engine_restart_backoff_base_seconds: float = Field(default=2.0, gt=0)
+    engine_restart_max_wait_seconds: float = Field(default=180.0, gt=0)
+    """HTTP 425 is an announced maintenance restart, not a fault. Wait it out
+    rather than tripping the API_FAILURE breaker; expect a further 2-minute
+    post-only window once orders are accepted again."""
+
+    fail_closed_on_unknown_fee_schedule: bool = True
+    """Refuse to trade a market flagged ``fees_enabled`` whose fee schedule did
+    not come through. The unknown is always in one direction -- an unpriced
+    taker fee makes net EV look better than it is -- and in the 0.85-0.98 band
+    the fee is a material fraction of the whole edge."""
 
 
 class CircuitBreakerThresholds(BaseModel):
@@ -182,6 +239,10 @@ class CircuitBreakerThresholds(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     max_data_age_seconds: float = Field(default=10.0, gt=0)
+    max_settlement_failures_per_hour: int = Field(default=1, ge=0)
+    """A matched trade that fails to settle on chain means local state and the
+    venue's disagree about a position we thought was confirmed. One is enough to
+    stop and look."""
     max_websocket_reconnects_per_hour: int = Field(default=20, ge=1)
     max_api_error_rate: Decimal = Field(default=Decimal("0.20"), ge=0, le=1)
     abnormal_slippage_bps: Decimal = Field(default=Decimal(300), gt=0)
