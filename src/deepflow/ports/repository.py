@@ -7,11 +7,13 @@ from typing import Any, Protocol, runtime_checkable
 
 from deepflow.core.domain import (
     Market,
+    MarketSnapshot,
+    OrderIntent,
     OrderRecord,
     Position,
     Signal,
 )
-from deepflow.core.types import ClientOrderKey, ConditionId, PositionId
+from deepflow.core.types import ClientOrderKey, ClobTokenId, ConditionId, PositionId
 
 
 @runtime_checkable
@@ -22,8 +24,43 @@ class MarketRepository(Protocol):
 
 
 @runtime_checkable
+class SnapshotRepository(Protocol):
+    """Time-series writes for market state.
+
+    Separate from :class:`MarketRepository` because the access patterns differ
+    completely: markets are a small mutable set read by key, snapshots are an
+    append-only stream written continuously and read by time range. Sharing one
+    repository would mean one set of indexes serving both badly.
+    """
+
+    async def record(self, snapshot: MarketSnapshot) -> int:
+        """Persist one snapshot, returning the number of rows written.
+
+        A snapshot holds a book per outcome token, so one call writes several
+        rows -- the count is returned rather than assumed, since a book that
+        could not be priced writes nothing.
+        """
+        ...
+
+    async def latest(self, token_id: ClobTokenId) -> dict[str, Any] | None: ...
+
+
+@runtime_checkable
 class OrderRepository(Protocol):
-    async def record(self, order: OrderRecord) -> None: ...
+    async def record(
+        self, order: OrderRecord, *, intent: OrderIntent | None = None, run_mode: str = ""
+    ) -> None:
+        """Persist an order's observed state.
+
+        ``intent`` is required the first time a client key is written and ignored
+        afterwards. :class:`OrderRecord` describes what the venue told us -- status,
+        fills, errors -- and deliberately carries none of the trade's identity:
+        which token, which side, what size, what price. Those come from the intent,
+        which is immutable, so a later status update cannot silently rewrite what
+        the order was for.
+        """
+        ...
+
     async def get_by_client_key(self, key: ClientOrderKey) -> OrderRecord | None: ...
     async def list_unresolved(self) -> Sequence[OrderRecord]:
         """Orders in PENDING_NEW/OPEN/UNKNOWN. Drives startup reconciliation."""
@@ -59,6 +96,7 @@ class UnitOfWork(Protocol):
     """
 
     markets: MarketRepository
+    snapshots: SnapshotRepository
     orders: OrderRepository
     positions: PositionRepository
     journal: JournalRepository

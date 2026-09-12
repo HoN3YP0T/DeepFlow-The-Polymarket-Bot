@@ -21,7 +21,11 @@ SDK signatures both hid — see `docs/POLYMARKET-API-CONFORMANCE.md` §20-21.
 5. ~~`FeatureEngine.assess_quality` — freshness before anything trades on it~~
    **done** — freshness is feed liveness, not last change (§27); consistency
    checked before age; a future timestamp is inconsistent, never fresh
-6. Repositories + Alembic migrations
+6. ~~Repositories + Alembic migrations~~ **done** — markets, snapshots and orders
+   implemented and verified against real PostgreSQL; composite primary keys so the
+   time-series tables can actually become hypertables (§28); conditional Timescale
+   conversion so one migration serves plain PG and Timescale alike. Positions and
+   the journal stay stubbed until the phases that write them
 
 **Done when:** the system discovers markets, streams books, persists snapshots,
 and correctly reports stale data. No trading logic yet.

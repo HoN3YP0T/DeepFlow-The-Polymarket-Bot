@@ -7,6 +7,10 @@ install:
 test:
 	.venv/bin/pytest
 
+## Integration tests only. Needs a database; see DEEPFLOW_TEST_DSN.
+test-integration:
+	.venv/bin/pytest tests/integration -v
+
 lint:
 	.venv/bin/ruff check src tests
 

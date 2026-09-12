@@ -4,6 +4,10 @@ Design notes:
 
 * Time-series tables (``market_snapshots``, ``smart_money_events``) are the
   TimescaleDB hypertable candidates -- see ``migrations/`` for the conversion.
+  Both carry a **composite primary key including their time column**, because
+  TimescaleDB refuses to convert a table whose unique indexes omit the
+  partitioning column. Getting this wrong is only discovered at conversion time,
+  by which point the table has data in it.
 * ``orders.client_key`` is UNIQUE. Idempotency is enforced by the database, not
   by application-level checking, because the check-then-act version has a race
   that produces exactly the duplicate order it was meant to prevent.
@@ -18,9 +22,11 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     DateTime,
     ForeignKey,
+    Identity,
     Index,
     Integer,
     Numeric,
@@ -59,11 +65,21 @@ class MarketRow(Base):
 
 
 class MarketSnapshotRow(Base):
-    """Time series. Hypertable on ``captured_at``."""
+    """Time series. Hypertable on ``captured_at``.
+
+    The primary key is ``(id, captured_at)``, not ``id`` alone. TimescaleDB
+    refuses to convert a table whose unique indexes do not include the
+    partitioning column -- a surrogate key by itself cannot be enforced across
+    chunks. Discovering that at conversion time would mean migrating a populated
+    table, so the composite key is here from the first migration.
+
+    ``BigInteger`` for the same reason: a per-token snapshot stream fills an
+    int32 far sooner than anyone expects to revisit the schema.
+    """
 
     __tablename__ = "market_snapshots"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     condition_id: Mapped[str] = mapped_column(String(80), index=True)
     token_id: Mapped[str] = mapped_column(String(80), index=True)
     best_bid: Mapped[Decimal | None] = mapped_column(_MONEY)
@@ -74,10 +90,17 @@ class MarketSnapshotRow(Base):
     volume_24h: Mapped[Decimal | None] = mapped_column(_MONEY)
     book_imbalance: Mapped[Decimal | None] = mapped_column(Numeric(12, 8))
     flow_imbalance: Mapped[Decimal | None] = mapped_column(Numeric(12, 8))
-    data_quality: Mapped[str] = mapped_column(String(16))
-    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    data_quality: Mapped[str] = mapped_column(String(16), index=True)
+    captured_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), primary_key=True, index=True
+    )
 
-    __table_args__ = (Index("ix_snapshot_token_time", "token_id", "captured_at"),)
+    __table_args__ = (
+        # Descending time, because every query on this table asks for the most
+        # recent rows for a token. An ascending index makes the planner walk the
+        # whole partition backwards for "latest snapshot".
+        Index("ix_snapshot_token_time", "token_id", captured_at.desc()),
+    )
 
 
 class SignalRow(Base):
@@ -159,7 +182,7 @@ class SmartMoneyEventRow(Base):
 
     __tablename__ = "smart_money_events"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     wallet: Mapped[str] = mapped_column(String(64), index=True)
     condition_id: Mapped[str] = mapped_column(String(80), index=True)
     token_id: Mapped[str] = mapped_column(String(80))
@@ -168,7 +191,9 @@ class SmartMoneyEventRow(Base):
     entry_price: Mapped[Decimal] = mapped_column(_MONEY)
     market_probability_at_entry: Mapped[Decimal] = mapped_column(_PROB)
     is_exit: Mapped[bool] = mapped_column(Boolean, default=False)
-    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    observed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), primary_key=True, index=True
+    )
 
 
 class JournalRow(Base):

@@ -464,6 +464,39 @@ Recorded here rather than in a commit message alone because it is the kind of
 error a later refactor would reintroduce — `updated_at` is the obvious field to
 reach for, and it is wrong.
 
+## 28. Ours: the snapshot tables could not have become hypertables
+
+`market_snapshots` and `smart_money_events` each had a surrogate `id` as sole
+primary key. TimescaleDB **refuses to convert a table whose unique indexes omit
+the partitioning column** — a surrogate key cannot be enforced across chunks. The
+conversion would have failed the first time it ran, in production, against
+populated tables.
+
+Both now carry composite primary keys — `(id, captured_at)` and
+`(id, observed_at)` — set in the *initial* migration, where it costs nothing.
+
+Caveat stated plainly: this comes from Timescale's documented requirement, not
+from a local reproduction. TimescaleDB is not installable in this container, so
+the conversion path itself remains unproven until it runs against the Timescale
+image. CI now uses `timescale/timescaledb:latest-pg16` so the next push exercises
+it.
+
+## 29. Ours: `OrderRepository.record(order)` could not write a row
+
+`OrderRecord` carries what the venue told us — status, fills, errors — and
+deliberately none of the trade's identity: no token, side, size, or price.
+`OrderRow` requires all of those, `NOT NULL`. The port as specified was
+unimplementable without inventing values.
+
+The fix keeps the asymmetry rather than erasing it: `record(order, *, intent,
+run_mode)`, where the intent is required on first write and ignored afterwards. An
+intent does not change, so a later status update cannot silently rewrite what the
+order was for — and a status update (a fill arriving on the user stream) genuinely
+has no intent to hand over, so it reads the existing row instead. A new row
+without an intent raises, because an order nobody can attribute to a token and
+size is unreconcilable against the venue, which is the one thing the table exists
+to support.
+
 ## Confirmed correct
 
 Worth recording, since these were guesses that happened to be right:

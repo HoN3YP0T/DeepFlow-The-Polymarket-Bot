@@ -7,6 +7,28 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+
+    # The integration suite skips cleanly without a database, but skipping is not
+    # verification: the constraints it checks -- a UNIQUE actually rejecting a
+    # duplicate, an upsert actually being atomic -- are properties of PostgreSQL,
+    # and asserting them against a stub proves only that the stub agrees.
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg16
+        env:
+          POSTGRES_USER: deepflow
+          POSTGRES_PASSWORD: deepflow
+          POSTGRES_DB: deepflow_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U deepflow"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DEEPFLOW_TEST_DSN: postgresql+asyncpg://deepflow:deepflow@127.0.0.1:5432/deepflow_test
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -17,3 +39,15 @@ jobs:
       - run: ruff check src tests
       - run: mypy
       - run: pytest -q
+
+      # Applying the migrations is a separate check from the ORM metadata the
+      # tests use. create_all() and alembic upgrade can drift apart silently, and
+      # only the migration path is what production runs. On the Timescale image
+      # this also exercises the hypertable conversion, which plain PostgreSQL
+      # skips.
+      - name: migrations apply from scratch
+        env:
+          DEEPFLOW_DATABASE__DSN: postgresql+asyncpg://deepflow:deepflow@127.0.0.1:5432/deepflow
+        run: |
+          psql "postgresql://deepflow:deepflow@127.0.0.1:5432/postgres" -c "create database deepflow" || true
+          alembic upgrade head
