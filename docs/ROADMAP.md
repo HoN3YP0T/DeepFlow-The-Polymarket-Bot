@@ -4,8 +4,14 @@ The skeleton is step 0. Each step below is independently testable, and the
 ordering is a dependency order — nothing here is optional scaffolding.
 
 ## Phase 1 — Data spine
-1. `PolymarketSession` — client construction, auth, lifecycle
-2. `mapping.py` — SDK → domain, against real payloads
+
+Verified vertical slice first (`scripts/verify_slice.py`): session → discovery →
+mapping → book, run against the live venue. It caught two things the docs and the
+SDK signatures both hid — see `docs/POLYMARKET-API-CONFORMANCE.md` §20-21.
+
+1. ~~`PolymarketSession` — client construction, auth, lifecycle~~ **done**
+2. ~~`mapping.py` — SDK → domain, against real payloads~~ **done** (real payloads
+   recorded in `tests/fixtures/polymarket_payloads.json`)
 3. `SdkMarketDiscovery`, `ClobMarketData`
 4. `PolymarketStreams` — reconnection with explicit gap markers
 5. `FeatureEngine.assess_quality` — freshness before anything trades on it

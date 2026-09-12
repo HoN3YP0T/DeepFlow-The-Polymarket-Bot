@@ -1,0 +1,204 @@
+{
+  "book": {
+    "asks": [
+      {
+        "price": "0.999",
+        "size": "2177631.54"
+      },
+      {
+        "price": "0.998",
+        "size": "876384.7"
+      },
+      {
+        "price": "0.997",
+        "size": "71795.97"
+      },
+      {
+        "price": "0.043",
+        "size": "26315.15"
+      },
+      {
+        "price": "0.042",
+        "size": "23156.22"
+      },
+      {
+        "price": "0.041",
+        "size": "1156.72"
+      }
+    ],
+    "asset_id": "32338220190071351435772801779725302244575775216413325951443816017994629993401",
+    "bids": [
+      {
+        "price": "0.001",
+        "size": "10466175.68"
+      },
+      {
+        "price": "0.002",
+        "size": "2225828.6"
+      },
+      {
+        "price": "0.003",
+        "size": "125378.99"
+      },
+      {
+        "price": "0.038",
+        "size": "1492"
+      },
+      {
+        "price": "0.039",
+        "size": "2174.31"
+      },
+      {
+        "price": "0.04",
+        "size": "1121.17"
+      }
+    ],
+    "condition_id": "0xa467b14d51f01b957109d9cbb1d6c124fab2a089d52ed8f471d23c2812e743b7",
+    "hash": "28654744e2428ccf0a2cd26490b047cddc334e07",
+    "last_trade_price": "0.959",
+    "market": "0xa467b14d51f01b957109d9cbb1d6c124fab2a089d52ed8f471d23c2812e743b7",
+    "min_order_size": "5",
+    "neg_risk": false,
+    "tick_size": "0.001",
+    "timestamp": "2026-09-12T05:38:47.949000Z",
+    "token_id": "32338220190071351435772801779725302244575775216413325951443816017994629993401"
+  },
+  "market": {
+    "category": null,
+    "condition_id": "0xa467b14d51f01b957109d9cbb1d6c124fab2a089d52ed8f471d23c2812e743b7",
+    "description": "This market will resolve to \"Yes\" if China's General Secretary of the Communist Party, Xi Jinping, is removed from power for any length of time between July 3, 2025, and December 31, 2026, 11:59 PM ET. Otherwise, this market will resolve to \"No\".\n\nCCP General Secretary Xi Jinping will be considered removed from power if he announces his resignation from his role as General Secretary, or is otherwise dismissed, detained, disqualified, or otherwise loses his position or is prevented from fulfilling his duties as General Secretary within this market's timeframe.\n\nThe primary resolution source for this market will be a consensus of credible reporting.",
+    "events": [
+      {
+        "id": "30828",
+        "slug": "xi-jinping-out-before-2027",
+        "title": "Xi Jinping out before 2027?"
+      }
+    ],
+    "group_item_title": "",
+    "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/xi-jinping-out-in-2025-EjF4SM20eaa3.jpg",
+    "id": "559651",
+    "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/xi-jinping-out-in-2025-EjF4SM20eaa3.jpg",
+    "metrics": {
+      "liquidity": "233196.71558",
+      "liquidity_clob": "233196.71558",
+      "liquidity_num": "233196.71558",
+      "volume": "13166177.401840989",
+      "volume_1mo": "1142891.4240520003",
+      "volume_1wk": "186999.12943700008",
+      "volume_1yr": "11884341.207003005",
+      "volume_24hr": "14970.073118000004",
+      "volume_amm": null,
+      "volume_clob": "13166177.401840989",
+      "volume_num": "13166177.401840989"
+    },
+    "outcomes": {
+      "no": {
+        "label": "No",
+        "position_id": "895257453734540292493143124621755605615887197499956109032745153687078305793",
+        "price": "0.9595",
+        "token_id": "25659310674993675562345759665114759892400026242514633218387667107987341231962"
+      },
+      "yes": {
+        "label": "Yes",
+        "position_id": "895257453734540292493143124621755605615887197499956109032745153687078305792",
+        "price": "0.0405",
+        "token_id": "32338220190071351435772801779725302244575775216413325951443816017994629993401"
+      }
+    },
+    "position_ids": [
+      "895257453734540292493143124621755605615887197499956109032745153687078305792",
+      "895257453734540292493143124621755605615887197499956109032745153687078305793"
+    ],
+    "prices": {
+      "best_ask": "0.041",
+      "best_bid": "0.04",
+      "last_trade_price": "0.04",
+      "one_day_price_change": "0.002",
+      "one_hour_price_change": null,
+      "one_month_price_change": "-0.006",
+      "one_week_price_change": "-0.007",
+      "one_year_price_change": "-0.0945",
+      "spread": "0.001"
+    },
+    "question": "Xi Jinping out before 2027?",
+    "resolution": {
+      "neg_risk_request_id": null,
+      "question_id": "0x1d925c6933062c2e38031293612d8680ffa097c5d3ba2f87a8ecc565bd47183e",
+      "resolved_by": "0x157Ce2d672854c848c9b79C49a8Cc6cc89176a49",
+      "source": "",
+      "uma_resolution_status": null
+    },
+    "rewards": {
+      "clob_rewards": [
+        {
+          "asset_address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+          "condition_id": "0xa467b14d51f01b957109d9cbb1d6c124fab2a089d52ed8f471d23c2812e743b7",
+          "end_date": "2500-12-31",
+          "id": "303430",
+          "rewards_amount": "0",
+          "rewards_daily_rate": "10",
+          "start_date": "2026-04-30"
+        }
+      ],
+      "holding_rewards_enabled": true,
+      "rewards_max_spread": 3.5,
+      "rewards_min_size": "200"
+    },
+    "slug": "xi-jinping-out-before-2027",
+    "sports": {
+      "game_id": null,
+      "game_start_time": null,
+      "line": null,
+      "sports_market_type": null
+    },
+    "state": {
+      "accepting_orders": true,
+      "active": true,
+      "archived": false,
+      "closed": false,
+      "closed_time": null,
+      "combo_status": "pending",
+      "enable_order_book": true,
+      "end_date": "2027-01-01T04:59:00Z",
+      "neg_risk": false,
+      "start_date": "2025-07-03T20:37:00.228000Z"
+    },
+    "tags": [],
+    "trading": {
+      "fee_schedule": {
+        "exponent": 1,
+        "rate": "0.04",
+        "rebate_rate": "0.25",
+        "taker_only": true
+      },
+      "fee_type": "politics_fees",
+      "fees_enabled": true,
+      "minimum_order_size": "5",
+      "minimum_tick_size": "0.001",
+      "seconds_delay": null
+    },
+    "version": "v1"
+  },
+  "trade": {
+    "asset_id": "25659310674993675562345759665114759892400026242514633218387667107987341231962",
+    "bio": null,
+    "condition_id": "0xa467b14d51f01b957109d9cbb1d6c124fab2a089d52ed8f471d23c2812e743b7",
+    "event_slug": "xi-jinping-out-before-2027",
+    "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/xi-jinping-out-in-2025-EjF4SM20eaa3.jpg",
+    "name": "0Emb3r9X",
+    "outcome": "No",
+    "outcome_index": 1,
+    "price": "0.959",
+    "profile_image": null,
+    "profile_image_optimized": null,
+    "pseudonym": "Imperturbable-Pressurization",
+    "side": "SELL",
+    "size": "3.47",
+    "slug": "xi-jinping-out-before-2027",
+    "timestamp": "2026-09-12T05:06:48Z",
+    "title": "Xi Jinping out before 2027?",
+    "token_id": "25659310674993675562345759665114759892400026242514633218387667107987341231962",
+    "transaction_hash": "0xa7517bd7fd2f9e42b505bc97d9df10c22075037d6de14143b1a606ad51954065",
+    "wallet": "0x0b2bca96bf10bfdb4444a0b070016f6207ba1f46"
+  }
+}

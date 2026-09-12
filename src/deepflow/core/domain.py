@@ -191,7 +191,24 @@ class OrderBook(Frozen):
     captured_at: datetime
 
     @model_validator(mode="after")
-    def _check_not_crossed(self) -> OrderBook:
+    def _check_ordering(self) -> OrderBook:
+        """Reject a book whose levels are not sorted best-price-first.
+
+        The crossed-book check alone is not enough. The venue sends each side
+        worst-price-first, and a pass-through of that wire order gives
+        ``bids[0]=0.001`` against ``asks[0]=0.999``: not crossed, so the old
+        check accepted it, and every spread and slippage figure derived from it
+        was wrong by the width of the book. Validating the ordering itself turns
+        that silent absurdity into a loud failure at the boundary.
+        """
+        bid_prices = [level.price for level in self.bids]
+        if bid_prices != sorted(bid_prices, reverse=True):
+            raise ValueError("bids must be sorted descending (best bid first)")
+
+        ask_prices = [level.price for level in self.asks]
+        if ask_prices != sorted(ask_prices):
+            raise ValueError("asks must be sorted ascending (best ask first)")
+
         if self.bids and self.asks and self.bids[0].price >= self.asks[0].price:
             raise ValueError("crossed book: best bid >= best ask")
         return self

@@ -13,6 +13,12 @@ from deepflow.config.settings import Settings
 from deepflow.core.errors import ConfigurationError
 from deepflow.core.logging import get_logger
 
+#: The SDK ships exactly one environment: ``polymarket.environments.PRODUCTION``.
+#: There is no staging or testnet target, so ``PolymarketSettings.environment``
+#: has only one reachable value and anything else must fail at startup rather
+#: than quietly pointing a "staging" run at the live exchange.
+_SUPPORTED_ENVIRONMENTS = ("prod",)
+
 log = get_logger(__name__)
 
 
@@ -48,14 +54,57 @@ class PolymarketSession:
     async def start(self) -> None:
         """Construct clients.
 
-        TODO(skeleton): build ``AsyncPublicClient()`` and, when credentials are
-        present, ``await AsyncSecureClient.create(private_key=..., wallet=...)``
-        -- note ``create`` is itself awaitable on the async client. Pass the
-        relayer/builder API key when one is configured, so approvals and
-        redemptions are available. Left unwired so that importing this module
-        never opens a socket; the runner calls ``start()`` explicitly.
+        Idempotent, so a supervisor restart that calls ``start`` twice does not
+        leak a second connection pool.
+
+        The secure client is built only when a signing key *and* an account
+        wallet are both configured. Requiring the wallet is not defensive
+        paperwork: ``AsyncSecureClient.create`` accepts ``wallet=None`` and then
+        signs as an EOA, which is the wrong signature type for the Deposit, Safe
+        and Proxy wallets almost every real account uses. The resulting orders
+        are rejected on signature with nothing pointing at the cause.
         """
-        raise NotImplementedError("PolymarketSession.start")
+        if self._public is not None:
+            return
+
+        from polymarket import AsyncPublicClient, AsyncSecureClient
+        from polymarket.environments import PRODUCTION
+
+        configured = self._settings.polymarket.environment
+        if configured not in _SUPPORTED_ENVIRONMENTS:
+            raise ConfigurationError(
+                f"Polymarket environment {configured!r} does not exist: the SDK ships only "
+                "production. A run configured for staging would otherwise trade live."
+            )
+
+        environment = PRODUCTION
+        self._public = AsyncPublicClient(environment)
+        log.info(
+            "polymarket.public_client_started",
+            environment=self._settings.polymarket.environment,
+        )
+
+        settings = self._settings.polymarket
+        if settings.private_key is None:
+            log.info("polymarket.secure_client_skipped", reason="no private key configured")
+            return
+        if settings.account_wallet is None:
+            log.warning(
+                "polymarket.secure_client_skipped",
+                reason="private key configured without an account wallet address",
+            )
+            return
+
+        self._secure = await AsyncSecureClient.create(
+            private_key=settings.private_key.get_secret_value(),
+            wallet=settings.account_wallet,
+            environment=environment,
+        )
+        log.info(
+            "polymarket.secure_client_started",
+            wallet_type=settings.wallet_type,
+            relayer_available=settings.can_submit_relayer_transactions,
+        )
 
     async def close(self) -> None:
         """Close both clients, tolerating either being absent."""

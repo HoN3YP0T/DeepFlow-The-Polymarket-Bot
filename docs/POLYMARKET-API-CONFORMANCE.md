@@ -307,6 +307,84 @@ split, with the mismatch documented.
 
 ---
 
+# Round two — findings from live payloads (Phase 1 slice)
+
+The review above was against the documentation. These came from calling the API
+and reading what actually arrived. Both were invisible in the docs and in the
+SDK's type signatures.
+
+## 20. Book levels arrive worst-price-first on **both** sides
+
+Confirmed on every market sampled. `bids` ascend from `0.001`; `asks` descend
+from `0.999`. The tradeable top of book is the **last** element of each tuple.
+`OrderBook` is the other way round, so `to_order_book` reverses both sides.
+
+The scaffold's `mapping.py` docstring said "sort bids descending and asks
+ascending", which is the right target — but nothing said the input was reversed,
+and the field names give no hint. A pass-through produces:
+
+```
+best_bid = 0.001    best_ask = 0.999    spread = 0.998
+```
+
+`0.001 >= 0.999` is false, so the crossed-book validator **accepted it**. Two
+outcomes, neither good: every market fails the 150 bps spread gate and the system
+silently never trades, or a book walked from that end prices a 4¢ contract's fill
+at 0.999.
+
+**Fixed:** `to_order_book` reverses both sides; `OrderBook._check_ordering` now
+validates the sort order itself, so wire order raises instead of producing a
+plausible-looking number. `tests/unit/test_mapping.py` pins it against a recorded
+real payload, and the fixture's wire order is itself asserted so a future tidy-up
+can't make the tests pass for the wrong reason.
+
+## 21. There is no staging environment
+
+`polymarket.environments` exports exactly one value: `PRODUCTION`.
+`PolymarketSettings.environment` offered `Literal["prod", "staging"]`, so a run
+configured for staging would have pointed at the live exchange.
+
+**Fixed:** `PolymarketSession.start` raises `ConfigurationError` for anything but
+`prod`.
+
+## Confirmed correct
+
+Worth recording, since these were guesses that happened to be right:
+`trading.fee_schedule` matches the `FeeSchedule` model field-for-field
+(`rate`, `exponent`, `taker_only`, `rebate_rate`); the grouped accessors
+(`state.*`, `trading.*`, `outcomes.yes/no`, `sports.*`) are as documented;
+`seconds_delay` is `None` rather than `0` when absent; token ids are `None` until
+a book opens.
+
+## Also observed, not yet used
+
+The SDK returns more than the scaffold models, and some of it removes work later:
+
+- `market.prices` — `best_bid`, `best_ask`, `spread`, `last_trade_price`, and
+  price changes over 1h/1d/1w/1mo/1y. Discovery already carries a coarse quote,
+  so a cheap pre-filter need not fetch a book per market.
+- `market.metrics` — `liquidity`, `volume_24hr`, `volume_clob` and more, which is
+  what `min_liquidity_usdc` needs and what `MarketSnapshot` already has fields for.
+- `market.trading.fee_type` — a category string (`'politics_fees'`), a direct
+  cross-check against the published per-category rate table.
+- `market.rewards` — `rewards_min_size`, `rewards_max_spread`, daily rate. Only
+  relevant if this system ever quotes, but it is the maker-rebate surface.
+- `market.resolution` — `question_id`, `resolved_by`, `uma_resolution_status`;
+  UMA plumbing that `ResolutionValidator` will want in Phase 2.
+- `outcomes.*.position_id` and `market.sports.game_id` / `line` — the sports
+  `game_id` is the join key to the sports stream's `game_id`, which is how a
+  market gets matched to a live game.
+- Trades carry `wallet`, `name`, `pseudonym`, `outcome_index`,
+  `transaction_hash` — the raw material for `SmartMoneyEngine`.
+
+**Live fee reality check.** Running the slice against real books, a politics
+market at 0.04 charges **383 bps** of notional (`0.04 × 0.96`). In the system's
+0.85–0.98 target band that falls to 60 bps at 0.85 and 8 bps at 0.98 — but
+`min_net_ev` is 50 bps, so at the bottom of the band the fee still exceeds the
+entire minimum edge. Finding §1 is not a rounding concern.
+
+---
+
 ## Not changed, deliberately
 
 - **`usdc` in field and setting names.** Renaming touches the API schema, the
