@@ -1,18 +1,16 @@
 # Status and handover
 
 **As of:** 2026-09-12 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· **Phase 1 of 8 complete** · 251 tests green · 106 stubs remain
+· 14 commits · **395 tests green** · **99 stubs remain** · 45 findings recorded
 
-A readable version of this document is published at
-<https://claude.ai/code/artifact/fd0408f3-96e1-417e-99e2-07bb1d3b0ce7>.
+Phase 1 complete · Phase 2 complete · Phase 3 partially done · Phases 4–8 not started
 
 ---
 
 ## 1. What the process does today
 
-It runs. `make run` sweeps the market catalogue on a slow interval, folds the live
-order-book stream for every tracked token, writes a snapshot row per priced book,
-and reports its own feed health.
+`make run` sweeps the market catalogue, classifies and validates each market, folds
+the live order-book stream, writes snapshots, and reports its own feed health.
 
 ```
 orchestrator.starting   mode=PAPER not_yet_wired=['signal loop', 'reconciliation', ...]
@@ -22,172 +20,193 @@ orchestrator.health     connected=True reconnects=0 dropped=0 snapshots_written=
 orchestrator.stopped    snapshots_written=500
 ```
 
-**It cannot trade, structurally rather than by configuration.**
-`Orchestrator.start` rejects `LIVE` before any socket opens, because reconciliation
-and the safety gate do not exist. A process that can place orders but cannot
-establish what it already owns is the one configuration this design refuses.
-
-Run it anyway: the snapshot history a backtest replays can only be gathered in real
-time. It is the only part of this build that cannot be caught up on later.
+**It cannot trade, structurally.** `Orchestrator.start` rejects `LIVE` before any
+socket opens, because reconciliation and the safety gate do not exist. There is no
+bypass.
 
 ### Operating it
 
 ```bash
-make up                  # postgres + redis
-make migrate             # apply migrations
-make run                 # discover, stream, persist
-make check               # lint, typecheck, tests
-make test-integration    # needs a database; see DEEPFLOW_TEST_DSN
+make up          # postgres + redis          make check   # lint, typecheck, tests
+make migrate     # apply migrations          make run     # discover, stream, persist
 ```
 
-Relevant settings: `DEEPFLOW_DISCOVERY_INTERVAL_SECONDS` (default 300),
-`DEEPFLOW_MAX_TRACKED_MARKETS` (default 100), `DEEPFLOW_PERSIST_SNAPSHOTS`
-(default true).
+Verification scripts, all runnable without credentials: `scripts/verify_slice.py`,
+`scripts/verify_stream.py`, `scripts/verify_phase1.py`.
 
 ---
 
-## 2. What Phase 1 delivered
+## 2. Done, and verified live
 
-| Component | Responsibility |
+### Phase 1 — data spine (complete)
+
+| Component | Verified by |
 |---|---|
-| `adapters/polymarket/sdk_client.py` | Client lifecycle. Refuses a signing client without both key and account wallet |
-| `adapters/polymarket/mapping.py` | SDK payloads → domain models. The single anti-corruption layer |
-| `adapters/polymarket/discovery.py` | Tradeable-market sweep, server-side liquidity floor, paging capped at the venue's real maximum |
-| `adapters/polymarket/clob.py` | Books keyed by `asset_id`, midpoint, spread, trades, book-walk fill estimate |
-| `adapters/polymarket/streams.py` | One socket fanned out into per-feed queues; reconnect with gap marking |
-| `adapters/polymarket/book_state.py` | Incremental book folding, drift detection against the venue's reported touch |
-| `adapters/polymarket/venue.py` | Exchange rules as code: fee formula, tick grid, GTD arithmetic, failure classification |
-| `adapters/polymarket/sports_feed.py` | The sports feed's real payload, league list, per-sport status vocabularies |
-| `pipeline/features.py` | `assess_quality` / `assess_snapshot` verdicts |
-| `pipeline/orchestrator.py` | The Phase 1 task set, supervision, ordered shutdown |
-| `adapters/persistence/` | Markets, snapshots, orders; migrations with conditional Timescale conversion |
+| `sdk_client.py` — session lifecycle, refuses a signing client without key **and** wallet | live |
+| `mapping.py` — SDK → domain, the single anti-corruption layer | recorded real payloads |
+| `discovery.py` — tradeable filtering, server-side liquidity floor, page cap | live |
+| `clob.py` — books keyed by `asset_id`, midpoint, spread, trades, book walk | live, 16/16 vs REST |
+| `streams.py` + `book_state.py` — one socket fanned out, folding, gap marking, drift detection | 16/16 books matched REST after 420 folded changes |
+| `features.assess_quality` — FRESH / DEGRADED / STALE / INCONSISTENT | live, 276/276 FRESH |
+| `persistence/` — markets, snapshots, orders; conditional Timescale migration | real PostgreSQL |
+| `venue.py` — fee formula, tick grid, GTD arithmetic, failure classification | published tables |
+| `orchestrator.py` — Phase 1 task set, supervision, ordered shutdown | 500 rows in a 40s run |
 
-### Verification scripts
+### Phase 2 — classification and validation (complete)
 
-All runnable without credentials. Public venue reads need no auth.
-
-| Script | Proves |
+| Component | Result on live markets |
 |---|---|
-| `scripts/verify_slice.py` | Discovery, mapping, batched books, complement invariant, live fee arithmetic |
-| `scripts/verify_stream.py` | Folded stream state matches a fresh REST snapshot |
-| `scripts/verify_phase1.py` | The whole chain including persistence and staleness reporting |
+| `classifier.py` — venue tag ids primary, seeded from `get_sports()` | 360 markets, 1.9% UNKNOWN |
+| `resolution.py` — two resolution shapes, tiered verdicts | 46.9% VALID / 36.4% AMBIGUOUS / 16.7% UNPARSEABLE |
+| `discovery.py` (pipeline) — lifecycle, journalled rejections, idempotent sweeps | 300 markets: 161 monitored, 139 rejected, **0 unresolved** |
+| `SqlJournalRepository` — decision log | real PostgreSQL |
 
-Last `verify_phase1.py` run: 6 markets discovered and persisted, 82 snapshots
-streamed and folded, 164 rows written and read back, all FRESH, and the same book
-correctly reported STALE once the clock advances past the budget.
+### Phase 3 — probability (2 of 6 items)
 
----
-
-## 3. Findings
-
-**29 recorded** in `docs/POLYMARKET-API-CONFORMANCE.md`. Nineteen from reading the
-published API docs against the scaffold (§1–19); ten from calling the API and
-watching what arrived (§20–29), of which three were my own bugs (§27–29).
-
-Every one of the ten was invisible in both the documentation and the SDK's type
-signatures, and they share a shape: almost none crash. They produce plausible wrong
-numbers, or silently stop the system doing something it should.
-
-### The ones that would have cost money
-
-| § | Finding | Why it mattered |
-|---|---|---|
-| 1 | Taker fees not modelled at all | At 0.85 the fee is 60 bps against a `min_net_ev` of 50 bps — inverts the sign on marginal trades |
-| 20 | Book levels arrive worst-price-first on **both** sides | Pass-through gives a 99.8¢ spread, and the crossed-book validator *accepted* it |
-| 22 | Batched books ignore request order, non-deterministically | Prices a 0.04 outcome off its complement's 0.96 book; every downstream gate agrees with the reflection of the truth |
-| 4 | A matched trade is not a settled trade | Booking at match time manufactures a phantom position through the path documented as authoritative |
-| 3 | Delayed-matching markets | Order accepted as `delayed` with no fills; every entry outlives a 10s timeout. Common on sports |
-| 2 | 10s working order cannot be GTD | Venue minimum is ~2 minutes; the natural "clamp" fix leaves orders resting 12× too long |
-| 8 | A private key alone cannot trade | pUSD not USDC, four approvals not two, wallet address not derivable, relayer key needed for approvals |
-| 5 | Cricket and badminton have no data source | Both engines would abstain permanently — correct behaviour, indistinguishable from a bug |
-| 27 | *Mine:* freshness was last-change, not feed liveness | Silently **blocks** trading, hardest on quiet markets — the 0.85–0.98 target band |
-| 28 | *Mine:* time-series tables could not become hypertables | Would have failed on first conversion, in production, against populated tables |
-| 29 | *Mine:* `OrderRepository.record` was unimplementable | `OrderRecord` carries no trade identity; `OrderRow` requires it `NOT NULL` |
-
-### Guards that now exist
-
-- `OrderBook` validates **sort order**, not just crossing, so wire order raises.
-- `get_order_books` keys by `asset_id` and raises on a missing token rather than
-  returning a short sequence. Its test fake deliberately returns a *different*
-  order from the request, so a positional zip cannot pass.
-- The **complement invariant** runs live: two best asks on a binary market must sum
-  to ~1.00, with depth mirroring (`35x128` ↔ `128x35`) as a second check.
-- `venue.py` pins the fee tables, tick grid and GTD arithmetic against published
-  values, so a venue change surfaces as a named test failure.
-- `gtd_expiration` raises below the venue minimum rather than clamping.
-- `BookState.drifted()` compares our folded touch against the venue's reported one,
-  so a dropped update is caught immediately rather than at the next REST poll.
+| Item | State |
+|---|---|
+| 10 · `FeatureEngine.compute` + `MicrostructureEngine` | **done** — banded depth, robustness check, slippage |
+| 11 · `TennisEngine` | **dropped** — feed cannot support it (§41) |
+| — · Per-sport rule modules (added, not in the original plan) | **done** — soccer, gridiron, tennis, esports; 22/22 leagues resolved |
+| 12 · `FootballEngine` | **not started** — blocked, see §5 below |
+| 13 · `CricketEngine`, `BadmintonEngine` | **blocked** — no in-play feed |
+| 14 · `Btc5mEngine` | **not started** — no short-dated crypto markets found open |
+| 15 · Calibration fitting | **not started** |
 
 ---
 
-## 4. Architecture decisions made this phase
+## 3. Incomplete inside work already called "done"
 
-- **ADR-0003 — venue rules are code, not configuration.** Exchange rules live in
-  `adapters/polymarket/venue.py` as constants and pure functions with their source
-  page cited, not in `config/thresholds.py` where everything is a tunable. The
-  tie-breaker: *would Polymarket reject us for getting this wrong?* If yes, it is a
-  rule. `venue.py` imports nothing, so any layer may import it.
-- **Freshness is connection-wide feed liveness**, not per-book last change. See §27.
-- **Composite primary keys on the time-series tables** from the first migration, so
-  the Timescale conversion is possible at all.
-- **Conditional hypertable migration** — creates the extension if installable,
-  converts if present, logs and continues if not. One migration serves plain
-  PostgreSQL for development and CI, and Timescale in production.
-- **Integration tests run against real PostgreSQL** and skip cleanly without it. A
-  UNIQUE constraint rejecting a duplicate is a property of the database; asserting
-  it against a stub proves only that the stub agrees.
+This section exists because "phase complete" does not mean "nothing missing".
 
----
+**`venue.py`** — `taker_fee` supports only `exponent=1`, the single value observed.
+A market with any other exponent gets an approximation via float conversion.
 
-## 5. What is not proven
+**`OrderBook` / books** — no tick-size validation at construction. `venue.py` can
+round to a tick but nothing forces a price onto the grid before it reaches execution.
 
-- **The hypertable conversion.** TimescaleDB is not installable in the build
-  container. The composite keys follow Timescale's documented requirement and CI now
-  runs the Timescale image, but the conversion runs for the first time on the next
-  push.
-- **Every authenticated path.** Nothing in Phase 1 needed credentials, so orders,
-  balances and approvals are untested. First real need is Phase 5.
-- **Market variety.** All verification ran against binary politics markets. Sports,
-  negative-risk groups and short-dated crypto will have their own surprises.
-- **Anything about profitability.** No model produces a probability yet, so there is
-  no evidence of any kind that the strategy works.
+**`streams.py`** — three feeds still stubbed: `subscribe_crypto_prices`,
+`subscribe_crypto_twap`, `subscribe_user`. The user stream is Phase 5's dependency.
+Also: the SDK opens a second TCP connection for the sports socket, so "one connection"
+describes our fan-out, not the transport.
 
----
+**`clob.py`** — `get_last_trades` makes two calls, fetching a book purely to learn the
+`condition_id` we already hold on the `Market`. Wasted round trip.
 
-## 6. Next: Phase 2
+**`persistence/`** — `SqlPositionRepository` (3 methods) and
+`SqlJournalRepository.record_signal` still stubbed. The hypertable conversion has
+never run: TimescaleDB is not installable in the build container, so the composite
+primary keys follow the documented requirement but the conversion itself is unproven.
+CI now uses the Timescale image, so the next push exercises it.
 
-Three items. See `docs/ROADMAP.md` for the full ordering.
+**`classifier.py`** — 183 of the venue's 465 leagues fall outside the reliable tag
+ids (hockey, lacrosse, minor codes) and resolve only if their period vocabulary
+matches. `WAR_CONFLICT`, `CEASEFIRE` and `MILITARY_DIPLOMATIC` categories exist with
+keyword seeds but no tag ids and no engine.
 
-1. **`MarketClassifier`** — which engine owns a market. Needs *calibration at the
-   low end*, not accuracy: `UNKNOWN` never auto-trades, so being unsure and saying
-   so is the correct outcome.
-2. **`ResolutionValidator`** — the highest-value safety component in the system. It
-   enforces *never trade from the title alone*. The rules text is in
-   `market.description`; the UMA fields (`question_id`, `resolved_by`,
-   `uma_resolution_status`) are also available from discovery.
-3. **`DiscoveryService`** — lifecycle transitions and rejection journalling.
+**`resolution.py`** — plateaued at ~47% VALID. Roughly half of all markets are held
+back, dominated by "deadline has no explicit timezone" (75) and judgement-call markers
+(56). Improving this is the single largest lever on how many markets the system can
+ever trade, and a regex validator is near its limit.
 
-**Recommended order: 1 and 3 first, then 2 with room to breathe.** Items 1 and 3 are
-mechanical and give you markets moving through states with recorded reasons, which
-makes 2 testable against real rejections rather than hypotheticals. The state
-machine already forbids `CLASSIFIED → MONITORED`, so validation cannot be skipped
-by accident while 2 is outstanding.
+**`pipeline/discovery.py`** — `MONITORED` is terminal for now: nothing re-validates a
+market whose rules change, nothing removes a market that closes, and a market that
+goes stale stays monitored. No `MONITORED → CANDIDATE` step exists.
 
-Expect `ResolutionValidator` to abstain (`UNPARSEABLE`) on many markets initially.
-That is the safe direction, and it means Phase 2's rejection rate will look
-alarmingly high while being correct.
+**`orchestrator.py`** — reconciliation is skipped (nothing can have ordered yet), and
+the sports feed is not subscribed even though the rules to read it now exist. Health
+is a log line, not a breaker.
 
-Phase 2 will also need `SqlJournalRepository` implemented (currently stubbed) to
-record rejections.
+**`sports_feed.py`** — the `League` enum is the documentation's status-vocabulary
+families, not wire values. Corrected with a docstring and a test rather than removed,
+because `STATUS_VALUES` is keyed by it.
+
+**`engines/base.py`** — `_calibrate` is the identity function. Every probability the
+system produces will be uncalibrated until item 15, and in the 0.85–0.98 band a model
+that says 0.97 and is right 0.93 of the time turns a positive edge negative.
+
+**`safety_gate.py`** — the 15 `CheckId` values are declared; **none are implemented**.
+`GateContext` is a stub.
 
 ---
 
-## 7. Decisions blocked on the owner
+## 4. Everything not started
 
-1. **Does "do not use Gamma" exclude Gamma-backed discovery?** The CLOB service has
-   no market-catalogue endpoint and the SDK's discovery calls are Gamma-backed
-   internally. Isolated behind one swappable adapter and recorded as
-   `allow_gamma_backed_discovery`, but it needs deciding before live. See ADR-0002.
-2. **Will you buy a sports data feed?** Without one, cricket and badminton cannot be
-   written at all and football is a score-and-clock model. Blocks Phase 3 work
-   regardless of code.
+**Phase 4 — EV and safety (0 of 5).** `EvEngine.assess` / `_costs` /
+`_market_probability`; all 15 safety checks; `RiskEngine.approve`;
+`ExposureTracker` (3 methods); `JournalRecorder` (4 methods).
+
+**Phase 5 — execution (0 of 6).** `OrderManager.execute` / `reprice`;
+`ExecutionEngine` (3); `Reconciler` (2); `CircuitBreakerRegistry` wiring;
+`PolymarketExecution` (10 methods) and `PolymarketRelayer` (2); the order heartbeat;
+`PaperExecutor` / `ShadowExecutor`.
+
+**Phase 6 — positions and intelligence (0 of 4).** `PositionManager` (4);
+`ExitEngine` (2); `SmartMoneyEngine` (3); `DataApiWalletIntel` (5);
+`EventPipeline` (2); `PoliticalEngine`; `GeopoliticalEngine`; `CrossMarketEngine` (2).
+
+**Phase 7 — dashboard (0 of 4).** 24 API stubs across auth, health, overview,
+positions, risk controls, strategies, trades, whales, journal and the WebSocket.
+The Next.js frontend is scaffolding only.
+
+**Phase 8 — validation (0 of 5).** `BacktestRunner.run`, `BacktestExecutor.submit`;
+calibration curves; failure-injection suite; paper then shadow run; limited live.
+
+**Infrastructure.** `RedisCache` (3 methods) — connect, close, distributed lock.
+
+---
+
+## 5. Blockers that code cannot solve
+
+**The market ↔ live-game join does not exist.** Two independent problems (§45):
+
+- No shared key. The feed always carries `game_id` and never a `slug`; soccer markets
+  always carry a `slug` and **never** a `game_id` (0 of 26 sampled). The only link is
+  fuzzy team-name matching across two naming systems.
+- No in-play window. Across 600 open moneyline markets — 158 soccer, 144 NFL, 81
+  baseball, 31 esports, 23 cricket — **0 had a kickoff within −3h..+24h**, while the
+  feed streamed 17 live games. Exact team-name overlap: **0**.
+
+Until this is solved, a sports probability engine has nothing to attach to. This is
+why `FootballEngine` is not written: it could not be verified, and unverified code is
+what this session's findings argue against.
+
+**No short-dated crypto markets.** Scanned 900 open markets: 30 crypto, **all with
+windows over 24 hours**, none short-dated and unexpired. `Btc5mEngine` has no market.
+
+**Two decisions are yours:**
+
+1. **Does "do not use Gamma" exclude Gamma-backed discovery?** The CLOB has no
+   catalogue endpoint; `list_markets` and `get_sports` hit `gamma-api.polymarket.com`.
+   Recorded as `allow_gamma_backed_discovery` — a flag that is *documentary only, not
+   enforced anywhere*. Needs deciding before live.
+2. **Will you buy a sports data feed?** Without one: no cricket or badminton at all,
+   tennis structurally impossible, and soccer limited to score-and-clock.
+
+---
+
+## 6. What is not proven
+
+- **The hypertable conversion** — no Timescale locally. First real run is on CI.
+- **Every authenticated path** — orders, balances, approvals, the relayer. Nothing
+  needed credentials yet; first real need is Phase 5.
+- **Market variety** — verification ran mostly against binary politics markets.
+  Neg-risk groups and short-dated crypto will have their own surprises.
+- **Anything about profitability** — no model produces a probability yet. The fee
+  arithmetic already says margins are thin: at 0.85 the taker fee alone is 60 bps
+  against a 50 bps minimum edge.
+
+---
+
+## 7. Recommended next step
+
+**Phase 4 — EV and the safety gate.** It is the only remaining phase that is fully
+verifiable today: EV is arithmetic over (probability, book, fees), and all three
+inputs exist for the 161 `MONITORED` markets with a probability injected as a
+fixture. It is also where the fee finding (§1) and the microstructure findings (§39)
+start doing work.
+
+Sports engines should wait for the join problem, not lead it.
+
+Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (45 findings).
+Build order and per-item notes: `docs/ROADMAP.md`.

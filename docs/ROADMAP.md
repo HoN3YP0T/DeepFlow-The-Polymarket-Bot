@@ -85,6 +85,13 @@ can ever trade — see `docs/POLYMARKET-API-CONFORMANCE.md` §36-38.
 **Done when:** engines produce calibrated probabilities and abstain correctly
 on missing state.
 
+**Blocked, not merely unstarted.** No sports probability engine can be verified until
+the market-to-live-game join exists: the feed carries `game_id` and no slug, soccer
+markets carry a slug and no `game_id`, and across 600 open moneyline markets none had
+a kickoff within -3h..+24h while 17 games streamed live (see
+`docs/POLYMARKET-API-CONFORMANCE.md` §45). Per-sport *rules* are done and tested; the
+models that consume them are not, because they could not be checked against anything.
+
 ## Phase 4 — EV and safety
 16. `EvEngine` — price we would actually pay, never the mid, and the taker fee
     from the market's own `fee_schedule` (`EvEngine.fee_bps`) rather than zero
