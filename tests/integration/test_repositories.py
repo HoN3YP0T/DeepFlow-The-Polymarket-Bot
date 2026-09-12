@@ -285,3 +285,87 @@ async def test_intent_fields_are_not_rewritten_by_a_status_update(
 
     size = (await session.execute(select(OrderRow.size_shares))).scalar_one()
     assert size == Decimal(100)
+
+
+# --- Journal --------------------------------------------------------------
+async def test_journal_round_trips(uow: SqlUnitOfWork) -> None:
+    await uow.journal.record_decision(
+        {"kind": "MARKET_REJECTED", "reason": "unclassified", "condition_id": str(COND)}
+    )
+    recent = await uow.journal.list_recent(limit=5)
+    assert len(recent) == 1
+    assert recent[0]["kind"] == "MARKET_REJECTED"
+    assert recent[0]["condition_id"] == str(COND)
+
+
+async def test_journal_requires_a_reason(uow: SqlUnitOfWork) -> None:
+    """A row recording that something happened and not why keeps the only part that
+    is worth nothing."""
+    with pytest.raises(ValueError, match="requires both"):
+        await uow.journal.record_decision({"kind": "MARKET_REJECTED"})
+
+
+async def test_unknown_fields_land_in_context(uow: SqlUnitOfWork) -> None:
+    """A new field should be recorded without needing a migration."""
+    await uow.journal.record_decision(
+        {"kind": "TRANSITION", "reason": "classified", "source": "DISCOVERED", "depth": 7}
+    )
+    entry = (await uow.journal.list_recent(limit=1))[0]
+    assert entry["context"] == {"source": "DISCOVERED", "depth": 7}
+
+
+async def test_decimals_and_datetimes_survive_the_json_column(
+    uow: SqlUnitOfWork,
+) -> None:
+    """The driver refuses both. Stringifying beats dropping the field: an entry
+    missing the number that caused the rejection is not much of a record."""
+    await uow.journal.record_decision(
+        {
+            "kind": "TRANSITION",
+            "reason": "classified",
+            "confidence": Decimal("0.95"),
+            "at": NOW,
+            "nested": {"edge": Decimal("0.01")},
+        }
+    )
+    entry = (await uow.journal.list_recent(limit=1))[0]
+    assert entry["context"]["confidence"] == "0.95"
+    assert entry["context"]["nested"]["edge"] == "0.01"
+    assert entry["context"]["at"].startswith("2026-09-12")
+
+
+async def test_journal_is_newest_first(uow: SqlUnitOfWork) -> None:
+    """The order a dashboard and a post-mortem both want."""
+    for i in range(3):
+        await uow.journal.record_decision({"kind": "TRANSITION", "reason": f"step {i}"})
+    recent = await uow.journal.list_recent(limit=3)
+    assert [e["reason"] for e in recent] == ["step 2", "step 1", "step 0"]
+
+
+# --- Classification persistence ------------------------------------------
+async def test_classification_is_written_separately_from_the_upsert(
+    uow: SqlUnitOfWork,
+) -> None:
+    """A catalogue sweep refreshes venue facts every few minutes. If it also wrote
+    our columns, every market would reset to DISCOVERED and UNKNOWN each sweep and
+    the pipeline would erase its own progress."""
+    await uow.markets.upsert(_market())
+    await uow.markets.record_classification(
+        COND,
+        category="POLITICS",
+        confidence=Decimal("0.95"),
+        lifecycle_state="CLASSIFIED",
+    )
+
+    # A later sweep refreshes the venue's view of the same market.
+    await uow.markets.upsert(_market(question="Updated question?"))
+
+    from sqlalchemy import select
+
+    from deepflow.adapters.persistence.models import MarketRow
+
+    row = (await uow._session.execute(select(MarketRow))).scalar_one()
+    assert row.question == "Updated question?"
+    assert row.category == "POLITICS"
+    assert row.lifecycle_state == "CLASSIFIED"
+    assert row.classification_confidence == Decimal("0.95")

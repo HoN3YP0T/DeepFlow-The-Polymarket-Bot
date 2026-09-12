@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from decimal import Decimal
 from typing import Any, Protocol, runtime_checkable
 
 from deepflow.core.domain import (
@@ -18,7 +19,32 @@ from deepflow.core.types import ClientOrderKey, ClobTokenId, ConditionId, Positi
 
 @runtime_checkable
 class MarketRepository(Protocol):
-    async def upsert(self, market: Market) -> None: ...
+    async def upsert(self, market: Market) -> None:
+        """Refresh what the venue says about a market.
+
+        Must not touch what *we* decided about it -- see
+        :meth:`record_classification`.
+        """
+        ...
+
+    async def record_classification(
+        self,
+        condition_id: ConditionId,
+        *,
+        category: str,
+        confidence: Decimal | None,
+        lifecycle_state: str,
+        resolution_validity: str | None = None,
+    ) -> None:
+        """Write our own verdict about a market.
+
+        Deliberately not part of :meth:`upsert`. A catalogue sweep refreshes venue
+        facts every few minutes; if it also wrote our columns, every market would
+        reset to DISCOVERED and UNKNOWN on each sweep and the pipeline would erase
+        its own progress.
+        """
+        ...
+
     async def get(self, condition_id: ConditionId) -> Market | None: ...
     async def list_tracked(self) -> Sequence[Market]: ...
 

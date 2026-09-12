@@ -42,10 +42,17 @@ when the clock is advanced past the budget.
    alone does not mean a game (§32); related-category ties resolve by specificity
    (§33). Live: 360 markets, 1.9% UNKNOWN
 8. `ResolutionValidator` — the highest-value safety component in the system
-9. `DiscoveryService` — lifecycle transitions and rejection journalling
+9. ~~`DiscoveryService` — lifecycle transitions and rejection journalling~~
+   **done** — sweeps are idempotent, every transition and refusal is journalled with
+   its reason, and nothing advances past `CLASSIFIED` because the validator does not
+   exist yet. Live: 400 markets, 393 classified, 7 rejected (1.8%)
 
 **Done when:** every discovered market reaches `MONITORED` or a documented
 rejection.
+
+Items 7 and 9 are done; nothing reaches `MONITORED` until item 8 lands, which is the
+state machine working as intended rather than a gap to patch. The rejection corpus
+those sweeps produce is what item 8 should be tested against.
 
 ## Phase 3 — Probability
 10. `FeatureEngine.compute` — microstructure

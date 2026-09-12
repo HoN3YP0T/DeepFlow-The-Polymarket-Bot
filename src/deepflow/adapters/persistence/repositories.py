@@ -18,14 +18,16 @@ Two conventions worth stating once, since they apply throughout:
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deepflow.adapters.persistence.models import (
+    JournalRow,
     MarketRow,
     MarketSnapshotRow,
     OrderRow,
@@ -125,6 +127,35 @@ class SqlMarketRepository:
                     )
                 },
             )
+        )
+
+    async def record_classification(
+        self,
+        condition_id: ConditionId,
+        *,
+        category: str,
+        confidence: Decimal | None,
+        lifecycle_state: str,
+        resolution_validity: str | None = None,
+    ) -> None:
+        """Write a market's classification and lifecycle state.
+
+        Separate from :meth:`upsert` on purpose. An upsert refreshes what the venue
+        says about a market and must not touch what *we* decided about it -- a
+        catalogue sweep would otherwise reset every market to DISCOVERED and
+        UNKNOWN every five minutes, erasing the pipeline's own progress.
+        """
+        values: dict[str, Any] = {
+            "category": category,
+            "classification_confidence": confidence,
+            "lifecycle_state": lifecycle_state,
+            "updated_at": self._clock.now(),
+        }
+        if resolution_validity is not None:
+            values["resolution_validity"] = resolution_validity
+
+        await self._session.execute(
+            update(MarketRow).where(MarketRow.condition_id == str(condition_id)).values(**values)
         )
 
     async def get(self, condition_id: ConditionId) -> Market | None:
@@ -324,17 +355,68 @@ class SqlPositionRepository:
 
 
 class SqlJournalRepository:
-    def __init__(self, session: AsyncSession) -> None:
+    """Append-only decision log.
+
+    Rejections are recorded as carefully as entries. The trades taken are a biased
+    sample of the opportunities seen; without the rejected set there is no way to
+    tell a gate that is correctly protective from one that is simply never
+    satisfied, and no way to know which threshold to move.
+    """
+
+    def __init__(self, session: AsyncSession, clock: Clock | None = None) -> None:
         self._session = session
+        self._clock = clock or SystemClock()
 
     async def record_signal(self, signal: Signal) -> None:
         raise NotImplementedError("SqlJournalRepository.record_signal")
 
     async def record_decision(self, entry: dict[str, Any]) -> None:
-        raise NotImplementedError("SqlJournalRepository.record_decision")
+        """Append one decision row.
+
+        ``kind`` and ``reason`` are required; a journal row without a reason records
+        that something happened and not why, which is the only part worth keeping.
+        Everything else the caller passes lands in ``context`` as JSON rather than
+        being dropped, so a new field does not need a migration to be recorded.
+        """
+        known = {"kind", "reason", "condition_id", "signal_id", "position_id", "run_mode"}
+        kind = entry.get("kind")
+        reason = entry.get("reason")
+        if not kind or not reason:
+            raise ValueError("journal entry requires both 'kind' and 'reason'")
+
+        context = {k: _jsonable(v) for k, v in entry.items() if k not in known}
+        await self._session.execute(
+            insert(JournalRow).values(
+                kind=str(kind),
+                reason=str(reason),
+                condition_id=_opt_str(entry.get("condition_id")),
+                signal_id=_opt_str(entry.get("signal_id")),
+                position_id=_opt_str(entry.get("position_id")),
+                context=context or None,
+                run_mode=str(entry.get("run_mode") or ""),
+                recorded_at=self._clock.now(),
+            )
+        )
 
     async def list_recent(self, *, limit: int = 100) -> Sequence[dict[str, Any]]:
-        raise NotImplementedError("SqlJournalRepository.list_recent")
+        """Newest entries first -- the order a dashboard and a post-mortem both want."""
+        result = await self._session.execute(
+            select(JournalRow).order_by(JournalRow.id.desc()).limit(limit)
+        )
+        return tuple(
+            {
+                "id": row.id,
+                "kind": row.kind,
+                "reason": row.reason,
+                "condition_id": row.condition_id,
+                "signal_id": row.signal_id,
+                "position_id": row.position_id,
+                "context": row.context,
+                "run_mode": row.run_mode,
+                "recorded_at": row.recorded_at,
+            }
+            for row in result.scalars()
+        )
 
 
 class SqlUnitOfWork:
@@ -350,7 +432,7 @@ class SqlUnitOfWork:
         self.snapshots = SqlSnapshotRepository(session)
         self.orders = SqlOrderRepository(session, clock)
         self.positions = SqlPositionRepository(session)
-        self.journal = SqlJournalRepository(session)
+        self.journal = SqlJournalRepository(session, clock)
 
     async def __aenter__(self) -> SqlUnitOfWork:
         return self
@@ -364,6 +446,26 @@ class SqlUnitOfWork:
 
     async def rollback(self) -> None:
         await self._session.rollback()
+
+
+def _opt_str(value: Any) -> str | None:
+    return str(value) if value is not None else None
+
+
+def _jsonable(value: Any) -> Any:
+    """Coerce a context value into something the JSON column accepts.
+
+    ``Decimal`` and ``datetime`` are the two that appear constantly here and that
+    the driver refuses. Stringifying beats dropping the field: a journal entry
+    missing the number that caused the rejection is not much of a record.
+    """
+    if isinstance(value, Decimal | datetime):
+        return str(value)
+    if isinstance(value, list | tuple):
+        return [_jsonable(v) for v in value]
+    if isinstance(value, dict):
+        return {str(k): _jsonable(v) for k, v in value.items()}
+    return value
 
 
 # --- Row translation ------------------------------------------------------
