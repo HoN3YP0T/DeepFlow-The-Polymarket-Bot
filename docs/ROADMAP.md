@@ -15,7 +15,9 @@ SDK signatures both hid — see `docs/POLYMARKET-API-CONFORMANCE.md` §20-21.
 3. ~~`SdkMarketDiscovery`, `ClobMarketData`~~ **done** — batched books are keyed
    by `asset_id`, never zipped positionally (§22); `page_size` capped at the
    venue's real maximum of 100 (§23)
-4. `PolymarketStreams` — reconnection with explicit gap markers
+4. ~~`PolymarketStreams` — reconnection with explicit gap markers~~ **done** —
+   one connection fanned out into per-feed queues; `price_change` folded as level
+   replacement, cross-checked against the venue's reported touch (§24)
 5. `FeatureEngine.assess_quality` — freshness before anything trades on it
 6. Repositories + Alembic migrations
 

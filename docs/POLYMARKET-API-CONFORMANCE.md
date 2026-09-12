@@ -387,6 +387,54 @@ scaffold assumed — `liquidity_num_min`, `volume_num_min`, `condition_ids`,
 The liquidity floor is now pushed to the venue instead of paging the catalogue to
 discard most of it.
 
+## 24. `price_change`'s `price` is not the touch — but the event tells you what is
+
+Each change carries `asset_id`, `side`, `price`, `size`, **plus `best_bid` and
+`best_ask`**. The `price` is the level that changed, which can be deep in the
+book: observed live, a 20,000-share bid at `0.10` on a market trading at `0.92`.
+Reading `price` as the new best price would look like an 82-cent crash.
+
+The `best_bid`/`best_ask` on every change turn out to be the most useful thing on
+the feed. They give a **free integrity check**: fold the level, then compare our
+computed touch against the venue's reported one. Disagreement means a dropped or
+misapplied update, detectable immediately rather than at the next REST poll.
+`BookState.drifted()` does exactly this, and a drift marks the book gapped.
+
+One frame also carries a *list* of changes with independent `asset_id`s, so both
+sides of a market move in a single event.
+
+**Replacement semantics confirmed empirically.** Folded live for 25–45 s across
+30 books (420+ level changes), then compared against fresh REST snapshots:
+**16/16 books agreed at the touch, and every depth count matched exactly**
+(`36x129` folded vs `36x129` REST). Delta arithmetic would have diverged
+immediately.
+
+## 25. Stream `book` events omit trading constraints that REST provides
+
+The stream's `book` payload carries `tick_size`, but `min_order_size` and
+`neg_risk` come back **`None`** — both are populated on the REST book. The
+earlier docs review (§1 of round two, `streams.py`) said all three constraints
+could be refreshed from the stream; only the tick size can.
+
+Consequence: `neg_risk` is a *signing input*, so it must come from discovery or a
+REST book, never from the stream. A market whose constraints were only ever seen
+on the stream would sign against the wrong exchange.
+
+## 26. `subscribe()` is a coroutine despite its return annotation
+
+Its signature reads `-> SubscriptionHandle[...]`, but it is an `async def`, so
+calling it yields a coroutine with no `__aenter__`. It must be awaited first, and
+the result is then the async context manager:
+
+```python
+async with await client.subscribe([MarketSpec(token_ids=[...])]) as stream:
+    async for event in stream:
+        ...
+```
+
+The documentation shows this correctly; the type signature does not. Trusting the
+annotation gives `AttributeError: __aenter__` on a coroutine.
+
 ## Confirmed correct
 
 Worth recording, since these were guesses that happened to be right:
