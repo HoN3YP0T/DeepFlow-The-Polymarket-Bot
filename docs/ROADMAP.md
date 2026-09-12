@@ -30,6 +30,12 @@ SDK signatures both hid — see `docs/POLYMARKET-API-CONFORMANCE.md` §20-21.
 **Done when:** the system discovers markets, streams books, persists snapshots,
 and correctly reports stale data. No trading logic yet.
 
+**Verified** by `scripts/verify_phase1.py`, which runs the whole chain live against
+the venue and a real database rather than checking each module separately. Last
+run: 6 markets discovered and persisted, 82 snapshots streamed and folded, 164
+rows written and read back, all FRESH, and the same book correctly reported STALE
+when the clock is advanced past the budget.
+
 ## Phase 2 — Classification and validation
 7. `MarketClassifier` — calibration at the low end matters more than accuracy
 8. `ResolutionValidator` — the highest-value safety component in the system
