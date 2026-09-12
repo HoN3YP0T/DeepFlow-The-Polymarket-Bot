@@ -94,6 +94,36 @@ uvicorn deepflow.api.app:create_app --factory --reload   # dashboard API
 
 ---
 
+## What runs today
+
+Phase 1 is complete, so the process is runnable and collects data. It does not
+trade, and cannot — the signal loop and execution adapter are not wired, and
+`Orchestrator.start` refuses LIVE mode outright until reconciliation and the
+safety gate exist.
+
+```bash
+make up                  # postgres + redis
+make migrate             # apply migrations
+make run                 # discover, stream, persist
+```
+
+Running it does three things: sweeps the market catalogue on a slow interval,
+folds the live order-book stream for every tracked token, and writes a snapshot
+row per priced book. A health line reports feed liveness, reconnects, dropped
+events and rows written.
+
+Worth starting early for one reason: the snapshot history a backtest replays can
+only be gathered in real time. It is the single part of this build that cannot be
+caught up on later.
+
+Verification scripts, all runnable without credentials:
+
+| Script | Proves |
+|---|---|
+| `scripts/verify_slice.py` | discovery, mapping, batched books, fee arithmetic |
+| `scripts/verify_stream.py` | stream folding matches a fresh REST snapshot |
+| `scripts/verify_phase1.py` | the whole chain, including persistence and staleness |
+
 ## Run modes
 
 `BACKTEST → PAPER → SHADOW → LIVE`, and that order is the promotion path.

@@ -128,6 +128,28 @@ class Settings(BaseSettings):
     live_trading_confirmed: bool = False
     live_trading_ack: str = ""
 
+    discovery_interval_seconds: float = Field(default=300.0, gt=0)
+    """How often the discovery sweep re-reads the market catalogue.
+
+    Market *metadata* changes slowly -- a new market is listed, an old one closes --
+    so this is deliberately far slower than the price feed. Polling it quickly
+    would burn rate limit re-reading fields that did not move, and prices come
+    from the stream regardless."""
+
+    max_tracked_markets: int = Field(default=100, gt=0)
+    """Ceiling on markets subscribed at once.
+
+    The stream subscribes per connection, so the token set is fixed until the next
+    sweep reopens it. An unbounded set would mean one reconnect churning thousands
+    of subscriptions."""
+
+    persist_snapshots: bool = True
+    """Write streamed snapshots to the database.
+
+    On by default: the snapshot history is what a backtest replays later, and it
+    can only be collected in real time. Turning it off is for a diagnostic run,
+    not for saving disk."""
+
     log_level: str = "INFO"
     log_format: Literal["json", "console"] = "json"
 
