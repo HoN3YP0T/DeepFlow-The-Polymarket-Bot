@@ -214,6 +214,7 @@ correctly protective gate from one that never fires.
 
 ## Documentation
 
+- [`docs/STATUS.md`](docs/STATUS.md) — **start here**: what runs today, findings, what's next
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — module map, data flow, lifecycle
 - [`docs/ADR-0001-sdk-choice.md`](docs/ADR-0001-sdk-choice.md) — why `polymarket-client`
 - [`docs/ADR-0002-market-discovery.md`](docs/ADR-0002-market-discovery.md) — the Gamma constraint
