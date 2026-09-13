@@ -128,6 +128,46 @@ def to_market(sdk_market: Any) -> Market:
     )
 
 
+def with_event_context(market: Market, sdk_event: Any) -> Market:
+    """Attach what only the parent event knows.
+
+    Two fields a market cannot supply about itself:
+
+    * ``event_id`` -- a market reached *through* an event has an empty ``events``
+      list, because the venue does not repeat the parent inside the child.
+    * ``event_start_time`` -- when the contest begins. The SDK's market model drops
+      the venue's ``eventStartTime`` entirely, and the stub event nested on a market
+      carries only id, slug and title. The event's ``schedule.start_time`` is the
+      only reachable source.
+    * ``tags`` -- **the venue tags the event, not the market.** Every market on a
+      captured short-dated crypto event had ``tags=[]`` while its event carried
+      ``crypto``, the asset, and a literal ``5M`` cadence tag. Since tags are the
+      classifier's primary tier, a market reached through an event arrives with its
+      single most authoritative signal missing unless it is inherited here.
+
+    Shared by the sports and short-dated-crypto paths on purpose. Both of them
+    exist because the same mistake was made twice: measuring a contest from
+    ``start_date``, which is when the *market* opened. One helper means fixing it
+    once.
+    """
+    schedule = getattr(sdk_event, "schedule", None)
+    event_tags = tuple(getattr(sdk_event, "tags", None) or ())
+
+    update: dict[str, Any] = {
+        "event_id": EventId(str(sdk_event.id)),
+        "event_start_time": getattr(schedule, "start_time", None),
+    }
+    # Inherited only when the market has none of its own. A market that carries
+    # tags is the more specific statement and must win; an empty tuple on a market
+    # means "not populated" as often as "untagged", which is precisely the case
+    # this fills.
+    if event_tags and not market.tag_ids:
+        update["tags"] = tuple(_tag_attr(tag, "slug") for tag in event_tags)
+        update["tag_ids"] = tuple(_tag_attr(tag, "id") for tag in event_tags)
+
+    return market.model_copy(update=update)
+
+
 def to_order_book(sdk_book: Any) -> OrderBook:
     """Normalize an SDK order book.
 

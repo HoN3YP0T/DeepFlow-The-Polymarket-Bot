@@ -95,13 +95,31 @@ class Market(Frozen):
     closed: bool
     accepting_orders: bool
     start_date: datetime | None = None
-    """When the market opened.
+    """When the market **opened for trading** -- not when its contest begins.
 
-    Carried because ``end_date - start_date`` is the market's *window*, which is
-    what separates a short-dated strike market from a long-horizon forecast. Time
-    remaining cannot answer that: any market is short-dated an hour before it
-    settles."""
+    The distinction is the whole of a bug this model used to encode: this docstring
+    previously said ``end_date - start_date`` was the market's window. It is not. A
+    5-minute Bitcoin up/down market opens roughly 24 hours before the 5-minute window
+    it settles on, so that subtraction returns ~86,200s for a 300s contest -- off by a
+    factor of 287, and in the direction that makes every one of them look like a
+    long-horizon forecast. Use :attr:`event_start_time` for the window; see
+    :meth:`contest_window_seconds`."""
     end_date: datetime | None = None
+
+    event_start_time: datetime | None = None
+    """When the contest this market settles on **begins**.
+
+    The venue calls it ``eventStartTime`` on a market and ``startTime`` on an event.
+    It is only reachable through the event: the SDK's market model drops the field,
+    and a market's own nested event carries id, slug and title with no schedule at
+    all. So a discovery path built on ``list_markets`` cannot see it, and anything
+    that needs a contest window has to come through ``list_events`` -- the same
+    structural lesson as the sports join in
+    :mod:`deepflow.adapters.polymarket.games`.
+
+    ``None`` means not fetched rather than not applicable, which is why
+    :meth:`contest_window_seconds` returns ``None`` instead of falling back to
+    ``start_date``: falling back is what produced the wrong answer."""
     tags: tuple[str, ...] = ()
     """Venue tag slugs, e.g. ``("sports", "cricket")``.
 
@@ -163,6 +181,23 @@ class Market(Frozen):
 
     def outcome_for(self, token_id: ClobTokenId) -> Outcome | None:
         return next((o for o in self.outcomes if o.token_id == token_id), None)
+
+    def contest_window_seconds(self) -> float | None:
+        """How long the contest this market settles on lasts.
+
+        What separates a 5-minute strike market from a year-long forecast, and it
+        cannot be answered from time remaining -- every market is short-dated an hour
+        before it settles.
+
+        ``None`` when :attr:`event_start_time` was not fetched. Deliberately not
+        falling back to ``start_date``: that fallback is exactly the bug this method
+        replaces, and a silent 287x overestimate is worse than an admitted unknown,
+        because it routes a short-dated market into a long-horizon strategy instead of
+        declining to classify it.
+        """
+        if self.event_start_time is None or self.end_date is None:
+            return None
+        return (self.end_date - self.event_start_time).total_seconds()
 
 
 class Classification(Frozen):

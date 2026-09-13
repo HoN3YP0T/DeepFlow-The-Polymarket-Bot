@@ -1,7 +1,7 @@
 # Status and handover
 
 **As of:** 2026-09-13 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· 18 commits · **409 tests passing, 0 skipped** · **99 stubs remain** · 52 findings recorded
+· 19 commits · **416 tests passing, 0 skipped** · **99 stubs remain** · 55 findings recorded
 
 An earlier version of this line read "395 tests green" while 30 of those were
 integration tests **skipped** for want of a database — a skipped test reporting as
@@ -215,9 +215,25 @@ per-player state) and is therefore a *widening* decision, not a prerequisite.
 
 ### What remains genuinely blocked
 
-**No short-dated crypto markets.** Scanned 900 open markets: 30 crypto, **all with
-windows over 24 hours**, none short-dated and unexpired. `Btc5mEngine` has no market.
-Unchanged by the above.
+**Retracted, 2026-09-13: short-dated crypto markets exist.** This section previously
+claimed a 900-market scan found none. The venue lists a 5-minute up/down market **per
+asset, every five minutes** — eight assets running simultaneously (BTC, ETH, XRP, SOL,
+DOGE, BNB, HYPE, ZEC), 20 windows open within ±15 minutes of measurement, all
+accepting orders with live books. A 15-minute variant exists too, answering the open
+"5 or 15 minutes?" question: both. See §53–55; reproduce with
+`scripts/verify_short_dated_crypto.py`.
+
+The scan measured each window as `end_date - start_date`. These markets open ~24 hours
+before the five minutes they settle on, so that returned 86,217s for a 300s contest —
+**off by 287×**. The same arithmetic sat in `_apply_short_dated`, so every short-dated
+crypto market on the venue was being classified as plain `CRYPTO` and would have been
+priced with a long-horizon model. Fixed: `Market.contest_window_seconds()` measures
+`end_date - event_start_time` and returns `None` rather than falling back, because the
+fallback is the bug.
+
+That is the **same error as §45's third cause, in a second domain** — measuring a
+contest from when the market opened. Both were found by someone else pointing at a
+market, not by a test.
 
 **Tennis in-play state.** The socket supplies games in the current set but not sets
 won by each player (`tennis.py` `BLOCKING`), and Gamma's event `score` for tennis was

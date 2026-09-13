@@ -38,6 +38,7 @@ def _market(
     resolution_text: str | None = None,
     start_date: datetime | None = None,
     end_date: datetime | None = None,
+    event_start_time: datetime | None = None,
 ) -> Market:
     return Market(
         condition_id=ConditionId("0xabc"),
@@ -54,6 +55,7 @@ def _market(
         resolution_text=resolution_text,
         start_date=start_date,
         end_date=end_date,
+        event_start_time=event_start_time,
     )
 
 
@@ -209,16 +211,58 @@ def test_sub_hourly_crypto_becomes_its_own_category(
 ) -> None:
     """The distinguishing feature is the window, not the asset: over minutes the
     whole probability is a barrier problem against a reference price, which is a
-    different question rather than a faster one."""
+    different question rather than a faster one.
+
+    Note the shape: the market opened a day before the five minutes it settles on.
+    That is what the venue actually sends, and an earlier version of this test
+    invented ``start_date=NOW, end_date=NOW+5m`` instead -- a payload the venue
+    never produces -- which is why it passed while the classifier misread every
+    real one.
+    """
     result = classifier.classify(
         _market(
-            question="Bitcoin above $95,000 at 12:05?",
+            question="Bitcoin Up or Down - September 13, 8:50AM-8:55AM ET",
             tag_ids=("21",),
-            start_date=NOW,
+            start_date=NOW - timedelta(hours=24),
+            event_start_time=NOW,
             end_date=NOW + timedelta(minutes=5),
         )
     )
     assert result.category is MarketCategory.BTC_5M
+
+
+def test_real_shaped_short_dated_market_is_not_read_as_long_horizon() -> None:
+    """The regression, stated as arithmetic.
+
+    ``end_date - start_date`` is 86,400s on this market and the contest is 300s --
+    off by 288x, in the direction that routes a five-minute barrier problem into a
+    long-horizon forecast model.
+    """
+    market = _market(
+        start_date=NOW - timedelta(hours=24),
+        event_start_time=NOW,
+        end_date=NOW + timedelta(minutes=5),
+    )
+    assert market.contest_window_seconds() == 300.0
+    assert (market.end_date - market.start_date).total_seconds() == 86700.0  # type: ignore[operator]
+
+
+def test_unknown_contest_window_is_not_promoted(classifier: MarketClassifier) -> None:
+    """No ``event_start_time`` means discovery did not fetch it, not "long horizon".
+
+    Promoting on a guess is the failure; staying ``CRYPTO`` and saying why is the
+    correct degradation.
+    """
+    result = classifier.classify(
+        _market(
+            question="Bitcoin Up or Down - 8:50AM-8:55AM ET",
+            tag_ids=("21",),
+            start_date=NOW - timedelta(hours=24),
+            end_date=NOW + timedelta(minutes=5),
+        )
+    )
+    assert result.category is MarketCategory.CRYPTO
+    assert "contest window unknown" in result.rationale
 
 
 def test_long_horizon_crypto_stays_crypto(classifier: MarketClassifier) -> None:
@@ -227,6 +271,7 @@ def test_long_horizon_crypto_stays_crypto(classifier: MarketClassifier) -> None:
             question="Will Bitcoin hit $150k by December 2026?",
             tag_ids=("21",),
             start_date=NOW,
+            event_start_time=NOW,
             end_date=NOW + timedelta(days=200),
         )
     )

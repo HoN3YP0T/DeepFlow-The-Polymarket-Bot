@@ -123,9 +123,10 @@ Verification scripts, all runnable without credentials:
 | `scripts/verify_slice.py` | discovery, mapping, batched books, fee arithmetic |
 | `scripts/verify_stream.py` | stream folding matches a fresh REST snapshot |
 | `scripts/verify_game_join.py` | in-play fixtures resolve to their tradeable markets |
+| `scripts/verify_short_dated_crypto.py` | 5-minute crypto windows exist and classify as `BTC_5M` |
 | `scripts/verify_phase1.py` | the whole chain, including persistence and staleness |
 
-`make verify` runs all four. `make capture-fixtures` refreshes the captured payload
+`make verify` runs all five. `make capture-fixtures` refreshes the captured payload
 corpus the sports tests read.
 
 ## Run modes

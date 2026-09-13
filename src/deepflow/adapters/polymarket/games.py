@@ -258,12 +258,13 @@ def links_from_events(sdk_events: Sequence[Any]) -> dict[str, GameLink]:
 
 
 def _markets_of(event: Any) -> tuple[Market, ...]:
-    """Map an event's markets, attaching the event id the nested payload omits.
+    """Map an event's markets, attaching what only the parent event knows.
 
-    ``mapping.to_market`` reads ``event_id`` from the market's own ``events``
-    list, which is empty on a market reached *through* an event -- the venue does
-    not repeat the parent inside the child. Left alone, every market mapped here
-    would lose the one identifier that ties it back to its fixture.
+    ``mapping.to_market`` reads ``event_id`` from the market's own ``events`` list,
+    which is empty on a market reached *through* an event -- the venue does not
+    repeat the parent inside the child. Left alone, every market mapped here would
+    lose the one identifier that ties it back to its fixture, and the kickoff time
+    with it. :func:`mapping.with_event_context` supplies both.
     """
     mapped: list[Market] = []
     event_id = EventId(str(event.id))
@@ -282,7 +283,7 @@ def _markets_of(event: Any) -> tuple[Market, ...]:
             continue
         if not market.outcomes:
             continue
-        mapped.append(market.model_copy(update={"event_id": event_id}))
+        mapped.append(mapping.with_event_context(market, event))
     return tuple(mapped)
 
 

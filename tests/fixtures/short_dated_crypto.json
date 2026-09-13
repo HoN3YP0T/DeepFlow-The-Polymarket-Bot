@@ -1,0 +1,1064 @@
+[
+ {
+  "category": null,
+  "created_at": "2025-12-18T16:38:22.838268Z",
+  "creators": [],
+  "description": "This market will resolve to \"Up\" if the Ethereum price at the end of the time range specified in the title is greater than or equal to the price at the beginning of that range. Otherwise, it will resolve to \"Down\".\nThe resolution source for this market is information from Chainlink, specifically the ETH/USD data stream available at https://data.chain.link/streams/eth-usd.\nPlease note that this market is about the price according to Chainlink data stream ETH/USD, not according to other sources or spot markets.",
+  "display": {
+   "color": null,
+   "country_name": null,
+   "election_type": null,
+   "featured_image_optimized": null,
+   "featured_order": null,
+   "gmp_chart_mode": null,
+   "icon_optimized": null,
+   "image_optimized": null,
+   "show_all_outcomes": true,
+   "show_market_images": true,
+   "sort_by": null
+  },
+  "estimation": {
+   "cant_estimate": null,
+   "estimate_value": null,
+   "estimated_value": null
+  },
+  "featured_image": null,
+  "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/ETH+fullsize.jpg",
+  "id": "109965",
+  "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/ETH+fullsize.jpg",
+  "markets": [
+   {
+    "category": null,
+    "condition_id": "0x2586c9ae289141b3688d0fe27cdca4ec39e6b18db416c112d38292911a70ee21",
+    "description": "This market will resolve to \"Up\" if the Ethereum price at the end of the time range specified in the title is greater than or equal to the price at the beginning of that range. Otherwise, it will resolve to \"Down\".\nThe resolution source for this market is information from Chainlink, specifically the ETH/USD data stream available at https://data.chain.link/streams/eth-usd.\nPlease note that this market is about the price according to Chainlink data stream ETH/USD, not according to other sources or spot markets.",
+    "events": [],
+    "group_item_title": null,
+    "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/ETH+fullsize.jpg",
+    "id": "964332",
+    "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/ETH+fullsize.jpg",
+    "metrics": {
+     "liquidity": "0",
+     "liquidity_clob": "0",
+     "liquidity_num": "0",
+     "volume": "0",
+     "volume_1mo": "0",
+     "volume_1wk": "0",
+     "volume_1yr": "0",
+     "volume_24hr": "0",
+     "volume_amm": "0",
+     "volume_clob": "0",
+     "volume_num": "0"
+    },
+    "outcomes": {
+     "no": {
+      "label": "Down",
+      "position_id": null,
+      "price": null,
+      "token_id": "8147340325802207351630542448538241866035001085575658933844567173354424206850"
+     },
+     "yes": {
+      "label": "Up",
+      "position_id": null,
+      "price": null,
+      "token_id": "51135880987390410545082540867088285556184709753913066543508010106858038418471"
+     }
+    },
+    "position_ids": [],
+    "prices": {
+     "best_ask": "1",
+     "best_bid": "0",
+     "last_trade_price": "0",
+     "one_day_price_change": "0",
+     "one_hour_price_change": "0",
+     "one_month_price_change": "0",
+     "one_week_price_change": "0",
+     "one_year_price_change": "0",
+     "spread": "1"
+    },
+    "question": "Ethereum Up or Down - December 19, 11:30AM-11:35AM ET",
+    "resolution": {
+     "neg_risk_request_id": null,
+     "question_id": "0x3fdf3d9760ac047455f6518a21c314199e2c2c6f0cef98fc5e431b1192857fe0",
+     "resolved_by": null,
+     "source": "https://data.chain.link/streams/eth-usd",
+     "uma_resolution_status": null
+    },
+    "rewards": {
+     "clob_rewards": null,
+     "holding_rewards_enabled": false,
+     "rewards_max_spread": 0.0,
+     "rewards_min_size": "0"
+    },
+    "slug": "eth-updown-5m-1766161800",
+    "sports": {
+     "game_id": null,
+     "game_start_time": null,
+     "line": null,
+     "sports_market_type": null
+    },
+    "state": {
+     "accepting_orders": null,
+     "active": true,
+     "archived": false,
+     "closed": false,
+     "closed_time": null,
+     "combo_status": "disabled",
+     "enable_order_book": false,
+     "end_date": "2025-12-19T16:35:00Z",
+     "neg_risk": false,
+     "start_date": "2025-12-18T16:38:22Z"
+    },
+    "tags": [],
+    "trading": {
+     "fee_schedule": {
+      "exponent": 1,
+      "rate": "0.07",
+      "rebate_rate": "0.2",
+      "taker_only": true
+     },
+     "fee_type": "crypto_fees_v2",
+     "fees_enabled": true,
+     "minimum_order_size": "5",
+     "minimum_tick_size": "0.01",
+     "seconds_delay": null
+    },
+    "version": "v1"
+   }
+  ],
+  "metadata": null,
+  "metrics": {
+   "comment_count": 0,
+   "competitive": null,
+   "liquidity": null,
+   "liquidity_amm": null,
+   "liquidity_clob": null,
+   "open_interest": null,
+   "tweet_count": null,
+   "volume": null,
+   "volume_1mo": null,
+   "volume_1wk": null,
+   "volume_1yr": null,
+   "volume_24hr": null
+  },
+  "parent_event_id": null,
+  "partners": [],
+  "published_at": null,
+  "resolution": {
+   "automatically_resolved": null,
+   "source": "https://data.chain.link/streams/eth-usd"
+  },
+  "schedule": {
+   "closed_time": null,
+   "creation_date": "2025-12-18T16:39:46.676080Z",
+   "end_date": "2025-12-19T16:35:00Z",
+   "event_date": null,
+   "event_week": null,
+   "finished_at": null,
+   "start_date": "2025-12-18T16:38:22Z",
+   "start_time": "2025-12-19T16:30:00Z"
+  },
+  "series": [
+   {
+    "active": true,
+    "archived": false,
+    "closed": false,
+    "description": null,
+    "icon": "",
+    "id": "10683",
+    "image": "",
+    "liquidity": "3096324.55129",
+    "slug": "eth-up-or-down-5m",
+    "start_date": null,
+    "subtitle": null,
+    "title": "ETH Up or Down 5m",
+    "volume": "4542.282934999999"
+   }
+  ],
+  "slug": "eth-updown-5m-1766161800",
+  "sports": {
+   "away_team_name": null,
+   "best_lines": [],
+   "elapsed": null,
+   "game_id": null,
+   "game_status": null,
+   "home_team_name": null,
+   "last_highlight": null,
+   "last_highlight_at": null,
+   "last_highlight_type": null,
+   "period": null,
+   "rescheduled_from_game_id": null,
+   "score": null,
+   "series_slug": "eth-up-or-down-5m",
+   "sport": null,
+   "sportsradar_match_id": null,
+   "spreads_main_line": null,
+   "teams": [],
+   "totals_main_line": null
+  },
+  "state": {
+   "active": true,
+   "archived": false,
+   "automatically_active": null,
+   "closed": false,
+   "comments_enabled": null,
+   "cyom": false,
+   "ended": null,
+   "featured": false,
+   "live": null,
+   "new": false,
+   "requires_translation": false,
+   "restricted": true
+  },
+  "subcategory": null,
+  "subtitle": null,
+  "tags": [
+   {
+    "id": "102127",
+    "label": "Up or Down",
+    "slug": "up-or-down"
+   },
+   {
+    "id": "1312",
+    "label": "Crypto Prices",
+    "slug": "crypto-prices"
+   },
+   {
+    "id": "102169",
+    "label": "Hide From New",
+    "slug": "hide-from-new"
+   },
+   {
+    "id": "101757",
+    "label": "Recurring",
+    "slug": "recurring"
+   },
+   {
+    "id": "21",
+    "label": "Crypto",
+    "slug": "crypto"
+   },
+   {
+    "id": "39",
+    "label": "Ethereum",
+    "slug": "ethereum"
+   },
+   {
+    "id": "102892",
+    "label": "5M",
+    "slug": "5M"
+   }
+  ],
+  "ticker": "eth-updown-5m-1766161800",
+  "title": "Ethereum Up or Down - December 19, 11:30AM-11:35AM ET",
+  "trading": {
+   "cumulative_markets": false,
+   "enable_neg_risk": false,
+   "enable_order_book": false,
+   "neg_risk": false,
+   "neg_risk_augmented": false,
+   "neg_risk_fee_bips": null,
+   "neg_risk_market_id": null
+  },
+  "updated_at": "2026-09-13T12:55:08.800906Z",
+  "version": "v1"
+ },
+ {
+  "category": null,
+  "created_at": "2025-12-18T16:38:24.871596Z",
+  "creators": [],
+  "description": "This market will resolve to \"Up\" if the XRP price at the end of the time range specified in the title is greater than or equal to the price at the beginning of that range. Otherwise, it will resolve to \"Down\".\nThe resolution source for this market is information from Chainlink, specifically the XRP/USD data stream available at https://data.chain.link/streams/xrp-usd.\nPlease note that this market is about the price according to Chainlink data stream XRP/USD, not according to other sources or spot markets.",
+  "display": {
+   "color": null,
+   "country_name": null,
+   "election_type": null,
+   "featured_image_optimized": null,
+   "featured_order": null,
+   "gmp_chart_mode": null,
+   "icon_optimized": null,
+   "image_optimized": null,
+   "show_all_outcomes": true,
+   "show_market_images": true,
+   "sort_by": null
+  },
+  "estimation": {
+   "cant_estimate": null,
+   "estimate_value": null,
+   "estimated_value": null
+  },
+  "featured_image": null,
+  "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/XRP-logo.png",
+  "id": "109967",
+  "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/XRP-logo.png",
+  "markets": [
+   {
+    "category": null,
+    "condition_id": "0x604658b4a390c9f0d9e556e42e75b0341388c55298ab049f308a38373a0648f4",
+    "description": "This market will resolve to \"Up\" if the XRP price at the end of the time range specified in the title is greater than or equal to the price at the beginning of that range. Otherwise, it will resolve to \"Down\".\nThe resolution source for this market is information from Chainlink, specifically the XRP/USD data stream available at https://data.chain.link/streams/xrp-usd.\nPlease note that this market is about the price according to Chainlink data stream XRP/USD, not according to other sources or spot markets.",
+    "events": [],
+    "group_item_title": null,
+    "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/XRP-logo.png",
+    "id": "964334",
+    "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/XRP-logo.png",
+    "metrics": {
+     "liquidity": "0",
+     "liquidity_clob": "0",
+     "liquidity_num": "0",
+     "volume": "0",
+     "volume_1mo": "0",
+     "volume_1wk": "0",
+     "volume_1yr": "0",
+     "volume_24hr": "0",
+     "volume_amm": "0",
+     "volume_clob": "0",
+     "volume_num": "0"
+    },
+    "outcomes": {
+     "no": {
+      "label": "Down",
+      "position_id": null,
+      "price": null,
+      "token_id": "11171625127916478138352039446337793605823215290927561433899651193784651166384"
+     },
+     "yes": {
+      "label": "Up",
+      "position_id": null,
+      "price": null,
+      "token_id": "55451409519123967598048303550806398341573554926338813123641665918773293249834"
+     }
+    },
+    "position_ids": [],
+    "prices": {
+     "best_ask": "1",
+     "best_bid": "0",
+     "last_trade_price": "0",
+     "one_day_price_change": "0",
+     "one_hour_price_change": "0",
+     "one_month_price_change": "0",
+     "one_week_price_change": "0",
+     "one_year_price_change": "0",
+     "spread": "1"
+    },
+    "question": "XRP Up or Down - December 19, 11:30AM-11:35AM ET",
+    "resolution": {
+     "neg_risk_request_id": null,
+     "question_id": "0x42e1dd5cf3f86fcefc09e93d17a9c901658f68707ebcd250c54507eb07a630bb",
+     "resolved_by": null,
+     "source": "https://data.chain.link/streams/xrp-usd",
+     "uma_resolution_status": null
+    },
+    "rewards": {
+     "clob_rewards": null,
+     "holding_rewards_enabled": false,
+     "rewards_max_spread": 0.0,
+     "rewards_min_size": "0"
+    },
+    "slug": "xrp-updown-5m-1766161800",
+    "sports": {
+     "game_id": null,
+     "game_start_time": null,
+     "line": null,
+     "sports_market_type": null
+    },
+    "state": {
+     "accepting_orders": null,
+     "active": true,
+     "archived": false,
+     "closed": false,
+     "closed_time": null,
+     "combo_status": "disabled",
+     "enable_order_book": false,
+     "end_date": "2025-12-19T16:35:00Z",
+     "neg_risk": false,
+     "start_date": "2025-12-18T16:38:24Z"
+    },
+    "tags": [],
+    "trading": {
+     "fee_schedule": {
+      "exponent": 1,
+      "rate": "0.07",
+      "rebate_rate": "0.2",
+      "taker_only": true
+     },
+     "fee_type": "crypto_fees_v2",
+     "fees_enabled": true,
+     "minimum_order_size": "5",
+     "minimum_tick_size": "0.01",
+     "seconds_delay": null
+    },
+    "version": "v1"
+   }
+  ],
+  "metadata": null,
+  "metrics": {
+   "comment_count": 0,
+   "competitive": null,
+   "liquidity": null,
+   "liquidity_amm": null,
+   "liquidity_clob": null,
+   "open_interest": null,
+   "tweet_count": null,
+   "volume": null,
+   "volume_1mo": null,
+   "volume_1wk": null,
+   "volume_1yr": null,
+   "volume_24hr": null
+  },
+  "parent_event_id": null,
+  "partners": [],
+  "published_at": null,
+  "resolution": {
+   "automatically_resolved": null,
+   "source": "https://data.chain.link/streams/xrp-usd"
+  },
+  "schedule": {
+   "closed_time": null,
+   "creation_date": "2025-12-18T16:39:46.677959Z",
+   "end_date": "2025-12-19T16:35:00Z",
+   "event_date": null,
+   "event_week": null,
+   "finished_at": null,
+   "start_date": "2025-12-18T16:38:24Z",
+   "start_time": "2025-12-19T16:30:00Z"
+  },
+  "series": [
+   {
+    "active": true,
+    "archived": false,
+    "closed": false,
+    "description": null,
+    "icon": "",
+    "id": "10685",
+    "image": "",
+    "liquidity": "960293.16493",
+    "slug": "xrp-up-or-down-5m",
+    "start_date": null,
+    "subtitle": null,
+    "title": "XRP Up or Down 5m",
+    "volume": "188336.78548201453"
+   }
+  ],
+  "slug": "xrp-updown-5m-1766161800",
+  "sports": {
+   "away_team_name": null,
+   "best_lines": [],
+   "elapsed": null,
+   "game_id": null,
+   "game_status": null,
+   "home_team_name": null,
+   "last_highlight": null,
+   "last_highlight_at": null,
+   "last_highlight_type": null,
+   "period": null,
+   "rescheduled_from_game_id": null,
+   "score": null,
+   "series_slug": "xrp-up-or-down-5m",
+   "sport": null,
+   "sportsradar_match_id": null,
+   "spreads_main_line": null,
+   "teams": [],
+   "totals_main_line": null
+  },
+  "state": {
+   "active": true,
+   "archived": false,
+   "automatically_active": null,
+   "closed": false,
+   "comments_enabled": null,
+   "cyom": false,
+   "ended": null,
+   "featured": false,
+   "live": null,
+   "new": false,
+   "requires_translation": false,
+   "restricted": true
+  },
+  "subcategory": null,
+  "subtitle": null,
+  "tags": [
+   {
+    "id": "102127",
+    "label": "Up or Down",
+    "slug": "up-or-down"
+   },
+   {
+    "id": "1312",
+    "label": "Crypto Prices",
+    "slug": "crypto-prices"
+   },
+   {
+    "id": "102169",
+    "label": "Hide From New",
+    "slug": "hide-from-new"
+   },
+   {
+    "id": "101757",
+    "label": "Recurring",
+    "slug": "recurring"
+   },
+   {
+    "id": "21",
+    "label": "Crypto",
+    "slug": "crypto"
+   },
+   {
+    "id": "101267",
+    "label": "XRP",
+    "slug": "xrp"
+   },
+   {
+    "id": "101312",
+    "label": "Ripple",
+    "slug": "ripple"
+   },
+   {
+    "id": "102892",
+    "label": "5M",
+    "slug": "5M"
+   }
+  ],
+  "ticker": "xrp-updown-5m-1766161800",
+  "title": "XRP Up or Down - December 19, 11:30AM-11:35AM ET",
+  "trading": {
+   "cumulative_markets": false,
+   "enable_neg_risk": false,
+   "enable_order_book": false,
+   "neg_risk": false,
+   "neg_risk_augmented": false,
+   "neg_risk_fee_bips": null,
+   "neg_risk_market_id": null
+  },
+  "updated_at": "2026-09-13T12:55:08.800906Z",
+  "version": "v1"
+ },
+ {
+  "category": null,
+  "created_at": "2025-12-18T16:43:11.647034Z",
+  "creators": [],
+  "description": "This market will resolve to \"Up\" if the Bitcoin price at the end of the time range specified in the title is greater than or equal to the price at the beginning of that range. Otherwise, it will resolve to \"Down\".\nThe resolution source for this market is information from Chainlink, specifically the BTC/USD data stream available at https://data.chain.link/streams/btc-usd.\nPlease note that this market is about the price according to Chainlink data stream BTC/USD, not according to other sources or spot markets.",
+  "display": {
+   "color": null,
+   "country_name": null,
+   "election_type": null,
+   "featured_image_optimized": null,
+   "featured_order": null,
+   "gmp_chart_mode": null,
+   "icon_optimized": null,
+   "image_optimized": null,
+   "show_all_outcomes": true,
+   "show_market_images": true,
+   "sort_by": null
+  },
+  "estimation": {
+   "cant_estimate": null,
+   "estimate_value": null,
+   "estimated_value": null
+  },
+  "featured_image": null,
+  "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/BTC+fullsize.png",
+  "id": "109968",
+  "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/BTC+fullsize.png",
+  "markets": [
+   {
+    "category": null,
+    "condition_id": "0x33f2f9edc51b2f6f92f2636b6fce7ee468770a581e6951c301b932fd7a3fd127",
+    "description": "This market will resolve to \"Up\" if the Bitcoin price at the end of the time range specified in the title is greater than or equal to the price at the beginning of that range. Otherwise, it will resolve to \"Down\".\nThe resolution source for this market is information from Chainlink, specifically the BTC/USD data stream available at https://data.chain.link/streams/btc-usd.\nPlease note that this market is about the price according to Chainlink data stream BTC/USD, not according to other sources or spot markets.",
+    "events": [],
+    "group_item_title": null,
+    "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/BTC+fullsize.png",
+    "id": "964335",
+    "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/BTC+fullsize.png",
+    "metrics": {
+     "liquidity": "0",
+     "liquidity_clob": "0",
+     "liquidity_num": "0",
+     "volume": "0",
+     "volume_1mo": "0",
+     "volume_1wk": "0",
+     "volume_1yr": "0",
+     "volume_24hr": "0",
+     "volume_amm": "0",
+     "volume_clob": "0",
+     "volume_num": "0"
+    },
+    "outcomes": {
+     "no": {
+      "label": "Down",
+      "position_id": null,
+      "price": null,
+      "token_id": "89077455060153802984632332231552501115671307713789066937817034009529706763206"
+     },
+     "yes": {
+      "label": "Up",
+      "position_id": null,
+      "price": null,
+      "token_id": "44594613733704690315394897227759662521183429824282007907633921479634990989260"
+     }
+    },
+    "position_ids": [],
+    "prices": {
+     "best_ask": "1",
+     "best_bid": "0",
+     "last_trade_price": "0",
+     "one_day_price_change": "0",
+     "one_hour_price_change": "0",
+     "one_month_price_change": "0",
+     "one_week_price_change": "0",
+     "one_year_price_change": "0",
+     "spread": "1"
+    },
+    "question": "Bitcoin Up or Down - December 19, 11:35AM-11:40AM ET",
+    "resolution": {
+     "neg_risk_request_id": null,
+     "question_id": "0xf5704ffb9f50b9638cf3dce992f075e41a38f9837fca11cd6c81d932f63fca29",
+     "resolved_by": null,
+     "source": "https://data.chain.link/streams/btc-usd",
+     "uma_resolution_status": null
+    },
+    "rewards": {
+     "clob_rewards": null,
+     "holding_rewards_enabled": false,
+     "rewards_max_spread": 0.0,
+     "rewards_min_size": "0"
+    },
+    "slug": "btc-updown-5m-1766162100",
+    "sports": {
+     "game_id": null,
+     "game_start_time": null,
+     "line": null,
+     "sports_market_type": null
+    },
+    "state": {
+     "accepting_orders": null,
+     "active": true,
+     "archived": false,
+     "closed": false,
+     "closed_time": null,
+     "combo_status": "disabled",
+     "enable_order_book": false,
+     "end_date": "2025-12-19T16:40:00Z",
+     "neg_risk": false,
+     "start_date": "2025-12-18T16:43:11Z"
+    },
+    "tags": [],
+    "trading": {
+     "fee_schedule": {
+      "exponent": 1,
+      "rate": "0.07",
+      "rebate_rate": "0.2",
+      "taker_only": true
+     },
+     "fee_type": "crypto_fees_v2",
+     "fees_enabled": true,
+     "minimum_order_size": "5",
+     "minimum_tick_size": "0.01",
+     "seconds_delay": null
+    },
+    "version": "v1"
+   }
+  ],
+  "metadata": null,
+  "metrics": {
+   "comment_count": 0,
+   "competitive": null,
+   "liquidity": null,
+   "liquidity_amm": null,
+   "liquidity_clob": null,
+   "open_interest": null,
+   "tweet_count": null,
+   "volume": null,
+   "volume_1mo": null,
+   "volume_1wk": null,
+   "volume_1yr": null,
+   "volume_24hr": null
+  },
+  "parent_event_id": null,
+  "partners": [],
+  "published_at": null,
+  "resolution": {
+   "automatically_resolved": null,
+   "source": "https://data.chain.link/streams/btc-usd"
+  },
+  "schedule": {
+   "closed_time": null,
+   "creation_date": "2025-12-18T16:49:48.105981Z",
+   "end_date": "2025-12-19T16:40:00Z",
+   "event_date": null,
+   "event_week": null,
+   "finished_at": null,
+   "start_date": "2025-12-18T16:43:11Z",
+   "start_time": "2025-12-19T16:35:00Z"
+  },
+  "series": [
+   {
+    "active": true,
+    "archived": false,
+    "closed": false,
+    "description": null,
+    "icon": "",
+    "id": "10684",
+    "image": "",
+    "liquidity": "3928250.3942",
+    "slug": "btc-up-or-down-5m",
+    "start_date": null,
+    "subtitle": null,
+    "title": "BTC Up or Down 5m",
+    "volume": "65916.825829"
+   }
+  ],
+  "slug": "btc-updown-5m-1766162100",
+  "sports": {
+   "away_team_name": null,
+   "best_lines": [],
+   "elapsed": null,
+   "game_id": null,
+   "game_status": null,
+   "home_team_name": null,
+   "last_highlight": null,
+   "last_highlight_at": null,
+   "last_highlight_type": null,
+   "period": null,
+   "rescheduled_from_game_id": null,
+   "score": null,
+   "series_slug": "btc-up-or-down-5m",
+   "sport": null,
+   "sportsradar_match_id": null,
+   "spreads_main_line": null,
+   "teams": [],
+   "totals_main_line": null
+  },
+  "state": {
+   "active": true,
+   "archived": false,
+   "automatically_active": null,
+   "closed": false,
+   "comments_enabled": null,
+   "cyom": false,
+   "ended": null,
+   "featured": false,
+   "live": null,
+   "new": false,
+   "requires_translation": false,
+   "restricted": true
+  },
+  "subcategory": null,
+  "subtitle": null,
+  "tags": [
+   {
+    "id": "102127",
+    "label": "Up or Down",
+    "slug": "up-or-down"
+   },
+   {
+    "id": "1312",
+    "label": "Crypto Prices",
+    "slug": "crypto-prices"
+   },
+   {
+    "id": "102169",
+    "label": "Hide From New",
+    "slug": "hide-from-new"
+   },
+   {
+    "id": "101757",
+    "label": "Recurring",
+    "slug": "recurring"
+   },
+   {
+    "id": "21",
+    "label": "Crypto",
+    "slug": "crypto"
+   },
+   {
+    "id": "235",
+    "label": "Bitcoin",
+    "slug": "bitcoin"
+   },
+   {
+    "id": "102892",
+    "label": "5M",
+    "slug": "5M"
+   }
+  ],
+  "ticker": "btc-updown-5m-1766162100",
+  "title": "Bitcoin Up or Down - December 19, 11:35AM-11:40AM ET",
+  "trading": {
+   "cumulative_markets": false,
+   "enable_neg_risk": false,
+   "enable_order_book": false,
+   "neg_risk": false,
+   "neg_risk_augmented": false,
+   "neg_risk_fee_bips": null,
+   "neg_risk_market_id": null
+  },
+  "updated_at": "2026-09-13T12:55:08.800906Z",
+  "version": "v1"
+ },
+ {
+  "category": null,
+  "created_at": "2025-12-18T16:43:11.647342Z",
+  "creators": [],
+  "description": "This market will resolve to \"Up\" if the XRP price at the end of the time range specified in the title is greater than or equal to the price at the beginning of that range. Otherwise, it will resolve to \"Down\".\nThe resolution source for this market is information from Chainlink, specifically the XRP/USD data stream available at https://data.chain.link/streams/xrp-usd.\nPlease note that this market is about the price according to Chainlink data stream XRP/USD, not according to other sources or spot markets.",
+  "display": {
+   "color": null,
+   "country_name": null,
+   "election_type": null,
+   "featured_image_optimized": null,
+   "featured_order": null,
+   "gmp_chart_mode": null,
+   "icon_optimized": null,
+   "image_optimized": null,
+   "show_all_outcomes": true,
+   "show_market_images": true,
+   "sort_by": null
+  },
+  "estimation": {
+   "cant_estimate": null,
+   "estimate_value": null,
+   "estimated_value": null
+  },
+  "featured_image": null,
+  "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/XRP-logo.png",
+  "id": "109969",
+  "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/XRP-logo.png",
+  "markets": [
+   {
+    "category": null,
+    "condition_id": "0xeb00986ebcff014cdc39749ff27d8a16830fdc8fd8dcefcbeae69c8c1ba9be96",
+    "description": "This market will resolve to \"Up\" if the XRP price at the end of the time range specified in the title is greater than or equal to the price at the beginning of that range. Otherwise, it will resolve to \"Down\".\nThe resolution source for this market is information from Chainlink, specifically the XRP/USD data stream available at https://data.chain.link/streams/xrp-usd.\nPlease note that this market is about the price according to Chainlink data stream XRP/USD, not according to other sources or spot markets.",
+    "events": [],
+    "group_item_title": null,
+    "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/XRP-logo.png",
+    "id": "964336",
+    "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/XRP-logo.png",
+    "metrics": {
+     "liquidity": "0",
+     "liquidity_clob": "0",
+     "liquidity_num": "0",
+     "volume": "0",
+     "volume_1mo": "0",
+     "volume_1wk": "0",
+     "volume_1yr": "0",
+     "volume_24hr": "0",
+     "volume_amm": "0",
+     "volume_clob": "0",
+     "volume_num": "0"
+    },
+    "outcomes": {
+     "no": {
+      "label": "Down",
+      "position_id": null,
+      "price": null,
+      "token_id": "65257313187892862401190894177952288993202743924369632395355239204621911877173"
+     },
+     "yes": {
+      "label": "Up",
+      "position_id": null,
+      "price": null,
+      "token_id": "102478916469235145898503920835370365045535071052645641953114587873173001501731"
+     }
+    },
+    "position_ids": [],
+    "prices": {
+     "best_ask": "1",
+     "best_bid": "0",
+     "last_trade_price": "0",
+     "one_day_price_change": "0",
+     "one_hour_price_change": "0",
+     "one_month_price_change": "0",
+     "one_week_price_change": "0",
+     "one_year_price_change": "0",
+     "spread": "1"
+    },
+    "question": "XRP Up or Down - December 19, 11:35AM-11:40AM ET",
+    "resolution": {
+     "neg_risk_request_id": null,
+     "question_id": "0xb1de972339701eb9e563b7488e0f8d801174c9b893d68d46d795dae1b43af440",
+     "resolved_by": null,
+     "source": "https://data.chain.link/streams/xrp-usd",
+     "uma_resolution_status": null
+    },
+    "rewards": {
+     "clob_rewards": null,
+     "holding_rewards_enabled": false,
+     "rewards_max_spread": 0.0,
+     "rewards_min_size": "0"
+    },
+    "slug": "xrp-updown-5m-1766162100",
+    "sports": {
+     "game_id": null,
+     "game_start_time": null,
+     "line": null,
+     "sports_market_type": null
+    },
+    "state": {
+     "accepting_orders": null,
+     "active": true,
+     "archived": false,
+     "closed": false,
+     "closed_time": null,
+     "combo_status": "disabled",
+     "enable_order_book": false,
+     "end_date": "2025-12-19T16:40:00Z",
+     "neg_risk": false,
+     "start_date": "2025-12-18T16:43:11Z"
+    },
+    "tags": [],
+    "trading": {
+     "fee_schedule": {
+      "exponent": 1,
+      "rate": "0.07",
+      "rebate_rate": "0.2",
+      "taker_only": true
+     },
+     "fee_type": "crypto_fees_v2",
+     "fees_enabled": true,
+     "minimum_order_size": "5",
+     "minimum_tick_size": "0.01",
+     "seconds_delay": null
+    },
+    "version": "v1"
+   }
+  ],
+  "metadata": null,
+  "metrics": {
+   "comment_count": 0,
+   "competitive": null,
+   "liquidity": null,
+   "liquidity_amm": null,
+   "liquidity_clob": null,
+   "open_interest": null,
+   "tweet_count": null,
+   "volume": null,
+   "volume_1mo": null,
+   "volume_1wk": null,
+   "volume_1yr": null,
+   "volume_24hr": null
+  },
+  "parent_event_id": null,
+  "partners": [],
+  "published_at": null,
+  "resolution": {
+   "automatically_resolved": null,
+   "source": "https://data.chain.link/streams/xrp-usd"
+  },
+  "schedule": {
+   "closed_time": null,
+   "creation_date": "2025-12-18T16:49:48.103589Z",
+   "end_date": "2025-12-19T16:40:00Z",
+   "event_date": null,
+   "event_week": null,
+   "finished_at": null,
+   "start_date": "2025-12-18T16:43:11Z",
+   "start_time": "2025-12-19T16:35:00Z"
+  },
+  "series": [
+   {
+    "active": true,
+    "archived": false,
+    "closed": false,
+    "description": null,
+    "icon": "",
+    "id": "10685",
+    "image": "",
+    "liquidity": "960293.16493",
+    "slug": "xrp-up-or-down-5m",
+    "start_date": null,
+    "subtitle": null,
+    "title": "XRP Up or Down 5m",
+    "volume": "188336.78548201453"
+   }
+  ],
+  "slug": "xrp-updown-5m-1766162100",
+  "sports": {
+   "away_team_name": null,
+   "best_lines": [],
+   "elapsed": null,
+   "game_id": null,
+   "game_status": null,
+   "home_team_name": null,
+   "last_highlight": null,
+   "last_highlight_at": null,
+   "last_highlight_type": null,
+   "period": null,
+   "rescheduled_from_game_id": null,
+   "score": null,
+   "series_slug": "xrp-up-or-down-5m",
+   "sport": null,
+   "sportsradar_match_id": null,
+   "spreads_main_line": null,
+   "teams": [],
+   "totals_main_line": null
+  },
+  "state": {
+   "active": true,
+   "archived": false,
+   "automatically_active": null,
+   "closed": false,
+   "comments_enabled": null,
+   "cyom": false,
+   "ended": null,
+   "featured": false,
+   "live": null,
+   "new": false,
+   "requires_translation": false,
+   "restricted": true
+  },
+  "subcategory": null,
+  "subtitle": null,
+  "tags": [
+   {
+    "id": "102127",
+    "label": "Up or Down",
+    "slug": "up-or-down"
+   },
+   {
+    "id": "1312",
+    "label": "Crypto Prices",
+    "slug": "crypto-prices"
+   },
+   {
+    "id": "102169",
+    "label": "Hide From New",
+    "slug": "hide-from-new"
+   },
+   {
+    "id": "101757",
+    "label": "Recurring",
+    "slug": "recurring"
+   },
+   {
+    "id": "21",
+    "label": "Crypto",
+    "slug": "crypto"
+   },
+   {
+    "id": "101267",
+    "label": "XRP",
+    "slug": "xrp"
+   },
+   {
+    "id": "101312",
+    "label": "Ripple",
+    "slug": "ripple"
+   },
+   {
+    "id": "102892",
+    "label": "5M",
+    "slug": "5M"
+   }
+  ],
+  "ticker": "xrp-updown-5m-1766162100",
+  "title": "XRP Up or Down - December 19, 11:35AM-11:40AM ET",
+  "trading": {
+   "cumulative_markets": false,
+   "enable_neg_risk": false,
+   "enable_order_book": false,
+   "neg_risk": false,
+   "neg_risk_augmented": false,
+   "neg_risk_fee_bips": null,
+   "neg_risk_market_id": null
+  },
+  "updated_at": "2026-09-13T12:55:08.800906Z",
+  "version": "v1"
+ }
+]

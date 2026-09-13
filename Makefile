@@ -33,6 +33,7 @@ verify:
 	.venv/bin/python scripts/verify_slice.py
 	.venv/bin/python scripts/verify_stream.py
 	.venv/bin/python scripts/verify_game_join.py
+	.venv/bin/python scripts/verify_short_dated_crypto.py
 	.venv/bin/python scripts/verify_phase1.py
 
 ## Refresh the captured payload corpus. Exits non-zero if the capture would test

@@ -896,6 +896,83 @@ docstring names. Matching is prefix-based so behaviour is unaffected.
 
 ---
 
+## 53. RETRACTED — "no short-dated crypto markets exist"
+
+`docs/STATUS.md` recorded this as a blocker: *"Scanned 900 open markets: 30 crypto,
+all with windows over 24 hours, none short-dated and unexpired. `Btc5mEngine` has no
+market."*
+
+**Wrong.** The venue lists a 5-minute up/down market **per asset, every five
+minutes**. Measured on 2026-09-13, eight assets were running the cadence
+simultaneously — BTC, ETH, XRP, SOL, DOGE, BNB, HYPE, ZEC — with 20 windows open
+within ±15 minutes of the moment of measurement, all `acceptingOrders: true` with
+live books at tick 0.01. A 15-minute variant (`btc-updown-15m-…`) exists too, which
+settles the open question about whether the cadence was 5 or 15 minutes: both.
+
+Found because the owner pasted a link to one that was live at the time.
+
+Reproduce: `scripts/verify_short_dated_crypto.py`.
+
+---
+
+## 54. The contest window is `end_date - eventStartTime`, never `end_date - startDate`
+
+The reason the scan saw nothing. A short-dated market **opens about 24 hours before
+the window it settles on**:
+
+```
+btc-updown-5m-1789303800
+  startDate       2026-09-12T12:58:02Z   <- listed for trading
+  eventStartTime  2026-09-13T12:50:00Z   <- the contest begins
+  endDate         2026-09-13T12:55:00Z   <- settles
+
+  end_date - start_date       = 86,217s   <- what the scan and classifier measured
+  end_date - eventStartTime   =     300s   <- the contest
+```
+
+Off by **287×**, in the direction that makes every one of them look like a
+long-horizon forecast. The consequence was not only a bad scan: `_apply_short_dated`
+used the same arithmetic, so **every short-dated crypto market on the venue was
+classified as plain `CRYPTO`** and would have been priced with a long-horizon model.
+
+This is the same mistake as §45's third cause, in a second domain: measuring a
+contest from when the *market* opened. `Market.contest_window_seconds()` is now the
+single place it is computed, and it returns `None` rather than falling back to
+`start_date` when `event_start_time` was not fetched — the fallback *is* the bug.
+
+`eventStartTime` is only reachable through the event: the SDK's market model drops
+the field, and the stub event nested on a market carries id, slug and title with no
+schedule. So **a discovery path built on `list_markets` cannot see a contest window
+at all.**
+
+Also worth recording: the unit test for this promotion passed throughout, because it
+built `start_date=NOW, end_date=NOW+5min` — a shape the venue never sends.
+
+---
+
+## 55. Tags are on the event; markets carry none — and the venue publishes the cadence
+
+Every market on a captured short-dated crypto event had `tags: []` while its event
+carried seven, including the decisive ones:
+
+```
+('21','crypto')  ('102892','5M')  ('102127','up-or-down')  ('1312','crypto-prices')
+('235','bitcoin') / ('39','ethereum') / ('101267','xrp') + ('101312','ripple')
+```
+
+`102892` is the venue **stating the cadence** — strictly better than deriving it from
+timestamps. It is now the primary signal for `BTC_5M`, with the window as
+corroboration. `mapping.with_event_context` inherits event tags onto a market that
+has none, since tags are the classifier's primary tier and a market reached through
+an event otherwise arrives with its best signal missing.
+
+The same fix exposed a keyword gap the window bug had been masking: a live XRP market
+classified as **UNKNOWN**, because `CRYPTO`'s keyword seeds listed `ethereum` and
+`solana` but no `xrp` or `ripple`. Nothing had caught it, because no short-dated
+crypto market was ever being promoted far enough to notice.
+
+---
+
 ## Confirmed correct
 
 Worth recording, since these were guesses that happened to be right:

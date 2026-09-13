@@ -45,6 +45,10 @@ CATEGORY_TAG_IDS: Final[dict[MarketCategory, frozenset[str]]] = {
     MarketCategory.POLITICS: frozenset({"2", "144", "264", "1101", "101206"}),
     MarketCategory.GEOPOLITICS: frozenset({"100265", "101253", "366"}),
     MarketCategory.CRYPTO: frozenset({"21", "100328"}),
+    # ``102892`` is the venue's own ``5M`` cadence tag and ``102127`` its
+    # ``up-or-down`` family. Authoritative where the window arithmetic is derived:
+    # the venue is stating the cadence rather than leaving it to be measured.
+    MarketCategory.BTC_5M: frozenset({"102892"}),
     MarketCategory.OTHER_SPORTS: frozenset({"64", "65"}),  # esports
 }
 
@@ -63,7 +67,19 @@ CATEGORY_SIGNALS: Final[dict[MarketCategory, tuple[str, ...]]] = {
     MarketCategory.TENNIS: ("tennis", "atp", "wta", "wimbledon", "us open", "roland garros"),
     MarketCategory.BADMINTON: ("badminton", "bwf", "shuttlecock"),
     MarketCategory.BTC_5M: ("btc", "bitcoin"),
-    MarketCategory.CRYPTO: ("crypto", "ethereum", "solana", "token"),
+    # The venue runs the short-dated cadence on at least BTC, ETH, XRP and SOL, and
+    # "xrp" matched nothing here until a live XRP market classified as UNKNOWN -- the
+    # window bug had been masking the gap by never promoting any of them.
+    MarketCategory.CRYPTO: (
+        "crypto",
+        "ethereum",
+        "solana",
+        "token",
+        "xrp",
+        "ripple",
+        "dogecoin",
+        "up or down",
+    ),
     MarketCategory.POLITICS: ("election", "president", "senate", "parliament", "nominee"),
     MarketCategory.GEOPOLITICS: ("sanctions", "treaty", "summit", "diplomatic"),
     MarketCategory.WAR_CONFLICT: ("strike", "invasion", "offensive", "military action"),
@@ -364,13 +380,29 @@ class MarketClassifier:
         reference price. A keyword match on "bitcoin" alone cannot tell those apart,
         and pricing a 5-minute strike market with a general crypto model is not
         approximately right -- it is a different question.
+
+        The window comes from :meth:`Market.contest_window_seconds`, which measures
+        ``end_date - event_start_time``. This used to measure from ``start_date``,
+        and the difference is not academic: a live ``btc-updown-5m`` market opens
+        about 24 hours before the five minutes it settles on, so the old arithmetic
+        returned ~86,200s where the truth is 300s. **Every short-dated crypto market
+        on the venue was therefore classified as plain ``CRYPTO``** -- and the same
+        arithmetic, used in a scan, is what produced the recorded finding that no
+        short-dated crypto markets existed at all. Twenty were open when that was
+        corrected, across BTC, ETH, XRP and SOL.
+
+        A market whose ``event_start_time`` was never fetched is left as ``CRYPTO``
+        rather than guessed at: the field is only reachable through ``list_events``,
+        so its absence means "discovery did not look", and a promotion on an unknown
+        window is what this method exists to avoid.
         """
         if MarketCategory.CRYPTO not in scores:
             return scores
-        if market.start_date is None or market.end_date is None:
-            return scores
 
-        window_seconds = (market.end_date - market.start_date).total_seconds()
+        window_seconds = market.contest_window_seconds()
+        if window_seconds is None:
+            rationale.append("contest window unknown (event_start_time not fetched)")
+            return scores
         if not 0 < window_seconds <= SHORT_DATED_CRYPTO_SECONDS:
             return scores
 

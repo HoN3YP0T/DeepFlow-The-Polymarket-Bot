@@ -92,9 +92,13 @@ can ever trade — see `docs/POLYMARKET-API-CONFORMANCE.md` §36-38.
     `rules/cricket.py` to read `period="Live"` and its score before the model is
     worth writing. `BadmintonEngine` stays blocked — no live state observed on
     either source, which is "not seen yet" rather than proven absent
-14. `Btc5mEngine` — reference price handling is the whole problem; confirm
-    against live markets whether the cadence is 5 or 15 minutes, and which feed
-    (Binance spot vs Chainlink TWAP 30/60 s) each market settles against
+14. `Btc5mEngine` — **unblocked, unwritten.** The markets exist: one per asset every
+    five minutes across eight assets, plus a 15-minute variant, so the cadence
+    question is answered as *both* (§53). Classification now reaches `BTC_5M` via the
+    venue's own `5M` tag and a correctly measured contest window (§54–55). What
+    remains is the model: reference price handling is the whole problem, and which
+    feed (Binance spot vs Chainlink TWAP 30/60 s) each market settles against still
+    has to be read from its resolution text
 15. Calibration fitting (`BaseProbabilityEngine._calibrate`)
 
 **Done when:** engines produce calibrated probabilities and abstain correctly
