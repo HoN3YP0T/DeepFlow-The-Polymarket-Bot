@@ -132,7 +132,11 @@ to check `sets_won_by_each_player` against.
     place. A book too thin to fill the size is no assessment rather than a bad one
 17. ~~`MicrostructureEngine`~~ **done in Phase 3 (item 10)** — listed twice in the
     original plan; kept here as a pointer rather than silently dropped
-18. All 15 `SafetyGate` checks wired
+18. ~~All 15 `SafetyGate` checks wired~~ **done, as 17** — the fifteen specified plus
+    `BOOK_CLEARED_AT_START` and `REFERENCE_FEED_MATCHED`, from findings 63-64. Checks
+    are pure functions over a `GateContext`; **a missing input fails the check that
+    reads it**, so a context assembled by a forgetful caller refuses and names the
+    gap rather than approving. `default_gate()` registers all 17
 19. `RiskEngine`, `ExposureTracker` (correlation grouping included)
 20. `JournalRecorder`
 

@@ -84,7 +84,14 @@ def test_all_checks_run_even_after_a_failure() -> None:
 
 
 def test_checklist_covers_the_specified_conditions() -> None:
-    """Guards against a check being quietly dropped from the enum."""
+    """Guards against a check being quietly dropped from -- or added to -- the enum.
+
+    Adding a check is a deliberate act that should require editing this list. The
+    two beyond the original fifteen were added on 2026-09-13 from findings 63-64,
+    which described hazards the original set could not express: the venue clearing
+    the book at a contest start, and a model priced off a feed the market does not
+    settle against.
+    """
     required = {
         "MARKET_VALID",
         "RESOLUTION_VALID",
@@ -101,5 +108,7 @@ def test_checklist_covers_the_specified_conditions() -> None:
         "NO_DUPLICATE_ORDER",
         "EXECUTION_HEALTHY",
         "RISK_APPROVED",
+        "BOOK_CLEARED_AT_START",
+        "REFERENCE_FEED_MATCHED",
     }
     assert {c.value for c in CheckId} == required

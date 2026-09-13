@@ -1,7 +1,7 @@
 # Status and handover
 
 **As of:** 2026-09-13 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· 23 commits · **438 tests passing, 0 skipped** · **96 stubs remain** · 65 findings recorded
+· 24 commits · **474 tests passing, 0 skipped** · **96 stubs remain** · 65 findings recorded
 
 An earlier version of this line read "395 tests green" while 30 of those were
 integration tests **skipped** for want of a database — a skipped test reporting as
@@ -145,8 +145,10 @@ unsourced engines; no registry did.
 system produces will be uncalibrated until item 15, and in the 0.85–0.98 band a model
 that says 0.97 and is right 0.93 of the time turns a positive edge negative.
 
-**`safety_gate.py`** — the 15 `CheckId` values are declared; **none are implemented**.
-`GateContext` is a stub.
+**`safety_gate.py`** — **done** as of 2026-09-13: 17 checks implemented (the 15
+declared plus two from findings 63-64), `GateContext` populated, `default_gate()`
+registering all of them. The load-bearing property is fail-closed — an empty context
+fails every check that reads an input, asserted directly.
 
 ---
 
