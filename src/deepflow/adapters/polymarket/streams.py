@@ -367,8 +367,15 @@ class PolymarketStreams:
         """Live game state.
 
         The venue streams every game with no server-side filter, so callers must
-        match on ``game_id`` against ``Market.game_id``. See :mod:`sports_feed`
-        for how little the payload actually carries.
+        resolve each ``game_id`` themselves. Do **not** match it against
+        ``Market.game_id``: that field is a different id space (the child contest,
+        not the fixture) and is empty on fixture-level markets. The join is on the
+        event -- :class:`deepflow.adapters.polymarket.games.GammaGameLinks`. This
+        docstring previously said the opposite, and believing it is how the join
+        came to be recorded as impossible.
+
+        See :mod:`sports_feed` for how little the payload carries, and note that
+        the SDK model drops the wire's ``eventState`` block entirely.
         """
         while not self._stop.is_set():
             event = await self._sports_queue.get()

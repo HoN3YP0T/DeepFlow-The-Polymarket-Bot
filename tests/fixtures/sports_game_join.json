@@ -1,0 +1,4135 @@
+{
+ "live_events": [
+  {
+   "category": null,
+   "created_at": "2026-08-31T22:02:09.488818Z",
+   "creators": [],
+   "description": "In the upcoming college football game between New Mexico State and Hawai'i, scheduled for September 13 at 12:00AM ET:\nThis market will resolve to \"New Mexico State\" if New Mexico State win the game.\nThis market will resolve to \"Hawai'i\" if Hawai'i win the game.\nOvertime is included if played.\nIf the game ends in a tie, this market will resolve 50-50.\nIf the game is postponed, this market will remain open until the game has been completed.\nIf the game is canceled entirely, with no make-up game, this market will resolve 50-50.",
+   "display": {
+    "color": null,
+    "country_name": null,
+    "election_type": null,
+    "featured_image_optimized": null,
+    "featured_order": null,
+    "gmp_chart_mode": null,
+    "icon_optimized": null,
+    "image_optimized": null,
+    "show_all_outcomes": true,
+    "show_market_images": false,
+    "sort_by": null
+   },
+   "estimation": {
+    "cant_estimate": null,
+    "estimate_value": null,
+    "estimated_value": null
+   },
+   "featured_image": null,
+   "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/espn+college+football+logo.png",
+   "id": "944460",
+   "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/espn+college+football+logo.png",
+   "markets": [
+    {
+     "category": null,
+     "condition_id": "0xf985706bf2b6ed7ca3c997bae5e654f7e12f84a9fd6744408426120c966fa11d",
+     "description": "In the upcoming college football game between New Mexico State and Hawai'i, scheduled for September 13 at 12:00AM ET:\nThis market will resolve to \"New Mexico State\" if New Mexico State win the game.\nThis market will resolve to \"Hawai'i\" if Hawai'i win the game.\nOvertime is included if played.\nIf the game ends in a tie, this market will resolve 50-50.\nIf the game is postponed, this market will remain open until the game has been completed.\nIf the game is canceled entirely, with no make-up game, this market will resolve 50-50.",
+     "events": [],
+     "group_item_title": null,
+     "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/espn+college+football+logo.png",
+     "id": "4045726",
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/espn+college+football+logo.png",
+     "metrics": {
+      "liquidity": "137628.0653",
+      "liquidity_clob": "137628.0653",
+      "liquidity_num": "137628.0653",
+      "volume": "207644.78314",
+      "volume_1mo": "194671.31805400015",
+      "volume_1wk": "194671.31805400015",
+      "volume_1yr": "194671.31805400015",
+      "volume_24hr": "193628.10709700012",
+      "volume_amm": null,
+      "volume_clob": "207644.78314",
+      "volume_num": "207644.78314"
+     },
+     "outcomes": {
+      "no": {
+       "label": "Hawai'i",
+       "position_id": "850181396851683481192168709761617481504438587011281095572399335441724080129",
+       "price": "0.9995",
+       "token_id": "17200240860721302252278410468078199224190658476178510139146450025481020609912"
+      },
+      "yes": {
+       "label": "New Mexico State",
+       "position_id": "850181396851683481192168709761617481504438587011281095572399335441724080128",
+       "price": "0.0005",
+       "token_id": "55569184596139898339986907295056114802754794930987094747711454945630237892544"
+      }
+     },
+     "position_ids": [
+      "850181396851683481192168709761617481504438587011281095572399335441724080128",
+      "850181396851683481192168709761617481504438587011281095572399335441724080129"
+     ],
+     "prices": {
+      "best_ask": "0.001",
+      "best_bid": null,
+      "last_trade_price": "0.017",
+      "one_day_price_change": "-0.2745",
+      "one_hour_price_change": "-0.3145",
+      "one_month_price_change": null,
+      "one_week_price_change": "-0.2245",
+      "one_year_price_change": null,
+      "spread": "0.001"
+     },
+     "question": "New Mexico State vs. Hawai'i",
+     "resolution": {
+      "neg_risk_request_id": null,
+      "question_id": "0x930b74e1d2383dff2a6e4f63c668aceb266635cd311186ebb0a12336c78d6b35",
+      "resolved_by": "0x65070BE91477460D8A7AeEb94ef92fe056C2f2A7",
+      "source": "https://www.ncaa.com/",
+      "uma_resolution_status": null
+     },
+     "rewards": {
+      "clob_rewards": null,
+      "holding_rewards_enabled": false,
+      "rewards_max_spread": 0.0,
+      "rewards_min_size": "0"
+     },
+     "slug": "cfb-nmxst-hawaii-2026-09-13",
+     "sports": {
+      "game_id": null,
+      "game_start_time": "2026-09-13T04:00:00Z",
+      "line": null,
+      "sports_market_type": "moneyline"
+     },
+     "state": {
+      "accepting_orders": true,
+      "active": true,
+      "archived": false,
+      "closed": false,
+      "closed_time": null,
+      "combo_status": "enabled",
+      "enable_order_book": true,
+      "end_date": "2026-09-13T04:00:00Z",
+      "neg_risk": false,
+      "start_date": "2026-08-31T22:02:19Z"
+     },
+     "tags": [],
+     "trading": {
+      "fee_schedule": {
+       "exponent": 1,
+       "rate": "0.05",
+       "rebate_rate": "0.15",
+       "taker_only": true
+      },
+      "fee_type": "sports_fees_v3",
+      "fees_enabled": true,
+      "minimum_order_size": "5",
+      "minimum_tick_size": "0.001",
+      "seconds_delay": 1
+     },
+     "version": "v1"
+    },
+    {
+     "category": null,
+     "condition_id": "0xcad24b6dc357aa14a3911add4ccc76536b53240860e72c6ee72890126d2979e5",
+     "description": "In the upcoming college football game, scheduled for September 13 at 12:00 AM ET:\n\nThis market will resolve to \"Hawai'i\" if Hawai'i win the game by 12 or more points.\n\nOtherwise, this market will resolve to \"New Mexico State\".\n\nIf the game is postponed, this market will remain open until the game has been completed. If the game is canceled entirely, with no make-up game, this market will resolve 50-50.",
+     "events": [],
+     "group_item_title": "Spread -11.5",
+     "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/espn+college+football+logo.png",
+     "id": "4251564",
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/espn+college+football+logo.png",
+     "metrics": {
+      "liquidity": "442.9",
+      "liquidity_clob": "442.9",
+      "liquidity_num": "442.9",
+      "volume": "109",
+      "volume_1mo": "109",
+      "volume_1wk": "109",
+      "volume_1yr": "109",
+      "volume_24hr": "109",
+      "volume_amm": null,
+      "volume_clob": "109",
+      "volume_num": "109"
+     },
+     "outcomes": {
+      "no": {
+       "label": "New Mexico State",
+       "position_id": "641939300901779070180326040514872764316333437966356383243246798061294321665",
+       "price": "0.963",
+       "token_id": "80419216354426982780610100676853523588515150950226549193661562370361545246488"
+      },
+      "yes": {
+       "label": "Hawai'i",
+       "position_id": "641939300901779070180326040514872764316333437966356383243246798061294321664",
+       "price": "0.037",
+       "token_id": "18482705248736357831698011990896843488590613621386054973201579045770497266752"
+      }
+     },
+     "position_ids": [
+      "641939300901779070180326040514872764316333437966356383243246798061294321664",
+      "641939300901779070180326040514872764316333437966356383243246798061294321665"
+     ],
+     "prices": {
+      "best_ask": "0.074",
+      "best_bid": null,
+      "last_trade_price": "0.45",
+      "one_day_price_change": "-0.348",
+      "one_hour_price_change": "-0.163",
+      "one_month_price_change": null,
+      "one_week_price_change": "-0.463",
+      "one_year_price_change": null,
+      "spread": "0.074"
+     },
+     "question": "Spread: Hawai'i (-11.5)",
+     "resolution": {
+      "neg_risk_request_id": null,
+      "question_id": "0x9770917b13e1db3ee5adc607d8a7a0f88264f480bbfd55186a7e5167726ac0d7",
+      "resolved_by": "0x65070BE91477460D8A7AeEb94ef92fe056C2f2A7",
+      "source": "https://www.ncaa.com/",
+      "uma_resolution_status": null
+     },
+     "rewards": {
+      "clob_rewards": null,
+      "holding_rewards_enabled": false,
+      "rewards_max_spread": 4.5,
+      "rewards_min_size": "50"
+     },
+     "slug": "cfb-nmxst-hawaii-2026-09-13-spread-home-11pt5",
+     "sports": {
+      "game_id": null,
+      "game_start_time": "2026-09-13T04:00:00Z",
+      "line": -11.5,
+      "sports_market_type": "spreads"
+     },
+     "state": {
+      "accepting_orders": true,
+      "active": true,
+      "archived": false,
+      "closed": false,
+      "closed_time": null,
+      "combo_status": "enabled",
+      "enable_order_book": true,
+      "end_date": "2026-09-13T04:00:00Z",
+      "neg_risk": false,
+      "start_date": "2026-09-05T16:40:42Z"
+     },
+     "tags": [],
+     "trading": {
+      "fee_schedule": {
+       "exponent": 1,
+       "rate": "0.05",
+       "rebate_rate": "0.15",
+       "taker_only": true
+      },
+      "fee_type": "sports_fees_v3",
+      "fees_enabled": true,
+      "minimum_order_size": "5",
+      "minimum_tick_size": "0.001",
+      "seconds_delay": 1
+     },
+     "version": "v1"
+    }
+   ],
+   "metadata": {
+    "context_requires_regen": true,
+    "opticOddsFixtureId": "20260912A715E5AC",
+    "opticOddsGameId": "96808-13482-26-36",
+    "opticOddsNumericalId": 732008,
+    "sportradarGameId": "sr:match:70898578"
+   },
+   "metrics": {
+    "comment_count": 0,
+    "competitive": 0.8824372917999515,
+    "liquidity": "473752.07615",
+    "liquidity_amm": null,
+    "liquidity_clob": "473752.07615",
+    "open_interest": "350128.34563500003",
+    "tweet_count": null,
+    "volume": "397522.908116",
+    "volume_1mo": "397522.9081160001",
+    "volume_1wk": "397522.9081160001",
+    "volume_1yr": "397522.9081160001",
+    "volume_24hr": "394540.85819300014"
+   },
+   "parent_event_id": null,
+   "partners": [],
+   "published_at": null,
+   "resolution": {
+    "automatically_resolved": null,
+    "source": "https://www.ncaa.com/"
+   },
+   "schedule": {
+    "closed_time": null,
+    "creation_date": "2026-09-13T04:00:00Z",
+    "end_date": "2026-09-13T04:00:00Z",
+    "event_date": "2026-09-13",
+    "event_week": 2,
+    "finished_at": null,
+    "start_date": "2026-08-31T22:02:19Z",
+    "start_time": "2026-09-13T04:00:00Z"
+   },
+   "series": [
+    {
+     "active": true,
+     "archived": false,
+     "closed": false,
+     "description": null,
+     "icon": null,
+     "id": "12756",
+     "image": null,
+     "liquidity": "1341165.10871",
+     "slug": "cfb-2026",
+     "start_date": null,
+     "subtitle": null,
+     "title": "CFB 2026",
+     "volume": "7796016.706951001"
+    }
+   ],
+   "slug": "cfb-nmxst-hawaii-2026-09-13",
+   "sports": {
+    "away_team_name": null,
+    "best_lines": [],
+    "elapsed": "00:44",
+    "game_id": 70898578,
+    "game_status": null,
+    "home_team_name": null,
+    "last_highlight": null,
+    "last_highlight_at": null,
+    "last_highlight_type": null,
+    "period": "Q4",
+    "rescheduled_from_game_id": null,
+    "score": "19-29",
+    "series_slug": "cfb-2026",
+    "sport": {
+     "created_at": "2025-11-05T19:27:45.399303Z",
+     "id": 9,
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-icons/cfb-3ddd4bb7.png",
+     "ordering": "away",
+     "resolution": "https://www.ncaa.com/",
+     "series": "12756",
+     "sport": "cfb",
+     "tags": "1,100351,100639",
+     "updated_at": null
+    },
+    "sportsradar_match_id": null,
+    "spreads_main_line": null,
+    "teams": [
+     {
+      "abbreviation": "nmxst",
+      "alias": "New Mexico State",
+      "color": "#991616",
+      "created_at": "2025-09-22T21:47:32.094977Z",
+      "id": 118472,
+      "league": "cfb",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/team_logos/football/cfb/_nmxst_50000344.png",
+      "name": "Aggies",
+      "ordering": "away",
+      "provider_id": 344,
+      "record": "1-1",
+      "updated_at": "2026-08-25T22:22:37.507973Z"
+     },
+     {
+      "abbreviation": "hawaii",
+      "alias": "Hawai'i",
+      "color": "#576b57",
+      "created_at": "2025-09-22T21:47:31.939408Z",
+      "id": 118309,
+      "league": "cfb",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/team_logos/football/cfb/_hawaii_50000115.png",
+      "name": "Rainbow Warriors",
+      "ordering": "home",
+      "provider_id": 115,
+      "record": "0-2",
+      "updated_at": "2026-08-25T22:22:52.961007Z"
+     }
+    ],
+    "totals_main_line": null
+   },
+   "state": {
+    "active": true,
+    "archived": false,
+    "automatically_active": true,
+    "closed": false,
+    "comments_enabled": null,
+    "cyom": false,
+    "ended": false,
+    "featured": false,
+    "live": true,
+    "new": false,
+    "requires_translation": false,
+    "restricted": true
+   },
+   "subcategory": null,
+   "subtitle": null,
+   "tags": [
+    {
+     "id": "1",
+     "label": "Sports",
+     "slug": "sports"
+    },
+    {
+     "id": "100351",
+     "label": "CFB",
+     "slug": "cfb"
+    },
+    {
+     "id": "100639",
+     "label": "Games",
+     "slug": "games"
+    }
+   ],
+   "ticker": "cfb-nmxst-hawaii-2026-09-13",
+   "title": "New Mexico State vs. Hawai'i",
+   "trading": {
+    "cumulative_markets": null,
+    "enable_neg_risk": false,
+    "enable_order_book": true,
+    "neg_risk": false,
+    "neg_risk_augmented": false,
+    "neg_risk_fee_bips": null,
+    "neg_risk_market_id": null
+   },
+   "updated_at": "2026-09-13T07:21:10.201458Z",
+   "version": "v1"
+  },
+  {
+   "category": null,
+   "created_at": "2026-09-12T10:10:04.661634Z",
+   "creators": [],
+   "description": "This market refers to the LoL Grand final match between Gen.G and Hanwha Life Esports in the LCK Playoffs, initially scheduled for September 13, 2026 at 1:00 AM ET.\n\nThis market will resolve to \"Gen.G\" if Gen.G win the match against Hanwha Life Esports.\n\nThis market will resolve to \"Hanwha Life Esports\" if Hanwha Life Esports win the match against Gen.G.\n\nIf the match is canceled (not played at all) or ends in a tie, this market will resolve to 50-50.\n\nIf the match is postponed, it must be rescheduled to a start time on or before September 27, 2026 at 11:59 PM ET (14 calendar days after the originally scheduled start of September 13, 2026 at 1:00 AM ET). If, by that deadline, the most recently announced rescheduled start time is on or before the deadline, this market resolves based on the result of the match as played. Otherwise, this market resolves 50-50, regardless of whether the match is subsequently played.\n\nIf the match begins but is not completed, and one team wins due to the opponent's forfeiture, disqualification, or walkover, this market will resolve to the team who wins. \n\nIf the match ends in a forfeit, disqualification, or walkover (team withdraws before the start and the other wins automatically), this market will resolve to 50-50. \n\nThe resolution source for this market will be official information from https://gol.gg/esports/home. However, if https://gol.gg/esports/home has not published final results within 2 hours after the event\u2019s conclusion, a consensus of credible reporting may be used instead including video evidence.\n\nIn cases where a team\u2019s listed name includes minor discrepancies from the resolution source, this market will resolve based on the underlying real-world match rather than exact name matching. Recognizable abbreviations, alternate or erroneous spellings, sponsor tags, affiliate or academy designations, regional identifiers, and minor formatting differences will be treated as referring to the same team, provided the intended team can be clearly and uniquely identified within the relevant competition. If a listed team name has no reasonable connection to any participating team, or if it matches or could reasonably refer to another team in the same competition such that the intended team cannot be unambiguously determined, this market will resolve 50-50.",
+   "display": {
+    "color": null,
+    "country_name": null,
+    "election_type": null,
+    "featured_image_optimized": null,
+    "featured_order": null,
+    "gmp_chart_mode": null,
+    "icon_optimized": null,
+    "image_optimized": null,
+    "show_all_outcomes": true,
+    "show_market_images": true,
+    "sort_by": null
+   },
+   "estimation": {
+    "cant_estimate": null,
+    "estimate_value": null,
+    "estimated_value": null
+   },
+   "featured_image": null,
+   "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-of-legends-61a4f083a6.png",
+   "id": "1009706",
+   "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-of-legends-61a4f083a6.png",
+   "markets": [
+    {
+     "category": null,
+     "condition_id": "0x5454c1ca515b620e7192ab4b958ad8b69904847e2a8e76714d25c8f1fe0910a7",
+     "description": "This market refers to the LoL Grand final match between Gen.G and Hanwha Life Esports in the LCK Playoffs, initially scheduled for September 13, 2026 at 1:00 AM ET.\n\nThis market will resolve to \"Gen.G\" if Gen.G win Game 1 against Hanwha Life Esports.\n\nThis market will resolve to \"Hanwha Life Esports\" if Hanwha Life Esports win Game 1 against Gen.G.\n\nIf the match begins but is not completed, and Game 1 is concluded with a winner determined, this market will resolve based on the completed Game 1. \n\nIf Game 1 is not completed for any reason, this market will resolve 50-50. \n\nIf the match is canceled (not played at all), this market will resolve 50-50.\n\nIf the match is postponed, it must be rescheduled to a start time on or before September 27, 2026 at 11:59 PM ET (14 calendar days after the originally scheduled start of September 13, 2026 at 1:00 AM ET). If, by that deadline, the most recently announced rescheduled start time is on or before the deadline, this market resolves based on the result of the match as played. Otherwise, this market resolves 50-50, regardless of whether the match is subsequently played.\n\nThe resolution source for this market will be official information from https://gol.gg/esports/home. However, if https://gol.gg/esports/home has not published final results within 2 hours after the event\u2019s conclusion, a consensus of credible reporting may be used instead including video evidence.",
+     "events": [],
+     "group_item_title": "Game 1 Winner",
+     "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-of-legends-61a4f083a6.png",
+     "id": "4493136",
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-of-legends-61a4f083a6.png",
+     "metrics": {
+      "liquidity": "763233.48383",
+      "liquidity_clob": "763233.48383",
+      "liquidity_num": "763233.48383",
+      "volume": "1460320.7285889997",
+      "volume_1mo": "1459539.8385889998",
+      "volume_1wk": "1459539.8385889998",
+      "volume_1yr": "1459539.8385889998",
+      "volume_24hr": "1459539.8385889998",
+      "volume_amm": null,
+      "volume_clob": "1460320.7285889997",
+      "volume_num": "1460320.7285889997"
+     },
+     "outcomes": {
+      "no": {
+       "label": "Hanwha Life Esports",
+       "position_id": "722671628479561893707680262202362388727900946125452442347727945226730340353",
+       "price": "0.9995",
+       "token_id": "66150365194592339450727903023879263314800678434426966833890615020957238238179"
+      },
+      "yes": {
+       "label": "Gen.G",
+       "position_id": "722671628479561893707680262202362388727900946125452442347727945226730340352",
+       "price": "0.0005",
+       "token_id": "111644870294929546150173313999727230586900585697732261792564322359094550582239"
+      }
+     },
+     "position_ids": [
+      "722671628479561893707680262202362388727900946125452442347727945226730340352",
+      "722671628479561893707680262202362388727900946125452442347727945226730340353"
+     ],
+     "prices": {
+      "best_ask": "0.001",
+      "best_bid": null,
+      "last_trade_price": "0.001",
+      "one_day_price_change": null,
+      "one_hour_price_change": null,
+      "one_month_price_change": null,
+      "one_week_price_change": null,
+      "one_year_price_change": null,
+      "spread": "0.001"
+     },
+     "question": "LoL: Gen.G vs Hanwha Life Esports - Game 1 Winner",
+     "resolution": {
+      "neg_risk_request_id": null,
+      "question_id": "0x192e5b83fafc75cdc9771759e3e2c64ee0f79720876e3079a46b041f34198574",
+      "resolved_by": "0x65070BE91477460D8A7AeEb94ef92fe056C2f2A7",
+      "source": "https://gol.gg/esports/home",
+      "uma_resolution_status": null
+     },
+     "rewards": {
+      "clob_rewards": null,
+      "holding_rewards_enabled": false,
+      "rewards_max_spread": 4.5,
+      "rewards_min_size": "50"
+     },
+     "slug": "lol-gen-hle1-2026-09-13-game1",
+     "sports": {
+      "game_id": "283508",
+      "game_start_time": "2026-09-13T05:00:00Z",
+      "line": null,
+      "sports_market_type": "child_moneyline"
+     },
+     "state": {
+      "accepting_orders": true,
+      "active": true,
+      "archived": false,
+      "closed": false,
+      "closed_time": null,
+      "combo_status": "enabled",
+      "enable_order_book": true,
+      "end_date": "2026-09-13T11:00:00Z",
+      "neg_risk": false,
+      "start_date": "2026-09-12T10:10:31Z"
+     },
+     "tags": [],
+     "trading": {
+      "fee_schedule": {
+       "exponent": 1,
+       "rate": "0.05",
+       "rebate_rate": "0.15",
+       "taker_only": true
+      },
+      "fee_type": "sports_fees_v3",
+      "fees_enabled": true,
+      "minimum_order_size": "5",
+      "minimum_tick_size": "0.001",
+      "seconds_delay": 1
+     },
+     "version": "v1"
+    },
+    {
+     "category": null,
+     "condition_id": "0x05e8cc1b1a7544165cbb83a0537744b03aa41f7ff9dfaa5b7a4fdaa3beb511e3",
+     "description": "This market refers to the LoL Grand final match between Gen.G and Hanwha Life Esports in the LCK Playoffs, initially scheduled for September 13, 2026 at 1:00 AM ET.\n\nThis market will resolve to \"Gen.G\" if Gen.G win Game 2 against Hanwha Life Esports.\n\nThis market will resolve to \"Hanwha Life Esports\" if Hanwha Life Esports win Game 2 against Gen.G.\n\nIf the match begins but is not completed, and Game 2 is concluded with a winner determined, this market will resolve based on the completed Game 2. \n\nIf Game 2 is not completed for any reason, this market will resolve 50-50. \n\nIf the match is canceled (not played at all), this market will resolve 50-50.\n\nIf the match is postponed, it must be rescheduled to a start time on or before September 27, 2026 at 11:59 PM ET (14 calendar days after the originally scheduled start of September 13, 2026 at 1:00 AM ET). If, by that deadline, the most recently announced rescheduled start time is on or before the deadline, this market resolves based on the result of the match as played. Otherwise, this market resolves 50-50, regardless of whether the match is subsequently played.\n\nThe resolution source for this market will be official information from https://gol.gg/esports/home. However, if https://gol.gg/esports/home has not published final results within 2 hours after the event\u2019s conclusion, a consensus of credible reporting may be used instead including video evidence.",
+     "events": [],
+     "group_item_title": "Game 2 Winner",
+     "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-of-legends-61a4f083a6.png",
+     "id": "4493138",
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-of-legends-61a4f083a6.png",
+     "metrics": {
+      "liquidity": "982381.26406",
+      "liquidity_clob": "982381.26406",
+      "liquidity_num": "982381.26406",
+      "volume": "1942038.607471001",
+      "volume_1mo": "1678025.647471001",
+      "volume_1wk": "1678025.647471001",
+      "volume_1yr": "1678025.647471001",
+      "volume_24hr": "1678025.647471001",
+      "volume_amm": null,
+      "volume_clob": "1942038.607471001",
+      "volume_num": "1942038.607471001"
+     },
+     "outcomes": {
+      "no": {
+       "label": "Hanwha Life Esports",
+       "position_id": "555922713977086130754329570150194910098201695729251731813125872191837044737",
+       "price": "0.0005",
+       "token_id": "18171084928717431115160049579212862122452841815743932204789290422643997521792"
+      },
+      "yes": {
+       "label": "Gen.G",
+       "position_id": "555922713977086130754329570150194910098201695729251731813125872191837044736",
+       "price": "0.9995",
+       "token_id": "89623517147339378592211774884636269609413502645090548671881041569946411915708"
+      }
+     },
+     "position_ids": [
+      "555922713977086130754329570150194910098201695729251731813125872191837044736",
+      "555922713977086130754329570150194910098201695729251731813125872191837044737"
+     ],
+     "prices": {
+      "best_ask": "1",
+      "best_bid": "0.999",
+      "last_trade_price": "0.999",
+      "one_day_price_change": null,
+      "one_hour_price_change": "0.4245",
+      "one_month_price_change": null,
+      "one_week_price_change": null,
+      "one_year_price_change": null,
+      "spread": "0.001"
+     },
+     "question": "LoL: Gen.G vs Hanwha Life Esports - Game 2 Winner",
+     "resolution": {
+      "neg_risk_request_id": null,
+      "question_id": "0xf1f52f0af3e8412630e371ca99ad3e4bdc93cf522eb75d44b07529942088576c",
+      "resolved_by": "0x65070BE91477460D8A7AeEb94ef92fe056C2f2A7",
+      "source": "https://gol.gg/esports/home",
+      "uma_resolution_status": null
+     },
+     "rewards": {
+      "clob_rewards": null,
+      "holding_rewards_enabled": false,
+      "rewards_max_spread": 4.5,
+      "rewards_min_size": "50"
+     },
+     "slug": "lol-gen-hle1-2026-09-13-game2",
+     "sports": {
+      "game_id": "283509",
+      "game_start_time": "2026-09-13T05:00:00Z",
+      "line": null,
+      "sports_market_type": "child_moneyline"
+     },
+     "state": {
+      "accepting_orders": true,
+      "active": true,
+      "archived": false,
+      "closed": false,
+      "closed_time": null,
+      "combo_status": "enabled",
+      "enable_order_book": true,
+      "end_date": "2026-09-13T11:00:00Z",
+      "neg_risk": false,
+      "start_date": "2026-09-12T10:10:25Z"
+     },
+     "tags": [],
+     "trading": {
+      "fee_schedule": {
+       "exponent": 1,
+       "rate": "0.05",
+       "rebate_rate": "0.15",
+       "taker_only": true
+      },
+      "fee_type": "sports_fees_v3",
+      "fees_enabled": true,
+      "minimum_order_size": "5",
+      "minimum_tick_size": "0.001",
+      "seconds_delay": 1
+     },
+     "version": "v1"
+    }
+   ],
+   "metadata": {
+    "context_requires_regen": true,
+    "gridSeriesId": "2987006",
+    "league": "LCK",
+    "leagueTier": "2",
+    "pandascoreMatchId": 1642158,
+    "tournament": "Playoffs"
+   },
+   "metrics": {
+    "comment_count": 0,
+    "competitive": 0.9993753903810119,
+    "liquidity": "3044184.53709",
+    "liquidity_amm": null,
+    "liquidity_clob": "3044184.53709",
+    "open_interest": "3522418.942572",
+    "tweet_count": null,
+    "volume": "5136427.584117001",
+    "volume_1mo": "5136792.655093003",
+    "volume_1wk": "5136792.655093003",
+    "volume_1yr": "5136792.655093003",
+    "volume_24hr": "5136792.655093003"
+   },
+   "parent_event_id": null,
+   "partners": [],
+   "published_at": null,
+   "resolution": {
+    "automatically_resolved": null,
+    "source": "https://www.twitch.tv/lck"
+   },
+   "schedule": {
+    "closed_time": null,
+    "creation_date": "2026-09-12T10:13:15.537484Z",
+    "end_date": "2026-09-13T11:00:00Z",
+    "event_date": "2026-09-13",
+    "event_week": 1,
+    "finished_at": null,
+    "start_date": "2026-09-12T10:10:24Z",
+    "start_time": "2026-09-13T05:00:00Z"
+   },
+   "series": [
+    {
+     "active": true,
+     "archived": false,
+     "closed": false,
+     "description": null,
+     "icon": "",
+     "id": "10311",
+     "image": "",
+     "liquidity": "4679492.81597",
+     "slug": "league-of-legends",
+     "start_date": null,
+     "subtitle": null,
+     "title": "League of Legends",
+     "volume": "35354960.10847"
+    }
+   ],
+   "slug": "lol-gen-hle1-2026-09-13",
+   "sports": {
+    "away_team_name": null,
+    "best_lines": [],
+    "elapsed": null,
+    "game_id": 1642158,
+    "game_status": null,
+    "home_team_name": null,
+    "last_highlight": null,
+    "last_highlight_at": null,
+    "last_highlight_type": null,
+    "period": "3/5",
+    "rescheduled_from_game_id": null,
+    "score": "000-000|1-1|Bo5",
+    "series_slug": "league-of-legends",
+    "sport": {
+     "created_at": "2025-11-07T21:06:11.103175Z",
+     "id": 39,
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-icons/lol-cf27b4a0.png",
+     "ordering": "home",
+     "resolution": "https://liquipedia.net/leagueoflegends/Main_Page",
+     "series": "10311",
+     "sport": "lol",
+     "tags": "1,64,65,100639",
+     "updated_at": null
+    },
+    "sportsradar_match_id": null,
+    "spreads_main_line": null,
+    "teams": [
+     {
+      "abbreviation": "gen",
+      "alias": null,
+      "color": "#a28120",
+      "created_at": "2025-10-14T15:38:05.900746Z",
+      "id": 146465,
+      "league": "lol",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/team_logos/esports/lol/league-of-legends_gen.g_2882.png",
+      "name": "Gen.G",
+      "ordering": "home",
+      "provider_id": 2882,
+      "record": "0-0",
+      "updated_at": "2026-05-14T03:07:09.846596Z"
+     },
+     {
+      "abbreviation": "hle1",
+      "alias": null,
+      "color": "#df6020",
+      "created_at": "2025-10-14T15:38:05.900201Z",
+      "id": 146464,
+      "league": "lol",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/team_logos/esports/lol/league-of-legends_hanwha life esports_2883.png",
+      "name": "Hanwha Life Esports",
+      "ordering": "away",
+      "provider_id": 2883,
+      "record": "0-0",
+      "updated_at": "2026-05-14T03:37:29.719603Z"
+     }
+    ],
+    "totals_main_line": null
+   },
+   "state": {
+    "active": true,
+    "archived": false,
+    "automatically_active": true,
+    "closed": false,
+    "comments_enabled": null,
+    "cyom": false,
+    "ended": false,
+    "featured": false,
+    "live": true,
+    "new": false,
+    "requires_translation": false,
+    "restricted": true
+   },
+   "subcategory": null,
+   "subtitle": null,
+   "tags": [
+    {
+     "id": "64",
+     "label": "Esports",
+     "slug": "esports"
+    },
+    {
+     "id": "65",
+     "label": "league of legends",
+     "slug": "league-of-legends"
+    },
+    {
+     "id": "100639",
+     "label": "Games",
+     "slug": "games"
+    },
+    {
+     "id": "1",
+     "label": "Sports",
+     "slug": "sports"
+    }
+   ],
+   "ticker": "lol-gen-hle1-2026-09-13",
+   "title": "LoL: Gen.G vs Hanwha Life Esports (BO5) - LCK Playoffs",
+   "trading": {
+    "cumulative_markets": null,
+    "enable_neg_risk": false,
+    "enable_order_book": true,
+    "neg_risk": false,
+    "neg_risk_augmented": false,
+    "neg_risk_fee_bips": null,
+    "neg_risk_market_id": null
+   },
+   "updated_at": "2026-09-13T07:21:53.509548Z",
+   "version": "v1"
+  },
+  {
+   "category": null,
+   "created_at": "2026-09-11T14:16:01.174981Z",
+   "creators": [],
+   "description": "This market refers to the cricket match between Japan and Malaysia scheduled for September 12 2026 at 9:00 PM ET in T20 Series Japan vs Malaysia, Women.\n\nDLS/DRS, over-rate penalties, forfeit/walkover, or any other on-field ruling that leads the competition to declare a winner are treated as ordinary wins.\n\nIf the match ends tied and the playing conditions provide an on-field tiebreak (e.g., Super Over), the winner determined by that tiebreak will be used for resolution. If the match ends tied and no on-field tiebreak is used or available under the playing conditions (e.g., group-stage ODI with no Super Over), the market will resolve 50-50.\n\nIf the match is postponed/rescheduled, the market remains open until the listed fixture is completed. If the match is permanently canceled or abandoned or otherwise is completed without a winner, the market resolves 50-50.\n\nThe primary resolution source for this market is the official statistics of the event as recognized by the governing body or event organizers. However, if the governing body or event organizers have not published final match statistics within 2 hours after the event's conclusion, a consensus of credible reporting may be used instead.\n",
+   "display": {
+    "color": null,
+    "country_name": null,
+    "election_type": null,
+    "featured_image_optimized": null,
+    "featured_order": null,
+    "gmp_chart_mode": null,
+    "icon_optimized": null,
+    "image_optimized": null,
+    "show_all_outcomes": true,
+    "show_market_images": false,
+    "sort_by": null
+   },
+   "estimation": {
+    "cant_estimate": null,
+    "estimate_value": null,
+    "estimated_value": null
+   },
+   "featured_image": null,
+   "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/cricket-ball-a0b0bf2dc9.png",
+   "id": "1004721",
+   "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/cricket-ball-a0b0bf2dc9.png",
+   "markets": [
+    {
+     "category": null,
+     "condition_id": "0xad96bfe5612f7889ba2ed6e60d0edf8aeabf4e5bb67dc903789afd51ef4198bf",
+     "description": "This market refers to the cricket match between Japan and Malaysia scheduled for September 12 2026 at 9:00 PM ET in T20 Series Japan vs Malaysia, Women.\n\nDLS/DRS, over-rate penalties, forfeit/walkover, or any other on-field ruling that leads the competition to declare a winner are treated as ordinary wins.\n\nIf the match ends tied and the playing conditions provide an on-field tiebreak (e.g., Super Over), the winner determined by that tiebreak will be used for resolution. If the match ends tied and no on-field tiebreak is used or available under the playing conditions (e.g., group-stage ODI with no Super Over), the market will resolve 50-50.\n\nIf the match is postponed/rescheduled, the market remains open until the listed fixture is completed. If the match is permanently canceled or abandoned or otherwise is completed without a winner, the market resolves 50-50.\n\nThe primary resolution source for this market is the official statistics of the event as recognized by the governing body or event organizers. However, if the governing body or event organizers have not published final match statistics within 2 hours after the event's conclusion, a consensus of credible reporting may be used instead.\n",
+     "events": [],
+     "group_item_title": null,
+     "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/cricket-ball-a0b0bf2dc9.png",
+     "id": "4467276",
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/cricket-ball-a0b0bf2dc9.png",
+     "metrics": {
+      "liquidity": "397.2176",
+      "liquidity_clob": "397.2176",
+      "liquidity_num": "397.2176",
+      "volume": "8052.5386260000005",
+      "volume_1mo": "7913.908626",
+      "volume_1wk": "7913.908626",
+      "volume_1yr": "7913.908626",
+      "volume_24hr": "7836.608626",
+      "volume_amm": null,
+      "volume_clob": "8052.5386260000005",
+      "volume_num": "8052.5386260000005"
+     },
+     "outcomes": {
+      "no": {
+       "label": "Malaysia",
+       "position_id": "867075407827976485164031339683054720112204845639694809892286236211728613377",
+       "price": "0.4105",
+       "token_id": "106810503834953217711985627715722632989826561477541659413978650487399709717041"
+      },
+      "yes": {
+       "label": "Japan",
+       "position_id": "867075407827976485164031339683054720112204845639694809892286236211728613376",
+       "price": "0.5895",
+       "token_id": "88777907102580944139382040764405395257967714963226262223656769669769780377115"
+      }
+     },
+     "position_ids": [
+      "867075407827976485164031339683054720112204845639694809892286236211728613376",
+      "867075407827976485164031339683054720112204845639694809892286236211728613377"
+     ],
+     "prices": {
+      "best_ask": "0.679",
+      "best_bid": "0.5",
+      "last_trade_price": "0.7",
+      "one_day_price_change": "0.0045",
+      "one_hour_price_change": "0.5595",
+      "one_month_price_change": null,
+      "one_week_price_change": null,
+      "one_year_price_change": null,
+      "spread": "0.179"
+     },
+     "question": "T20 Series Japan vs Malaysia, Women: Japan vs Malaysia",
+     "resolution": {
+      "neg_risk_request_id": null,
+      "question_id": "0x8306ea46e8e627a95aac0df9ba7aa1ee0c5999c6fc49577b86813e2c685ac342",
+      "resolved_by": "0x65070BE91477460D8A7AeEb94ef92fe056C2f2A7",
+      "source": "https://www.espncricinfo.com/",
+      "uma_resolution_status": null
+     },
+     "rewards": {
+      "clob_rewards": null,
+      "holding_rewards_enabled": false,
+      "rewards_max_spread": 4.5,
+      "rewards_min_size": "50"
+     },
+     "slug": "crint-jpn2-mys2-2026-09-12",
+     "sports": {
+      "game_id": null,
+      "game_start_time": "2026-09-13T01:00:00Z",
+      "line": null,
+      "sports_market_type": "moneyline"
+     },
+     "state": {
+      "accepting_orders": true,
+      "active": true,
+      "archived": false,
+      "closed": false,
+      "closed_time": null,
+      "combo_status": "enabled",
+      "enable_order_book": true,
+      "end_date": "2026-09-19T21:00:00Z",
+      "neg_risk": false,
+      "start_date": "2026-09-11T14:16:14Z"
+     },
+     "tags": [],
+     "trading": {
+      "fee_schedule": {
+       "exponent": 1,
+       "rate": "0.05",
+       "rebate_rate": "0.15",
+       "taker_only": true
+      },
+      "fee_type": "sports_fees_v3",
+      "fees_enabled": true,
+      "minimum_order_size": "5",
+      "minimum_tick_size": "0.001",
+      "seconds_delay": 1
+     },
+     "version": "v1"
+    },
+    {
+     "category": null,
+     "condition_id": "0xe0118d4edb8ea755339ac55a27379404e469d735b2420ca368391c844e53874d",
+     "description": "This market refers to the pre-match coin toss for the cricket match between Japan and Malaysia scheduled for September 12 2026 at 9:00 PM ET in T20 Series Japan vs Malaysia, Women.\nIf an official toss winner is recorded, the market will resolve based on that result even if the match is subsequently delayed, relocated, abandoned, or no ball is bowled.\nIf the match is postponed or rescheduled, the market will remain open and resolve according to the toss result for the listed fixture when it is eventually played.\nIf the fixture is permanently canceled, forfeited before any toss is conducted, or otherwise completed without an official toss winner being recorded, the market will resolve 50-50.",
+     "events": [],
+     "group_item_title": null,
+     "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/cricket-ball-a0b0bf2dc9.png",
+     "id": "4467277",
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/cricket-ball-a0b0bf2dc9.png",
+     "metrics": {
+      "liquidity": "0",
+      "liquidity_clob": "0",
+      "liquidity_num": "0",
+      "volume": "483.46935",
+      "volume_1mo": "483.46935",
+      "volume_1wk": "483.46935",
+      "volume_1yr": "483.46935",
+      "volume_24hr": "483.46935",
+      "volume_amm": null,
+      "volume_clob": "483.46935",
+      "volume_num": "483.46935"
+     },
+     "outcomes": {
+      "no": {
+       "label": "Malaysia",
+       "position_id": "855884464762567010580749934500399604152504082376018783494249768069984419841",
+       "price": "0",
+       "token_id": "27694196738918459827792381789807927235681496574750304856711971026179049563293"
+      },
+      "yes": {
+       "label": "Japan",
+       "position_id": "855884464762567010580749934500399604152504082376018783494249768069984419840",
+       "price": "1",
+       "token_id": "84433163237884368222577606139118593608177416135499109720667806870277769873917"
+      }
+     },
+     "position_ids": [
+      "855884464762567010580749934500399604152504082376018783494249768069984419840",
+      "855884464762567010580749934500399604152504082376018783494249768069984419841"
+     ],
+     "prices": {
+      "best_ask": "1",
+      "best_bid": "0.99",
+      "last_trade_price": "0.98",
+      "one_day_price_change": "0.495",
+      "one_hour_price_change": null,
+      "one_month_price_change": null,
+      "one_week_price_change": null,
+      "one_year_price_change": null,
+      "spread": "0.01"
+     },
+     "question": "T20 Series Japan vs Malaysia, Women: Japan vs Malaysia - Who wins the toss?",
+     "resolution": {
+      "neg_risk_request_id": null,
+      "question_id": "0x4a05c6b93fa87fd8127e43001e618e14bb6f983c95518f87e304277dabbdf0e3",
+      "resolved_by": "0x65070BE91477460D8A7AeEb94ef92fe056C2f2A7",
+      "source": "https://www.espncricinfo.com/",
+      "uma_resolution_status": "resolved"
+     },
+     "rewards": {
+      "clob_rewards": null,
+      "holding_rewards_enabled": false,
+      "rewards_max_spread": 4.5,
+      "rewards_min_size": "50"
+     },
+     "slug": "crint-jpn2-mys2-2026-09-12-toss-winner",
+     "sports": {
+      "game_id": null,
+      "game_start_time": "2026-09-13T01:00:00Z",
+      "line": null,
+      "sports_market_type": "cricket_toss_winner"
+     },
+     "state": {
+      "accepting_orders": false,
+      "active": true,
+      "archived": false,
+      "closed": true,
+      "closed_time": "2026-09-13T07:13:52Z",
+      "combo_status": "enabled",
+      "enable_order_book": true,
+      "end_date": "2026-09-19T21:00:00Z",
+      "neg_risk": false,
+      "start_date": "2026-09-11T14:16:15Z"
+     },
+     "tags": [],
+     "trading": {
+      "fee_schedule": {
+       "exponent": 1,
+       "rate": "0.05",
+       "rebate_rate": "0.15",
+       "taker_only": true
+      },
+      "fee_type": "sports_fees_v3",
+      "fees_enabled": true,
+      "minimum_order_size": "5",
+      "minimum_tick_size": "0.001",
+      "seconds_delay": 1
+     },
+     "version": "v1"
+    }
+   ],
+   "metadata": {
+    "context_requires_regen": false,
+    "gameId": "id2705330274512646",
+    "league": "T20 Series Japan vs Malaysia, Women"
+   },
+   "metrics": {
+    "comment_count": 0,
+    "competitive": 0.9920534042188559,
+    "liquidity": "397.2176",
+    "liquidity_amm": null,
+    "liquidity_clob": "397.2176",
+    "open_interest": "7153.281366",
+    "tweet_count": null,
+    "volume": "8397.377976",
+    "volume_1mo": "8397.377976",
+    "volume_1wk": "8397.377976",
+    "volume_1yr": "8397.377976",
+    "volume_24hr": "8320.077976"
+   },
+   "parent_event_id": null,
+   "partners": [],
+   "published_at": null,
+   "resolution": {
+    "automatically_resolved": null,
+    "source": "https://www.espncricinfo.com/"
+   },
+   "schedule": {
+    "closed_time": null,
+    "creation_date": "2026-09-12T21:00:00Z",
+    "end_date": "2026-09-19T21:00:00Z",
+    "event_date": "2026-09-12",
+    "event_week": null,
+    "finished_at": null,
+    "start_date": "2026-09-11T14:16:14Z",
+    "start_time": "2026-09-13T01:00:00Z"
+   },
+   "series": [
+    {
+     "active": true,
+     "archived": false,
+     "closed": false,
+     "description": null,
+     "icon": "",
+     "id": "10528",
+     "image": "",
+     "liquidity": "161501.55485",
+     "slug": "international-cricket",
+     "start_date": null,
+     "subtitle": null,
+     "title": "International Cricket",
+     "volume": "177884.9281"
+    }
+   ],
+   "slug": "crint-jpn2-mys2-2026-09-12",
+   "sports": {
+    "away_team_name": null,
+    "best_lines": [],
+    "elapsed": null,
+    "game_id": null,
+    "game_status": null,
+    "home_team_name": null,
+    "last_highlight": null,
+    "last_highlight_at": null,
+    "last_highlight_type": null,
+    "period": "Live",
+    "rescheduled_from_game_id": null,
+    "score": "74-100",
+    "series_slug": "international-cricket",
+    "sport": {
+     "created_at": "2025-12-07T00:14:46.041607Z",
+     "id": 87,
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-icons/crint.png",
+     "ordering": "home",
+     "resolution": "https://www.icc-cricket.com/",
+     "series": "10528",
+     "sport": "crint",
+     "tags": "1,100639,517,102803",
+     "updated_at": null
+    },
+    "sportsradar_match_id": null,
+    "spreads_main_line": null,
+    "teams": [
+     {
+      "abbreviation": "jpn2",
+      "alias": null,
+      "color": "#8a142b",
+      "created_at": "2026-06-05T16:00:01.767657Z",
+      "id": 3278711,
+      "league": "crint",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/country-flags/jpn.png",
+      "name": "Japan",
+      "ordering": "home",
+      "provider_id": 969911,
+      "record": "0-0",
+      "updated_at": "2026-06-27T05:03:32.975932Z"
+     },
+     {
+      "abbreviation": "mys2",
+      "alias": null,
+      "color": "#bb281b",
+      "created_at": "2026-05-06T01:17:45.504313Z",
+      "id": 3270829,
+      "league": "crint",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/country-flags/my.png",
+      "name": "Malaysia",
+      "ordering": "away",
+      "provider_id": 440748,
+      "record": "0-0",
+      "updated_at": "2026-05-14T03:26:34.230666Z"
+     }
+    ],
+    "totals_main_line": null
+   },
+   "state": {
+    "active": true,
+    "archived": false,
+    "automatically_active": true,
+    "closed": false,
+    "comments_enabled": null,
+    "cyom": false,
+    "ended": false,
+    "featured": false,
+    "live": true,
+    "new": false,
+    "requires_translation": false,
+    "restricted": true
+   },
+   "subcategory": null,
+   "subtitle": null,
+   "tags": [
+    {
+     "id": "1",
+     "label": "Sports",
+     "slug": "sports"
+    },
+    {
+     "id": "100639",
+     "label": "Games",
+     "slug": "games"
+    },
+    {
+     "id": "517",
+     "label": "Cricket",
+     "slug": "cricket"
+    },
+    {
+     "id": "102803",
+     "label": "International Cricket",
+     "slug": "international-cricket"
+    }
+   ],
+   "ticker": "crint-jpn2-mys2-2026-09-12",
+   "title": "T20 Series Japan vs Malaysia, Women: Japan vs Malaysia",
+   "trading": {
+    "cumulative_markets": null,
+    "enable_neg_risk": false,
+    "enable_order_book": true,
+    "neg_risk": false,
+    "neg_risk_augmented": false,
+    "neg_risk_fee_bips": null,
+    "neg_risk_market_id": null
+   },
+   "updated_at": "2026-09-13T07:21:10.201458Z",
+   "version": "v1"
+  }
+ ],
+ "one_fixture_many_events": [
+  {
+   "category": null,
+   "created_at": "2026-08-30T04:00:02.540358Z",
+   "creators": [],
+   "description": "This event is for the upcoming Ligue 1 game, scheduled for Saturday, September 12, 2026 between RC Strasbourg Alsace and AS Monaco FC.",
+   "display": {
+    "color": null,
+    "country_name": null,
+    "election_type": null,
+    "featured_image_optimized": null,
+    "featured_order": null,
+    "gmp_chart_mode": null,
+    "icon_optimized": null,
+    "image_optimized": null,
+    "show_all_outcomes": true,
+    "show_market_images": false,
+    "sort_by": null
+   },
+   "estimation": {
+    "cant_estimate": null,
+    "estimate_value": null,
+    "estimated_value": null
+   },
+   "featured_image": null,
+   "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+   "id": "934151",
+   "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+   "markets": [
+    {
+     "category": null,
+     "condition_id": "0xce627acb1a27ae8884132dbcb41cc54ee3c1992e69c8bc08784a58607758e963",
+     "description": "In the upcoming game, scheduled for September 12, 2026\nIf RC Strasbourg Alsace wins, this market will resolve to \"Yes\".\nOtherwise, this market will resolve to \"No\".\nIf the game is postponed, this market will remain open until the game has been completed.\nIf the game is canceled entirely, with no make-up game, this market will resolve \"No\".\nThis market refers only to the outcome within the first 90 minutes of regular play plus stoppage time.\n\nThe primary resolution source for this market is the official statistics of the event as recognized by the governing body or event organizers. However, if the governing body or event organizers have not published final match statistics within 2 hours after the event's conclusion, data from Flashscore may be used; if Flashscore data is unavailable, data from Sofascore may be used; if neither is available, a consensus of credible reporting may be used instead. All markets will settle based on the official final result as recognized by the governing body or event organizers. Revisions to officially declared final scores made after market resolution will not be accounted for in determining the outcome.",
+     "events": [],
+     "group_item_title": "RC Strasbourg Alsace",
+     "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+     "id": "3989250",
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+     "metrics": {
+      "liquidity": null,
+      "liquidity_clob": null,
+      "liquidity_num": null,
+      "volume": "72432.18361299996",
+      "volume_1mo": "72432.183613",
+      "volume_1wk": "72432.183613",
+      "volume_1yr": "72432.183613",
+      "volume_24hr": "70504.858038",
+      "volume_amm": null,
+      "volume_clob": "72432.18361299996",
+      "volume_num": "72432.18361299996"
+     },
+     "outcomes": {
+      "no": {
+       "label": "No",
+       "position_id": "1313200424092723050459335911251958395456987370637311107745373764819269713921",
+       "price": "1",
+       "token_id": "82938894177637974914619371908098702523728694757773107046393419700987772549748"
+      },
+      "yes": {
+       "label": "Yes",
+       "position_id": "1313200424092723050459335911251958395456987370637311107745373764819269713920",
+       "price": "0",
+       "token_id": "5733209416334585144607387641672109507501915249652359506380255161703102155480"
+      }
+     },
+     "position_ids": [
+      "1313200424092723050459335911251958395456987370637311107745373764819269713920",
+      "1313200424092723050459335911251958395456987370637311107745373764819269713921"
+     ],
+     "prices": {
+      "best_ask": "0.001",
+      "best_bid": null,
+      "last_trade_price": "0.02",
+      "one_day_price_change": "-0.2945",
+      "one_hour_price_change": "-0.5845",
+      "one_month_price_change": null,
+      "one_week_price_change": "-0.2995",
+      "one_year_price_change": null,
+      "spread": "0.001"
+     },
+     "question": "Will RC Strasbourg Alsace win on 2026-09-12?",
+     "resolution": {
+      "neg_risk_request_id": "0x578bb38e07304fe4436aa74b136332c28c2faed5df03521bd29303ea5c0a1fd0",
+      "question_id": "0x5b630d430e9bb703cb88355e9fba0816e73ebee6bba29b339e956d6c0c55ba00",
+      "resolved_by": "0x69c47De9D4D3Dad79590d61b9e05918E03775f24",
+      "source": "https://www.ligue1.com/",
+      "uma_resolution_status": "resolved"
+     },
+     "rewards": {
+      "clob_rewards": null,
+      "holding_rewards_enabled": false,
+      "rewards_max_spread": 4.5,
+      "rewards_min_size": "50"
+     },
+     "slug": "fl1-str-asm-2026-09-12-str",
+     "sports": {
+      "game_id": null,
+      "game_start_time": "2026-09-12T15:15:00Z",
+      "line": null,
+      "sports_market_type": "moneyline"
+     },
+     "state": {
+      "accepting_orders": false,
+      "active": true,
+      "archived": false,
+      "closed": true,
+      "closed_time": "2026-09-12T17:31:27Z",
+      "combo_status": "enabled",
+      "enable_order_book": true,
+      "end_date": "2026-09-12T15:15:00Z",
+      "neg_risk": true,
+      "start_date": "2026-08-30T04:00:17Z"
+     },
+     "tags": [],
+     "trading": {
+      "fee_schedule": {
+       "exponent": 1,
+       "rate": "0.05",
+       "rebate_rate": "0.15",
+       "taker_only": true
+      },
+      "fee_type": "sports_fees_v3",
+      "fees_enabled": true,
+      "minimum_order_size": "5",
+      "minimum_tick_size": "0.001",
+      "seconds_delay": 1
+     },
+     "version": "v1"
+    }
+   ],
+   "metadata": {
+    "context_requires_regen": true,
+    "opticOddsFixtureId": "202609126F96365D",
+    "opticOddsGameId": "46692-70007-2026-09-12",
+    "opticOddsNumericalId": 1025071
+   },
+   "metrics": {
+    "comment_count": 0,
+    "competitive": null,
+    "liquidity": null,
+    "liquidity_amm": null,
+    "liquidity_clob": null,
+    "open_interest": "190551.285043",
+    "tweet_count": null,
+    "volume": "356427.1283360001",
+    "volume_1mo": "356427.128336",
+    "volume_1wk": "356320.94921200007",
+    "volume_1yr": "356427.128336",
+    "volume_24hr": "343067.67508300004"
+   },
+   "parent_event_id": null,
+   "partners": [],
+   "published_at": null,
+   "resolution": {
+    "automatically_resolved": true,
+    "source": "https://www.ligue1.com/"
+   },
+   "schedule": {
+    "closed_time": "2026-09-12T17:31:27Z",
+    "creation_date": "2026-08-30T04:01:15.009094Z",
+    "end_date": "2026-09-12T15:15:00Z",
+    "event_date": "2026-09-12",
+    "event_week": 4,
+    "finished_at": "2026-09-12T17:13:49.243274Z",
+    "start_date": "2026-08-30T04:00:17Z",
+    "start_time": "2026-09-12T15:15:00Z"
+   },
+   "series": [
+    {
+     "active": true,
+     "archived": false,
+     "closed": false,
+     "description": null,
+     "icon": null,
+     "id": "10195",
+     "image": null,
+     "liquidity": "9163883.40041",
+     "slug": "ligue-1-2025",
+     "start_date": null,
+     "subtitle": null,
+     "title": "Ligue 1 2025",
+     "volume": "258834.937912"
+    }
+   ],
+   "slug": "fl1-str-asm-2026-09-12",
+   "sports": {
+    "away_team_name": null,
+    "best_lines": [],
+    "elapsed": "",
+    "game_id": 90112380,
+    "game_status": null,
+    "home_team_name": null,
+    "last_highlight": null,
+    "last_highlight_at": null,
+    "last_highlight_type": null,
+    "period": "VFT",
+    "rescheduled_from_game_id": null,
+    "score": "1-1",
+    "series_slug": "ligue-1-2025",
+    "sport": {
+     "created_at": "2025-11-05T19:27:45.399303Z",
+     "id": 11,
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-icons/fl1-1ddf3796.png",
+     "ordering": "home",
+     "resolution": "https://ligue1.com/en",
+     "series": "10195",
+     "sport": "fl1",
+     "tags": "1,100639,102070,100350",
+     "updated_at": null
+    },
+    "sportsradar_match_id": null,
+    "spreads_main_line": null,
+    "teams": [
+     {
+      "abbreviation": "str",
+      "alias": "Strasbourg",
+      "color": "#1c7bc4",
+      "created_at": "2025-08-13T18:45:05.683054Z",
+      "id": 114318,
+      "league": "fl1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/RC Strasbourg Alsace-28819e2527.png",
+      "name": "RC Strasbourg Alsace",
+      "ordering": "home",
+      "provider_id": 1119,
+      "record": "2-1-1",
+      "updated_at": "2026-05-14T03:33:34.149978Z"
+     },
+     {
+      "abbreviation": "asm",
+      "alias": "Monaco",
+      "color": "#df2043",
+      "created_at": "2025-08-13T18:45:05.683054Z",
+      "id": 114312,
+      "league": "fl1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/AS Monaco FC-dbed9850c0.png",
+      "name": "AS Monaco FC",
+      "ordering": "away",
+      "provider_id": 549,
+      "record": "3-1-0",
+      "updated_at": "2026-05-14T03:33:34.471034Z"
+     }
+    ],
+    "totals_main_line": null
+   },
+   "state": {
+    "active": true,
+    "archived": false,
+    "automatically_active": true,
+    "closed": true,
+    "comments_enabled": null,
+    "cyom": false,
+    "ended": true,
+    "featured": false,
+    "live": false,
+    "new": false,
+    "requires_translation": false,
+    "restricted": true
+   },
+   "subcategory": null,
+   "subtitle": null,
+   "tags": [
+    {
+     "id": "1",
+     "label": "Sports",
+     "slug": "sports"
+    },
+    {
+     "id": "100639",
+     "label": "Games",
+     "slug": "games"
+    },
+    {
+     "id": "100350",
+     "label": "Soccer",
+     "slug": "soccer"
+    },
+    {
+     "id": "102070",
+     "label": "Ligue 1",
+     "slug": "ligue-1"
+    }
+   ],
+   "ticker": "fl1-str-asm-2026-09-12",
+   "title": "RC Strasbourg Alsace vs. AS Monaco FC",
+   "trading": {
+    "cumulative_markets": null,
+    "enable_neg_risk": true,
+    "enable_order_book": true,
+    "neg_risk": true,
+    "neg_risk_augmented": false,
+    "neg_risk_fee_bips": null,
+    "neg_risk_market_id": "0x5b630d430e9bb703cb88355e9fba0816e73ebee6bba29b339e956d6c0c55ba00"
+   },
+   "updated_at": "2026-09-13T07:23:26.447714Z",
+   "version": "v1"
+  },
+  {
+   "category": null,
+   "created_at": "2026-08-30T04:00:13.382148Z",
+   "creators": [],
+   "description": "In the upcoming Ligue 1 game between RC Strasbourg Alsace and AS Monaco FC, scheduled for September 12, 2026 at 11:15 AM ET: This event contains halftime result markets for home, draw, and away outcomes within the first 45 minutes of regular play plus stoppage time.",
+   "display": {
+    "color": null,
+    "country_name": null,
+    "election_type": null,
+    "featured_image_optimized": null,
+    "featured_order": null,
+    "gmp_chart_mode": null,
+    "icon_optimized": null,
+    "image_optimized": null,
+    "show_all_outcomes": true,
+    "show_market_images": false,
+    "sort_by": null
+   },
+   "estimation": {
+    "cant_estimate": null,
+    "estimate_value": null,
+    "estimated_value": null
+   },
+   "featured_image": null,
+   "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+   "id": "934190",
+   "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+   "markets": [
+    {
+     "category": null,
+     "condition_id": "0x87cfb77adaa611d1a93fa3b048e68a939195a85bc11398b972a9ce197ad660f1",
+     "description": "In the upcoming game, scheduled for September 12, 2026 If RC Strasbourg Alsace wins within the first 45 minutes of regular play plus stoppage time, this market will resolve to \"Yes\". Otherwise, this market will resolve to \"No\". If the game is postponed, this market will remain open until the game has been completed. If the game is canceled entirely, with no make-up game, this market will resolve \"No\". This market refers only to the outcome within the first 45 minutes of regular play plus stoppage time.The primary resolution source for this market is the official statistics published by the governing body or event organizers. If the governing body or event organizers have not published final statistics within 24 hours of the event's conclusion, data from Flashscore may be used; if Flashscore data is unavailable, data from Sofascore may be used; if neither is available, a consensus of credible reporting may be used. Revisions to officially published final statistics made after market resolution will not be considered in determining the outcome. If no acceptable data is available within 24 hours of the event's conclusion, this market will resolve 50-50.",
+     "events": [],
+     "group_item_title": "RC Strasbourg Alsace",
+     "icon": null,
+     "id": "3989399",
+     "image": null,
+     "metrics": {
+      "liquidity": null,
+      "liquidity_clob": null,
+      "liquidity_num": null,
+      "volume": "3030.2441040000003",
+      "volume_1mo": "3030.244104",
+      "volume_1wk": "3030.244104",
+      "volume_1yr": "3030.244104",
+      "volume_24hr": "3025.234104",
+      "volume_amm": null,
+      "volume_clob": "3030.2441040000003",
+      "volume_num": "3030.2441040000003"
+     },
+     "outcomes": {
+      "no": {
+       "label": "No",
+       "position_id": "1071864186452489509954894060191973988514208248272418096995976508864831946753",
+       "price": "1",
+       "token_id": "98777305843145758151614490116351018916567918092409279594013074185676692541983"
+      },
+      "yes": {
+       "label": "Yes",
+       "position_id": "1071864186452489509954894060191973988514208248272418096995976508864831946752",
+       "price": "0",
+       "token_id": "76427399339582700792411143072501981218005689123665243412903734629828869488244"
+      }
+     },
+     "position_ids": [
+      "1071864186452489509954894060191973988514208248272418096995976508864831946752",
+      "1071864186452489509954894060191973988514208248272418096995976508864831946753"
+     ],
+     "prices": {
+      "best_ask": "0.001",
+      "best_bid": null,
+      "last_trade_price": "0.08",
+      "one_day_price_change": "-0.2545",
+      "one_hour_price_change": "-0.0025",
+      "one_month_price_change": null,
+      "one_week_price_change": "-0.2495",
+      "one_year_price_change": null,
+      "spread": "0.001"
+     },
+     "question": "RC Strasbourg Alsace leading at halftime?",
+     "resolution": {
+      "neg_risk_request_id": "0x37050aa551270c720e10c2586a92b978c600168583dc36bf95ff12bed42fd345",
+      "question_id": "0x15a6c940087707d9f583254bc6b03aca5ea75454b69c8fa0d73242b545421900",
+      "resolved_by": "0x69c47De9D4D3Dad79590d61b9e05918E03775f24",
+      "source": null,
+      "uma_resolution_status": "resolved"
+     },
+     "rewards": {
+      "clob_rewards": null,
+      "holding_rewards_enabled": false,
+      "rewards_max_spread": 4.5,
+      "rewards_min_size": "50"
+     },
+     "slug": "fl1-str-asm-2026-09-12-halftime-result-home",
+     "sports": {
+      "game_id": null,
+      "game_start_time": "2026-09-12T15:15:00Z",
+      "line": null,
+      "sports_market_type": "soccer_halftime_result"
+     },
+     "state": {
+      "accepting_orders": false,
+      "active": true,
+      "archived": false,
+      "closed": true,
+      "closed_time": "2026-09-12T17:30:12Z",
+      "combo_status": "enabled",
+      "enable_order_book": true,
+      "end_date": "2026-09-12T15:15:00Z",
+      "neg_risk": true,
+      "start_date": "2026-08-30T04:00:39Z"
+     },
+     "tags": [],
+     "trading": {
+      "fee_schedule": {
+       "exponent": 1,
+       "rate": "0.05",
+       "rebate_rate": "0.15",
+       "taker_only": true
+      },
+      "fee_type": "sports_fees_v3",
+      "fees_enabled": true,
+      "minimum_order_size": "5",
+      "minimum_tick_size": "0.001",
+      "seconds_delay": 1
+     },
+     "version": "v1"
+    }
+   ],
+   "metadata": {
+    "context_requires_regen": false,
+    "opticOddsFixtureId": "202609126F96365D",
+    "opticOddsGameId": "46692-70007-2026-09-12",
+    "opticOddsNumericalId": 1025071
+   },
+   "metrics": {
+    "comment_count": 0,
+    "competitive": null,
+    "liquidity": null,
+    "liquidity_amm": null,
+    "liquidity_clob": null,
+    "open_interest": "6619.270853",
+    "tweet_count": null,
+    "volume": "6619.270853000001",
+    "volume_1mo": "6619.270853",
+    "volume_1wk": "6619.270853",
+    "volume_1yr": "6619.270853",
+    "volume_24hr": "6610.619827"
+   },
+   "parent_event_id": "934151",
+   "partners": [],
+   "published_at": null,
+   "resolution": {
+    "automatically_resolved": true,
+    "source": "https://www.ligue1.com/"
+   },
+   "schedule": {
+    "closed_time": "2026-09-12T17:30:12Z",
+    "creation_date": "2026-08-30T04:03:14.869375Z",
+    "end_date": "2026-09-12T15:15:00Z",
+    "event_date": "2026-09-12",
+    "event_week": null,
+    "finished_at": "2026-09-12T17:13:49.243274Z",
+    "start_date": "2026-08-30T04:00:39Z",
+    "start_time": "2026-09-12T15:15:00Z"
+   },
+   "series": [
+    {
+     "active": true,
+     "archived": false,
+     "closed": false,
+     "description": null,
+     "icon": null,
+     "id": "10195",
+     "image": null,
+     "liquidity": "9163883.40041",
+     "slug": "ligue-1-2025",
+     "start_date": null,
+     "subtitle": null,
+     "title": "Ligue 1 2025",
+     "volume": "258834.937912"
+    }
+   ],
+   "slug": "fl1-str-asm-2026-09-12-halftime-result",
+   "sports": {
+    "away_team_name": null,
+    "best_lines": [],
+    "elapsed": "",
+    "game_id": 90112380,
+    "game_status": null,
+    "home_team_name": null,
+    "last_highlight": null,
+    "last_highlight_at": null,
+    "last_highlight_type": null,
+    "period": "VFT",
+    "rescheduled_from_game_id": null,
+    "score": "1-1",
+    "series_slug": "ligue-1-2025",
+    "sport": {
+     "created_at": "2025-11-05T19:27:45.399303Z",
+     "id": 11,
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-icons/fl1-1ddf3796.png",
+     "ordering": "home",
+     "resolution": "https://ligue1.com/en",
+     "series": "10195",
+     "sport": "fl1",
+     "tags": "1,100639,102070,100350",
+     "updated_at": null
+    },
+    "sportsradar_match_id": null,
+    "spreads_main_line": null,
+    "teams": [
+     {
+      "abbreviation": "str",
+      "alias": "Strasbourg",
+      "color": "#1c7bc4",
+      "created_at": "2025-08-13T18:45:05.683054Z",
+      "id": 114318,
+      "league": "fl1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/RC Strasbourg Alsace-28819e2527.png",
+      "name": "RC Strasbourg Alsace",
+      "ordering": "home",
+      "provider_id": 1119,
+      "record": "2-1-1",
+      "updated_at": "2026-05-14T03:33:34.149978Z"
+     },
+     {
+      "abbreviation": "asm",
+      "alias": "Monaco",
+      "color": "#df2043",
+      "created_at": "2025-08-13T18:45:05.683054Z",
+      "id": 114312,
+      "league": "fl1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/AS Monaco FC-dbed9850c0.png",
+      "name": "AS Monaco FC",
+      "ordering": "away",
+      "provider_id": 549,
+      "record": "3-1-0",
+      "updated_at": "2026-05-14T03:33:34.471034Z"
+     }
+    ],
+    "totals_main_line": null
+   },
+   "state": {
+    "active": true,
+    "archived": false,
+    "automatically_active": true,
+    "closed": true,
+    "comments_enabled": null,
+    "cyom": false,
+    "ended": true,
+    "featured": false,
+    "live": false,
+    "new": false,
+    "requires_translation": false,
+    "restricted": true
+   },
+   "subcategory": null,
+   "subtitle": null,
+   "tags": [
+    {
+     "id": "1",
+     "label": "Sports",
+     "slug": "sports"
+    },
+    {
+     "id": "100639",
+     "label": "Games",
+     "slug": "games"
+    },
+    {
+     "id": "100350",
+     "label": "Soccer",
+     "slug": "soccer"
+    },
+    {
+     "id": "102070",
+     "label": "Ligue 1",
+     "slug": "ligue-1"
+    }
+   ],
+   "ticker": "fl1-str-asm-2026-09-12-halftime-result",
+   "title": "RC Strasbourg Alsace vs. AS Monaco FC - Halftime Result",
+   "trading": {
+    "cumulative_markets": null,
+    "enable_neg_risk": true,
+    "enable_order_book": true,
+    "neg_risk": true,
+    "neg_risk_augmented": false,
+    "neg_risk_fee_bips": null,
+    "neg_risk_market_id": "0x15a6c940087707d9f583254bc6b03aca5ea75454b69c8fa0d73242b545421900"
+   },
+   "updated_at": "2026-09-13T07:23:26.447714Z",
+   "version": "v1"
+  },
+  {
+   "category": null,
+   "created_at": "2026-08-30T04:00:13.838495Z",
+   "creators": [],
+   "description": "In the upcoming Ligue 1 game between RC Strasbourg Alsace and AS Monaco FC, scheduled for September 12, 2026 at 11:15 AM ET: This market will resolve to \"RC Strasbourg Alsace\" if RC Strasbourg Alsace score more goals than AS Monaco FC in the second half of regular play plus second-half stoppage time. This market will resolve to \"Draw\" if RC Strasbourg Alsace and AS Monaco FC score the same number of goals in the second half of regular play plus second-half stoppage time. This market will resolve to \"AS Monaco FC\" if AS Monaco FC score more goals than RC Strasbourg Alsace in the second half of regular play plus second-half stoppage time. If the game is postponed, this market will remain open until the game has been completed. If the game is canceled entirely, with no make-up game, this market will resolve to \"Draw\". This market refers only to the outcome within the second half of regular play plus second-half stoppage time. First-half goals, extra time, and penalty shoot-outs are excluded. The primary resolution source for this market is the official statistics published by the governing body or event organizers. If the governing body or event organizers have not published final statistics within 24 hours of the event's conclusion, data from Flashscore may be used; if Flashscore data is unavailable, data from Sofascore may be used; if neither is available, a consensus of credible reporting may be used. Revisions to officially published final statistics made after market resolution will not be considered in determining the outcome. If no acceptable data is available within 24 hours of the event's conclusion, this market will resolve 50-50.",
+   "display": {
+    "color": null,
+    "country_name": null,
+    "election_type": null,
+    "featured_image_optimized": null,
+    "featured_order": null,
+    "gmp_chart_mode": null,
+    "icon_optimized": null,
+    "image_optimized": null,
+    "show_all_outcomes": true,
+    "show_market_images": false,
+    "sort_by": null
+   },
+   "estimation": {
+    "cant_estimate": null,
+    "estimate_value": null,
+    "estimated_value": null
+   },
+   "featured_image": null,
+   "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+   "id": "934193",
+   "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+   "markets": [
+    {
+     "category": null,
+     "condition_id": "0x4476ba5419cdf4f6d75b7f9dc2040996c686496cbd8ea2bb7183b3f09506bc49",
+     "description": "In the upcoming Ligue 1 game between RC Strasbourg Alsace and AS Monaco FC, scheduled for September 12, 2026 at 11:15 AM ET: This market will resolve to \"RC Strasbourg Alsace\" if RC Strasbourg Alsace score more goals than AS Monaco FC in the second half of regular play plus second-half stoppage time. This market will resolve to \"Draw\" if RC Strasbourg Alsace and AS Monaco FC score the same number of goals in the second half of regular play plus second-half stoppage time. This market will resolve to \"AS Monaco FC\" if AS Monaco FC score more goals than RC Strasbourg Alsace in the second half of regular play plus second-half stoppage time. If the game is postponed, this market will remain open until the game has been completed. If the game is canceled entirely, with no make-up game, this market will resolve to \"Draw\". This market refers only to the outcome within the second half of regular play plus second-half stoppage time. First-half goals, extra time, and penalty shoot-outs are excluded. The primary resolution source for this market is the official statistics published by the governing body or event organizers. If the governing body or event organizers have not published final statistics within 24 hours of the event's conclusion, data from Flashscore may be used; if Flashscore data is unavailable, data from Sofascore may be used; if neither is available, a consensus of credible reporting may be used. Revisions to officially published final statistics made after market resolution will not be considered in determining the outcome. If no acceptable data is available within 24 hours of the event's conclusion, this market will resolve 50-50.",
+     "events": [],
+     "group_item_title": "RC Strasbourg Alsace",
+     "icon": null,
+     "id": "3989410",
+     "image": null,
+     "metrics": {
+      "liquidity": "0",
+      "liquidity_clob": "0",
+      "liquidity_num": "0",
+      "volume": null,
+      "volume_1mo": null,
+      "volume_1wk": null,
+      "volume_1yr": null,
+      "volume_24hr": null,
+      "volume_amm": null,
+      "volume_clob": null,
+      "volume_num": null
+     },
+     "outcomes": {
+      "no": {
+       "label": "No",
+       "position_id": "1055020581267045904790331751413012893345421127446100583706673086141441245185",
+       "price": "1",
+       "token_id": "96614521366681983638397859979082553393447673829051645170160916940953159691394"
+      },
+      "yes": {
+       "label": "Yes",
+       "position_id": "1055020581267045904790331751413012893345421127446100583706673086141441245184",
+       "price": "0",
+       "token_id": "57592592236385375193129306593988248460299633083120057407414222143592246012538"
+      }
+     },
+     "position_ids": [
+      "1055020581267045904790331751413012893345421127446100583706673086141441245184",
+      "1055020581267045904790331751413012893345421127446100583706673086141441245185"
+     ],
+     "prices": {
+      "best_ask": "0.009",
+      "best_bid": null,
+      "last_trade_price": null,
+      "one_day_price_change": "-0.2805",
+      "one_hour_price_change": "-0.5605",
+      "one_month_price_change": null,
+      "one_week_price_change": "-0.2755",
+      "one_year_price_change": null,
+      "spread": "0.009"
+     },
+     "question": "RC Strasbourg Alsace to win the second half?",
+     "resolution": {
+      "neg_risk_request_id": "0x568a7db432224384371878076dc155e5c2a1d9e40545bf8cf11bb7b05068de5a",
+      "question_id": "0x7398e694df05c54bf5cb4fdc3ed66b13551ed84a9794e40242ba50b9e253d100",
+      "resolved_by": "0x69c47De9D4D3Dad79590d61b9e05918E03775f24",
+      "source": null,
+      "uma_resolution_status": "resolved"
+     },
+     "rewards": {
+      "clob_rewards": null,
+      "holding_rewards_enabled": false,
+      "rewards_max_spread": 4.5,
+      "rewards_min_size": "50"
+     },
+     "slug": "fl1-str-asm-2026-09-12-second-half-result-home",
+     "sports": {
+      "game_id": null,
+      "game_start_time": "2026-09-12T15:15:00Z",
+      "line": null,
+      "sports_market_type": "soccer_second_half_result"
+     },
+     "state": {
+      "accepting_orders": false,
+      "active": true,
+      "archived": false,
+      "closed": true,
+      "closed_time": "2026-09-12T17:30:12Z",
+      "combo_status": "enabled",
+      "enable_order_book": true,
+      "end_date": "2026-09-12T15:15:00Z",
+      "neg_risk": true,
+      "start_date": "2026-08-30T04:00:39Z"
+     },
+     "tags": [],
+     "trading": {
+      "fee_schedule": {
+       "exponent": 1,
+       "rate": "0.05",
+       "rebate_rate": "0.15",
+       "taker_only": true
+      },
+      "fee_type": "sports_fees_v3",
+      "fees_enabled": true,
+      "minimum_order_size": "5",
+      "minimum_tick_size": "0.001",
+      "seconds_delay": 1
+     },
+     "version": "v1"
+    }
+   ],
+   "metadata": {
+    "context_requires_regen": false,
+    "opticOddsFixtureId": "202609126F96365D",
+    "opticOddsGameId": "46692-70007-2026-09-12",
+    "opticOddsNumericalId": 1025071
+   },
+   "metrics": {
+    "comment_count": 0,
+    "competitive": 0.0,
+    "liquidity": "0",
+    "liquidity_amm": "0",
+    "liquidity_clob": "0",
+    "open_interest": null,
+    "tweet_count": null,
+    "volume": null,
+    "volume_1mo": null,
+    "volume_1wk": null,
+    "volume_1yr": null,
+    "volume_24hr": null
+   },
+   "parent_event_id": "934151",
+   "partners": [],
+   "published_at": null,
+   "resolution": {
+    "automatically_resolved": true,
+    "source": "https://www.ligue1.com/"
+   },
+   "schedule": {
+    "closed_time": "2026-09-12T17:30:12Z",
+    "creation_date": "2026-08-30T04:03:14.904652Z",
+    "end_date": "2026-09-12T15:15:00Z",
+    "event_date": "2026-09-12",
+    "event_week": null,
+    "finished_at": "2026-09-12T17:13:49.243274Z",
+    "start_date": "2026-08-30T04:00:39Z",
+    "start_time": "2026-09-12T15:15:00Z"
+   },
+   "series": [
+    {
+     "active": true,
+     "archived": false,
+     "closed": false,
+     "description": null,
+     "icon": null,
+     "id": "10195",
+     "image": null,
+     "liquidity": "9163883.40041",
+     "slug": "ligue-1-2025",
+     "start_date": null,
+     "subtitle": null,
+     "title": "Ligue 1 2025",
+     "volume": "258834.937912"
+    }
+   ],
+   "slug": "fl1-str-asm-2026-09-12-second-half-result",
+   "sports": {
+    "away_team_name": null,
+    "best_lines": [],
+    "elapsed": "",
+    "game_id": 90112380,
+    "game_status": null,
+    "home_team_name": null,
+    "last_highlight": null,
+    "last_highlight_at": null,
+    "last_highlight_type": null,
+    "period": "VFT",
+    "rescheduled_from_game_id": null,
+    "score": "1-1",
+    "series_slug": "ligue-1-2025",
+    "sport": {
+     "created_at": "2025-11-05T19:27:45.399303Z",
+     "id": 11,
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-icons/fl1-1ddf3796.png",
+     "ordering": "home",
+     "resolution": "https://ligue1.com/en",
+     "series": "10195",
+     "sport": "fl1",
+     "tags": "1,100639,102070,100350",
+     "updated_at": null
+    },
+    "sportsradar_match_id": null,
+    "spreads_main_line": null,
+    "teams": [
+     {
+      "abbreviation": "str",
+      "alias": "Strasbourg",
+      "color": "#1c7bc4",
+      "created_at": "2025-08-13T18:45:05.683054Z",
+      "id": 114318,
+      "league": "fl1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/RC Strasbourg Alsace-28819e2527.png",
+      "name": "RC Strasbourg Alsace",
+      "ordering": "home",
+      "provider_id": 1119,
+      "record": "2-1-1",
+      "updated_at": "2026-05-14T03:33:34.149978Z"
+     },
+     {
+      "abbreviation": "asm",
+      "alias": "Monaco",
+      "color": "#df2043",
+      "created_at": "2025-08-13T18:45:05.683054Z",
+      "id": 114312,
+      "league": "fl1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/AS Monaco FC-dbed9850c0.png",
+      "name": "AS Monaco FC",
+      "ordering": "away",
+      "provider_id": 549,
+      "record": "3-1-0",
+      "updated_at": "2026-05-14T03:33:34.471034Z"
+     }
+    ],
+    "totals_main_line": null
+   },
+   "state": {
+    "active": true,
+    "archived": false,
+    "automatically_active": true,
+    "closed": true,
+    "comments_enabled": null,
+    "cyom": false,
+    "ended": true,
+    "featured": false,
+    "live": false,
+    "new": false,
+    "requires_translation": false,
+    "restricted": true
+   },
+   "subcategory": null,
+   "subtitle": null,
+   "tags": [
+    {
+     "id": "1",
+     "label": "Sports",
+     "slug": "sports"
+    },
+    {
+     "id": "100639",
+     "label": "Games",
+     "slug": "games"
+    },
+    {
+     "id": "100350",
+     "label": "Soccer",
+     "slug": "soccer"
+    },
+    {
+     "id": "102070",
+     "label": "Ligue 1",
+     "slug": "ligue-1"
+    }
+   ],
+   "ticker": "fl1-str-asm-2026-09-12-second-half-result",
+   "title": "RC Strasbourg Alsace vs. AS Monaco FC - Second Half Result",
+   "trading": {
+    "cumulative_markets": null,
+    "enable_neg_risk": true,
+    "enable_order_book": true,
+    "neg_risk": true,
+    "neg_risk_augmented": false,
+    "neg_risk_fee_bips": null,
+    "neg_risk_market_id": "0x7398e694df05c54bf5cb4fdc3ed66b13551ed84a9794e40242ba50b9e253d100"
+   },
+   "updated_at": "2026-09-12T17:31:15.368620Z",
+   "version": "v1"
+  },
+  {
+   "category": null,
+   "created_at": "2026-08-30T04:00:14.291319Z",
+   "creators": [],
+   "description": "In the upcoming Ligue 1 game between RC Strasbourg Alsace and AS Monaco FC, scheduled for September 12, 2026 at 11:15 AM ET: This market will resolve based on the final score of the RC Strasbourg Alsace vs. AS Monaco FC match originally scheduled for September 12, 2026 at 11:15 AM ET, considering only the result at the end of 90 minutes of regulation plus stoppage time; extra time and penalty shoot-outs are excluded. If the actual score is not one of the explicitly listed outcomes, the market resolves to \"Any Other Score.\" If the match is postponed, the market will remain open until it is completed; if it is canceled with no make-up game, the market resolves to \"0-0.\" The primary resolution source for this market is the official statistics of the event as recognized by the governing body or event organizers. However, if the governing body or event organizers have not published final match statistics within 2 hours after the event's conclusion, data from Flashscore may be used; if Flashscore data is unavailable, data from Sofascore may be used; if neither is available, a consensus of credible reporting may be used instead. All markets will settle based on the official final result as recognized by the governing body or event organizers. Revisions to officially declared final scores made after market resolution will not be accounted for in determining the outcome.",
+   "display": {
+    "color": null,
+    "country_name": null,
+    "election_type": null,
+    "featured_image_optimized": null,
+    "featured_order": null,
+    "gmp_chart_mode": null,
+    "icon_optimized": null,
+    "image_optimized": null,
+    "show_all_outcomes": true,
+    "show_market_images": false,
+    "sort_by": null
+   },
+   "estimation": {
+    "cant_estimate": null,
+    "estimate_value": null,
+    "estimated_value": null
+   },
+   "featured_image": null,
+   "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+   "id": "934195",
+   "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+   "markets": [
+    {
+     "category": null,
+     "condition_id": "0xb632c5b615d230467468ed4a44e110ae8589d0ea6be91ea9a1229d3ecf0ab0fb",
+     "description": "In the upcoming Ligue 1 game between RC Strasbourg Alsace and AS Monaco FC, scheduled for September 12, 2026 at 11:15 AM ET: This market will resolve based on the final score of the RC Strasbourg Alsace vs. AS Monaco FC match originally scheduled for September 12, 2026 at 11:15 AM ET, considering only the result at the end of 90 minutes of regulation plus stoppage time; extra time and penalty shoot-outs are excluded. If the actual score is not one of the explicitly listed outcomes, the market resolves to \"Any Other Score.\" If the match is postponed, the market will remain open until it is completed; if it is canceled with no make-up game, the market resolves to \"0-0.\" The primary resolution source for this market is the official statistics of the event as recognized by the governing body or event organizers. However, if the governing body or event organizers have not published final match statistics within 2 hours after the event's conclusion, data from Flashscore may be used; if Flashscore data is unavailable, data from Sofascore may be used; if neither is available, a consensus of credible reporting may be used instead. All markets will settle based on the official final result as recognized by the governing body or event organizers. Revisions to officially declared final scores made after market resolution will not be accounted for in determining the outcome.",
+     "events": [],
+     "group_item_title": "RC Strasbourg Alsace 0 - 0 AS Monaco FC",
+     "icon": null,
+     "id": "3989422",
+     "image": null,
+     "metrics": {
+      "liquidity": null,
+      "liquidity_clob": null,
+      "liquidity_num": null,
+      "volume": "1875.307748",
+      "volume_1mo": "1875.3077479999997",
+      "volume_1wk": "1875.3077479999997",
+      "volume_1yr": "1875.3077479999997",
+      "volume_24hr": "1815.74253",
+      "volume_amm": null,
+      "volume_clob": "1875.307748",
+      "volume_num": "1875.307748"
+     },
+     "outcomes": {
+      "no": {
+       "label": "No",
+       "position_id": "1284028573630239456969300854302892221193676541294727845278457344062681776129",
+       "price": "1",
+       "token_id": "54234740775323807996465561956431956216296548746408442927588198874298038508630"
+      },
+      "yes": {
+       "label": "Yes",
+       "position_id": "1284028573630239456969300854302892221193676541294727845278457344062681776128",
+       "price": "0",
+       "token_id": "42598692583011302195782043349523078705512663560391272001998027806299597503371"
+      }
+     },
+     "position_ids": [
+      "1284028573630239456969300854302892221193676541294727845278457344062681776128",
+      "1284028573630239456969300854302892221193676541294727845278457344062681776129"
+     ],
+     "prices": {
+      "best_ask": "0.001",
+      "best_bid": null,
+      "last_trade_price": "0.01",
+      "one_day_price_change": "-0.0455",
+      "one_hour_price_change": "-0.199",
+      "one_month_price_change": null,
+      "one_week_price_change": "-0.4895",
+      "one_year_price_change": null,
+      "spread": "0.001"
+     },
+     "question": "Exact Score: RC Strasbourg Alsace 0 - 0 AS Monaco FC?",
+     "resolution": {
+      "neg_risk_request_id": "0xd38d18044ce872bea197674c8822c88d5880486e5dc8c171fc5f1e549109cef7",
+      "question_id": "0xa66b82b6f7efce0c98761588197f60dcd6bc02d465b301394ce63544efe39300",
+      "resolved_by": "0x69c47De9D4D3Dad79590d61b9e05918E03775f24",
+      "source": null,
+      "uma_resolution_status": "resolved"
+     },
+     "rewards": {
+      "clob_rewards": null,
+      "holding_rewards_enabled": false,
+      "rewards_max_spread": 4.5,
+      "rewards_min_size": "50"
+     },
+     "slug": "fl1-str-asm-2026-09-12-exact-score-0-0",
+     "sports": {
+      "game_id": null,
+      "game_start_time": "2026-09-12T15:15:00Z",
+      "line": null,
+      "sports_market_type": "soccer_exact_score"
+     },
+     "state": {
+      "accepting_orders": false,
+      "active": true,
+      "archived": false,
+      "closed": true,
+      "closed_time": "2026-09-12T17:30:43Z",
+      "combo_status": "enabled",
+      "enable_order_book": true,
+      "end_date": "2026-09-12T15:15:00Z",
+      "neg_risk": true,
+      "start_date": "2026-08-30T04:01:06Z"
+     },
+     "tags": [],
+     "trading": {
+      "fee_schedule": {
+       "exponent": 1,
+       "rate": "0.05",
+       "rebate_rate": "0.15",
+       "taker_only": true
+      },
+      "fee_type": "sports_fees_v3",
+      "fees_enabled": true,
+      "minimum_order_size": "5",
+      "minimum_tick_size": "0.001",
+      "seconds_delay": 1
+     },
+     "version": "v1"
+    }
+   ],
+   "metadata": {
+    "context_requires_regen": false,
+    "opticOddsFixtureId": "202609126F96365D",
+    "opticOddsGameId": "46692-70007-2026-09-12",
+    "opticOddsNumericalId": 1025071
+   },
+   "metrics": {
+    "comment_count": 0,
+    "competitive": null,
+    "liquidity": null,
+    "liquidity_amm": null,
+    "liquidity_clob": null,
+    "open_interest": "16396.534794",
+    "tweet_count": null,
+    "volume": "55528.058817",
+    "volume_1mo": "55528.058817",
+    "volume_1wk": "55528.058817",
+    "volume_1yr": "55528.058817",
+    "volume_24hr": "55248.838043"
+   },
+   "parent_event_id": "934151",
+   "partners": [],
+   "published_at": null,
+   "resolution": {
+    "automatically_resolved": true,
+    "source": "https://www.ligue1.com/"
+   },
+   "schedule": {
+    "closed_time": "2026-09-12T17:30:43Z",
+    "creation_date": "2026-08-30T04:03:14.771805Z",
+    "end_date": "2026-09-12T15:15:00Z",
+    "event_date": "2026-09-12",
+    "event_week": null,
+    "finished_at": "2026-09-12T17:13:49.243274Z",
+    "start_date": "2026-08-30T04:01:06Z",
+    "start_time": "2026-09-12T15:15:00Z"
+   },
+   "series": [
+    {
+     "active": true,
+     "archived": false,
+     "closed": false,
+     "description": null,
+     "icon": null,
+     "id": "10195",
+     "image": null,
+     "liquidity": "9163883.40041",
+     "slug": "ligue-1-2025",
+     "start_date": null,
+     "subtitle": null,
+     "title": "Ligue 1 2025",
+     "volume": "258834.937912"
+    }
+   ],
+   "slug": "fl1-str-asm-2026-09-12-exact-score",
+   "sports": {
+    "away_team_name": null,
+    "best_lines": [],
+    "elapsed": "",
+    "game_id": 90112380,
+    "game_status": null,
+    "home_team_name": null,
+    "last_highlight": null,
+    "last_highlight_at": null,
+    "last_highlight_type": null,
+    "period": "VFT",
+    "rescheduled_from_game_id": null,
+    "score": "1-1",
+    "series_slug": "ligue-1-2025",
+    "sport": {
+     "created_at": "2025-11-05T19:27:45.399303Z",
+     "id": 11,
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-icons/fl1-1ddf3796.png",
+     "ordering": "home",
+     "resolution": "https://ligue1.com/en",
+     "series": "10195",
+     "sport": "fl1",
+     "tags": "1,100639,102070,100350",
+     "updated_at": null
+    },
+    "sportsradar_match_id": null,
+    "spreads_main_line": null,
+    "teams": [
+     {
+      "abbreviation": "str",
+      "alias": "Strasbourg",
+      "color": "#1c7bc4",
+      "created_at": "2025-08-13T18:45:05.683054Z",
+      "id": 114318,
+      "league": "fl1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/RC Strasbourg Alsace-28819e2527.png",
+      "name": "RC Strasbourg Alsace",
+      "ordering": "home",
+      "provider_id": 1119,
+      "record": "2-1-1",
+      "updated_at": "2026-05-14T03:33:34.149978Z"
+     },
+     {
+      "abbreviation": "asm",
+      "alias": "Monaco",
+      "color": "#df2043",
+      "created_at": "2025-08-13T18:45:05.683054Z",
+      "id": 114312,
+      "league": "fl1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/AS Monaco FC-dbed9850c0.png",
+      "name": "AS Monaco FC",
+      "ordering": "away",
+      "provider_id": 549,
+      "record": "3-1-0",
+      "updated_at": "2026-05-14T03:33:34.471034Z"
+     }
+    ],
+    "totals_main_line": null
+   },
+   "state": {
+    "active": true,
+    "archived": false,
+    "automatically_active": true,
+    "closed": true,
+    "comments_enabled": null,
+    "cyom": false,
+    "ended": true,
+    "featured": false,
+    "live": false,
+    "new": false,
+    "requires_translation": false,
+    "restricted": true
+   },
+   "subcategory": null,
+   "subtitle": null,
+   "tags": [
+    {
+     "id": "1",
+     "label": "Sports",
+     "slug": "sports"
+    },
+    {
+     "id": "100639",
+     "label": "Games",
+     "slug": "games"
+    },
+    {
+     "id": "100350",
+     "label": "Soccer",
+     "slug": "soccer"
+    },
+    {
+     "id": "102070",
+     "label": "Ligue 1",
+     "slug": "ligue-1"
+    }
+   ],
+   "ticker": "fl1-str-asm-2026-09-12-exact-score",
+   "title": "RC Strasbourg Alsace vs. AS Monaco FC - Exact Score",
+   "trading": {
+    "cumulative_markets": null,
+    "enable_neg_risk": true,
+    "enable_order_book": true,
+    "neg_risk": true,
+    "neg_risk_augmented": false,
+    "neg_risk_fee_bips": null,
+    "neg_risk_market_id": "0xa66b82b6f7efce0c98761588197f60dcd6bc02d465b301394ce63544efe39300"
+   },
+   "updated_at": "2026-09-13T07:23:26.447714Z",
+   "version": "v1"
+  },
+  {
+   "category": null,
+   "created_at": "2026-08-30T04:00:15.476513Z",
+   "creators": [],
+   "description": "In the upcoming match between RC Strasbourg Alsace and AS Monaco FC, scheduled for September 12, 2026 at 11:15 AM ET: This market will resolve to \"RC Strasbourg Alsace\" if RC Strasbourg Alsace are the first to score within the first 90 minutes of regular play plus stoppage time. This market will resolve to \"AS Monaco FC\" if AS Monaco FC are the first to score within the first 90 minutes of regular play plus stoppage time. If neither team scores within the first 90 minutes of regular play plus stoppage time, this market will resolve \"Neither\". If the game is postponed, this market will remain open until the game has been completed. If the game is canceled entirely, with no make-up game, this market will resolve to \"Neither\". This market refers only to the outcome within the first 90 minutes of regular play plus stoppage time. Extra time and penalty shoot-outs are excluded. The primary resolution source for this market is the official statistics of the event as recognized by the governing body or event organizers. However, if the governing body or event organizers have not published final match statistics within 2 hours after the event's conclusion, data from Flashscore may be used; if Flashscore data is unavailable, data from Sofascore may be used; if neither is available, a consensus of credible reporting may be used instead. All markets will settle based on the official final result as recognized by the governing body or event organizers. Revisions to officially declared final scores made after market resolution will not be accounted for in determining the outcome.",
+   "display": {
+    "color": null,
+    "country_name": null,
+    "election_type": null,
+    "featured_image_optimized": null,
+    "featured_order": null,
+    "gmp_chart_mode": null,
+    "icon_optimized": null,
+    "image_optimized": null,
+    "show_all_outcomes": true,
+    "show_market_images": false,
+    "sort_by": null
+   },
+   "estimation": {
+    "cant_estimate": null,
+    "estimate_value": null,
+    "estimated_value": null
+   },
+   "featured_image": null,
+   "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+   "id": "934200",
+   "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+   "markets": [
+    {
+     "category": null,
+     "condition_id": "0xbe899049b2883b4ebbf2bc1f4421e78597fb1e86f84e8e6f3d0c49f09454a0ad",
+     "description": "In the upcoming match between RC Strasbourg Alsace and AS Monaco FC, scheduled for September 12, 2026 at 11:15 AM ET: This market will resolve to \"RC Strasbourg Alsace\" if RC Strasbourg Alsace are the first to score within the first 90 minutes of regular play plus stoppage time. This market will resolve to \"AS Monaco FC\" if AS Monaco FC are the first to score within the first 90 minutes of regular play plus stoppage time. If neither team scores within the first 90 minutes of regular play plus stoppage time, this market will resolve \"Neither\". If the game is postponed, this market will remain open until the game has been completed. If the game is canceled entirely, with no make-up game, this market will resolve to \"Neither\". This market refers only to the outcome within the first 90 minutes of regular play plus stoppage time. Extra time and penalty shoot-outs are excluded. The primary resolution source for this market is the official statistics of the event as recognized by the governing body or event organizers. However, if the governing body or event organizers have not published final match statistics within 2 hours after the event's conclusion, data from Flashscore may be used; if Flashscore data is unavailable, data from Sofascore may be used; if neither is available, a consensus of credible reporting may be used instead. All markets will settle based on the official final result as recognized by the governing body or event organizers. Revisions to officially declared final scores made after market resolution will not be accounted for in determining the outcome.",
+     "events": [],
+     "group_item_title": "RC Strasbourg Alsace",
+     "icon": null,
+     "id": "3989466",
+     "image": null,
+     "metrics": {
+      "liquidity": "0",
+      "liquidity_clob": "0",
+      "liquidity_num": "0",
+      "volume": null,
+      "volume_1mo": null,
+      "volume_1wk": null,
+      "volume_1yr": null,
+      "volume_24hr": null,
+      "volume_amm": null,
+      "volume_clob": null,
+      "volume_num": null
+     },
+     "outcomes": {
+      "no": {
+       "label": "No",
+       "position_id": "942038568634645433208681575992314868985523553758854218539371020503813718017",
+       "price": "0",
+       "token_id": "104187317092527706732112820406396529943934930836046311906437078707656226822395"
+      },
+      "yes": {
+       "label": "Yes",
+       "position_id": "942038568634645433208681575992314868985523553758854218539371020503813718016",
+       "price": "1",
+       "token_id": "103422390231863989647110739197005903641874816011441794174065142791154954258673"
+      }
+     },
+     "position_ids": [
+      "942038568634645433208681575992314868985523553758854218539371020503813718016",
+      "942038568634645433208681575992314868985523553758854218539371020503813718017"
+     ],
+     "prices": {
+      "best_ask": "1",
+      "best_bid": "0.991",
+      "last_trade_price": null,
+      "one_day_price_change": "0.5805",
+      "one_hour_price_change": "0.1705",
+      "one_month_price_change": null,
+      "one_week_price_change": "0.5005",
+      "one_year_price_change": null,
+      "spread": "0.009"
+     },
+     "question": "RC Strasbourg Alsace to score first vs. AS Monaco FC?",
+     "resolution": {
+      "neg_risk_request_id": "0x749dcad56c70b9f58b49c31fd48c6bb6f358398106c8175443fc7c10516c365a",
+      "question_id": "0x756a4ba23654cdf2071f88c62d3386e8152cc88796c006bf0a6b6d90d8798200",
+      "resolved_by": "0x69c47De9D4D3Dad79590d61b9e05918E03775f24",
+      "source": null,
+      "uma_resolution_status": "resolved"
+     },
+     "rewards": {
+      "clob_rewards": null,
+      "holding_rewards_enabled": false,
+      "rewards_max_spread": 4.5,
+      "rewards_min_size": "50"
+     },
+     "slug": "fl1-str-asm-2026-09-12-first-to-score-home",
+     "sports": {
+      "game_id": null,
+      "game_start_time": "2026-09-12T15:15:00Z",
+      "line": null,
+      "sports_market_type": "soccer_first_to_score"
+     },
+     "state": {
+      "accepting_orders": false,
+      "active": true,
+      "archived": false,
+      "closed": true,
+      "closed_time": "2026-09-12T17:30:12Z",
+      "combo_status": "enabled",
+      "enable_order_book": true,
+      "end_date": "2026-09-12T15:15:00Z",
+      "neg_risk": true,
+      "start_date": "2026-08-30T04:00:41Z"
+     },
+     "tags": [],
+     "trading": {
+      "fee_schedule": {
+       "exponent": 1,
+       "rate": "0.05",
+       "rebate_rate": "0.15",
+       "taker_only": true
+      },
+      "fee_type": "sports_fees_v3",
+      "fees_enabled": true,
+      "minimum_order_size": "5",
+      "minimum_tick_size": "0.001",
+      "seconds_delay": 1
+     },
+     "version": "v1"
+    }
+   ],
+   "metadata": {
+    "context_requires_regen": false,
+    "opticOddsFixtureId": "202609126F96365D",
+    "opticOddsGameId": "46692-70007-2026-09-12",
+    "opticOddsNumericalId": 1025071
+   },
+   "metrics": {
+    "comment_count": 0,
+    "competitive": null,
+    "liquidity": null,
+    "liquidity_amm": null,
+    "liquidity_clob": null,
+    "open_interest": "3110.6",
+    "tweet_count": null,
+    "volume": "3110.6000000000004",
+    "volume_1mo": "3110.6",
+    "volume_1wk": "3110.6",
+    "volume_1yr": "3110.6",
+    "volume_24hr": "2099.8"
+   },
+   "parent_event_id": "934151",
+   "partners": [],
+   "published_at": null,
+   "resolution": {
+    "automatically_resolved": true,
+    "source": "https://www.ligue1.com/"
+   },
+   "schedule": {
+    "closed_time": "2026-09-12T17:30:12Z",
+    "creation_date": "2026-08-30T04:03:14.769459Z",
+    "end_date": "2026-09-12T15:15:00Z",
+    "event_date": "2026-09-12",
+    "event_week": null,
+    "finished_at": "2026-09-12T17:13:49.243274Z",
+    "start_date": "2026-08-30T04:00:41Z",
+    "start_time": "2026-09-12T15:15:00Z"
+   },
+   "series": [
+    {
+     "active": true,
+     "archived": false,
+     "closed": false,
+     "description": null,
+     "icon": null,
+     "id": "10195",
+     "image": null,
+     "liquidity": "9163883.40041",
+     "slug": "ligue-1-2025",
+     "start_date": null,
+     "subtitle": null,
+     "title": "Ligue 1 2025",
+     "volume": "258834.937912"
+    }
+   ],
+   "slug": "fl1-str-asm-2026-09-12-first-to-score",
+   "sports": {
+    "away_team_name": null,
+    "best_lines": [],
+    "elapsed": "",
+    "game_id": 90112380,
+    "game_status": null,
+    "home_team_name": null,
+    "last_highlight": null,
+    "last_highlight_at": null,
+    "last_highlight_type": null,
+    "period": "VFT",
+    "rescheduled_from_game_id": null,
+    "score": "1-1",
+    "series_slug": "ligue-1-2025",
+    "sport": {
+     "created_at": "2025-11-05T19:27:45.399303Z",
+     "id": 11,
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-icons/fl1-1ddf3796.png",
+     "ordering": "home",
+     "resolution": "https://ligue1.com/en",
+     "series": "10195",
+     "sport": "fl1",
+     "tags": "1,100639,102070,100350",
+     "updated_at": null
+    },
+    "sportsradar_match_id": null,
+    "spreads_main_line": null,
+    "teams": [
+     {
+      "abbreviation": "str",
+      "alias": "Strasbourg",
+      "color": "#1c7bc4",
+      "created_at": "2025-08-13T18:45:05.683054Z",
+      "id": 114318,
+      "league": "fl1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/RC Strasbourg Alsace-28819e2527.png",
+      "name": "RC Strasbourg Alsace",
+      "ordering": "home",
+      "provider_id": 1119,
+      "record": "2-1-1",
+      "updated_at": "2026-05-14T03:33:34.149978Z"
+     },
+     {
+      "abbreviation": "asm",
+      "alias": "Monaco",
+      "color": "#df2043",
+      "created_at": "2025-08-13T18:45:05.683054Z",
+      "id": 114312,
+      "league": "fl1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/AS Monaco FC-dbed9850c0.png",
+      "name": "AS Monaco FC",
+      "ordering": "away",
+      "provider_id": 549,
+      "record": "3-1-0",
+      "updated_at": "2026-05-14T03:33:34.471034Z"
+     }
+    ],
+    "totals_main_line": null
+   },
+   "state": {
+    "active": true,
+    "archived": false,
+    "automatically_active": true,
+    "closed": true,
+    "comments_enabled": null,
+    "cyom": false,
+    "ended": true,
+    "featured": false,
+    "live": false,
+    "new": false,
+    "requires_translation": false,
+    "restricted": true
+   },
+   "subcategory": null,
+   "subtitle": null,
+   "tags": [
+    {
+     "id": "1",
+     "label": "Sports",
+     "slug": "sports"
+    },
+    {
+     "id": "100639",
+     "label": "Games",
+     "slug": "games"
+    },
+    {
+     "id": "100350",
+     "label": "Soccer",
+     "slug": "soccer"
+    },
+    {
+     "id": "102070",
+     "label": "Ligue 1",
+     "slug": "ligue-1"
+    }
+   ],
+   "ticker": "fl1-str-asm-2026-09-12-first-to-score",
+   "title": "RC Strasbourg Alsace vs. AS Monaco FC - First Team to Score",
+   "trading": {
+    "cumulative_markets": null,
+    "enable_neg_risk": true,
+    "enable_order_book": true,
+    "neg_risk": true,
+    "neg_risk_augmented": false,
+    "neg_risk_fee_bips": null,
+    "neg_risk_market_id": "0x756a4ba23654cdf2071f88c62d3386e8152cc88796c006bf0a6b6d90d8798200"
+   },
+   "updated_at": "2026-09-13T07:23:26.447714Z",
+   "version": "v1"
+  },
+  {
+   "category": null,
+   "created_at": "2026-08-30T05:00:41.131152Z",
+   "creators": [],
+   "description": "More markets for the Ligue 1 game, scheduled for September 12 at 11:15 AM ET.",
+   "display": {
+    "color": null,
+    "country_name": null,
+    "election_type": null,
+    "featured_image_optimized": null,
+    "featured_order": null,
+    "gmp_chart_mode": null,
+    "icon_optimized": null,
+    "image_optimized": null,
+    "show_all_outcomes": true,
+    "show_market_images": false,
+    "sort_by": null
+   },
+   "estimation": {
+    "cant_estimate": null,
+    "estimate_value": null,
+    "estimated_value": null
+   },
+   "featured_image": null,
+   "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+   "id": "934633",
+   "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+   "markets": [
+    {
+     "category": null,
+     "condition_id": "0x703aacec21579e28f5758692586a798f8d1bb2a3b023b4f8d9c1905a8bbfa393",
+     "description": "In the upcoming Ligue 1 game, scheduled for September 12 at 11:15 AM ET:\n\nThis market will resolve to \"RC Strasbourg Alsace\" if RC Strasbourg Alsace win the game by 2 or more goals.\n\nOtherwise, this market will resolve to \"AS Monaco FC\".\n\nIf the game is postponed, this market will remain open until the game has been completed. If the game is canceled entirely, with no make-up game, this market will resolve 50\u201350.\n\nThis market will resolve according to the official final score published on ligue1.com. This market refers only to the outcome within the first 90 minutes of regular play plus stoppage time.\n\nThe primary resolution source for this market is the official statistics of the event as recognized by the governing body or event organizers. However, if the governing body or event organizers have not published final match statistics within 2 hours after the event's conclusion, data from Flashscore may be used; if Flashscore data is unavailable, data from Sofascore may be used; if neither is available, a consensus of credible reporting may be used instead. All markets will settle based on the official final result as recognized by the governing body or event organizers. Revisions to officially declared final scores made after market resolution will not be accounted for in determining the outcome.",
+     "events": [],
+     "group_item_title": "RC Strasbourg Alsace (-1.5)",
+     "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+     "id": "3993121",
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+     "metrics": {
+      "liquidity": null,
+      "liquidity_clob": null,
+      "liquidity_num": null,
+      "volume": "2120.260805",
+      "volume_1mo": "2120.260805",
+      "volume_1wk": "2120.260805",
+      "volume_1yr": "2120.260805",
+      "volume_24hr": "1835.2847399999998",
+      "volume_amm": null,
+      "volume_clob": "2120.260805",
+      "volume_num": "2120.260805"
+     },
+     "outcomes": {
+      "no": {
+       "label": "AS Monaco FC",
+       "position_id": "701629447977251798189328426584443531124704720460862405950931717488847618049",
+       "price": "1",
+       "token_id": "75161530158817054251541135415153502358735836249522060943733787391054361304259"
+      },
+      "yes": {
+       "label": "RC Strasbourg Alsace",
+       "position_id": "701629447977251798189328426584443531124704720460862405950931717488847618048",
+       "price": "0",
+       "token_id": "50133643937606701397116758913077059518322974732413504805314265796993211958855"
+      }
+     },
+     "position_ids": [
+      "701629447977251798189328426584443531124704720460862405950931717488847618048",
+      "701629447977251798189328426584443531124704720460862405950931717488847618049"
+     ],
+     "prices": {
+      "best_ask": "0.001",
+      "best_bid": null,
+      "last_trade_price": "0.2",
+      "one_day_price_change": "-0.1295",
+      "one_hour_price_change": "-0.2345",
+      "one_month_price_change": null,
+      "one_week_price_change": "-0.1345",
+      "one_year_price_change": null,
+      "spread": "0.001"
+     },
+     "question": "Spread: RC Strasbourg Alsace (-1.5)",
+     "resolution": {
+      "neg_risk_request_id": null,
+      "question_id": "0x00a0952c9da88c8878783514b3cedb1729b7b7942dac46a3be33727ad5ff5d06",
+      "resolved_by": "0x65070BE91477460D8A7AeEb94ef92fe056C2f2A7",
+      "source": "https://www.ligue1.com/",
+      "uma_resolution_status": "resolved"
+     },
+     "rewards": {
+      "clob_rewards": null,
+      "holding_rewards_enabled": false,
+      "rewards_max_spread": 4.5,
+      "rewards_min_size": "50"
+     },
+     "slug": "fl1-str-asm-2026-09-12-spread-home-1pt5",
+     "sports": {
+      "game_id": null,
+      "game_start_time": "2026-09-12T15:15:00Z",
+      "line": -1.5,
+      "sports_market_type": "spreads"
+     },
+     "state": {
+      "accepting_orders": false,
+      "active": true,
+      "archived": false,
+      "closed": true,
+      "closed_time": "2026-09-12T17:30:10Z",
+      "combo_status": "enabled",
+      "enable_order_book": true,
+      "end_date": "2026-09-12T15:15:00Z",
+      "neg_risk": false,
+      "start_date": "2026-08-30T05:01:38Z"
+     },
+     "tags": [],
+     "trading": {
+      "fee_schedule": {
+       "exponent": 1,
+       "rate": "0.05",
+       "rebate_rate": "0.15",
+       "taker_only": true
+      },
+      "fee_type": "sports_fees_v3",
+      "fees_enabled": true,
+      "minimum_order_size": "5",
+      "minimum_tick_size": "0.001",
+      "seconds_delay": 1
+     },
+     "version": "v1"
+    }
+   ],
+   "metadata": {
+    "context_requires_regen": false,
+    "opticOddsFixtureId": "202609126F96365D",
+    "opticOddsGameId": "46692-70007-2026-09-12",
+    "opticOddsNumericalId": 1025071
+   },
+   "metrics": {
+    "comment_count": 0,
+    "competitive": null,
+    "liquidity": null,
+    "liquidity_amm": null,
+    "liquidity_clob": null,
+    "open_interest": "237020.35217199996",
+    "tweet_count": null,
+    "volume": "396131.104612",
+    "volume_1mo": "396029.0092460001",
+    "volume_1wk": "396029.0092460001",
+    "volume_1yr": "396029.0092460001",
+    "volume_24hr": "386541.60471300007"
+   },
+   "parent_event_id": "934151",
+   "partners": [],
+   "published_at": null,
+   "resolution": {
+    "automatically_resolved": true,
+    "source": "https://www.ligue1.com/"
+   },
+   "schedule": {
+    "closed_time": "2026-09-12T17:43:01Z",
+    "creation_date": "2026-08-30T05:03:14.063365Z",
+    "end_date": "2026-09-12T15:15:00Z",
+    "event_date": "2026-09-12",
+    "event_week": null,
+    "finished_at": "2026-09-12T17:13:49.243274Z",
+    "start_date": "2026-08-30T05:01:36Z",
+    "start_time": "2026-09-12T15:15:00Z"
+   },
+   "series": [
+    {
+     "active": true,
+     "archived": false,
+     "closed": false,
+     "description": null,
+     "icon": null,
+     "id": "10195",
+     "image": null,
+     "liquidity": "9163883.40041",
+     "slug": "ligue-1-2025",
+     "start_date": null,
+     "subtitle": null,
+     "title": "Ligue 1 2025",
+     "volume": "258834.937912"
+    }
+   ],
+   "slug": "fl1-str-asm-2026-09-12-more-markets",
+   "sports": {
+    "away_team_name": null,
+    "best_lines": [],
+    "elapsed": "",
+    "game_id": 90112380,
+    "game_status": null,
+    "home_team_name": null,
+    "last_highlight": null,
+    "last_highlight_at": null,
+    "last_highlight_type": null,
+    "period": "VFT",
+    "rescheduled_from_game_id": null,
+    "score": "1-1",
+    "series_slug": "ligue-1-2025",
+    "sport": {
+     "created_at": "2025-11-05T19:27:45.399303Z",
+     "id": 11,
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-icons/fl1-1ddf3796.png",
+     "ordering": "home",
+     "resolution": "https://ligue1.com/en",
+     "series": "10195",
+     "sport": "fl1",
+     "tags": "1,100639,102070,100350",
+     "updated_at": null
+    },
+    "sportsradar_match_id": null,
+    "spreads_main_line": null,
+    "teams": [
+     {
+      "abbreviation": "str",
+      "alias": "Strasbourg",
+      "color": "#1c7bc4",
+      "created_at": "2025-08-13T18:45:05.683054Z",
+      "id": 114318,
+      "league": "fl1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/RC Strasbourg Alsace-28819e2527.png",
+      "name": "RC Strasbourg Alsace",
+      "ordering": "home",
+      "provider_id": 1119,
+      "record": "2-1-1",
+      "updated_at": "2026-05-14T03:33:34.149978Z"
+     },
+     {
+      "abbreviation": "asm",
+      "alias": "Monaco",
+      "color": "#df2043",
+      "created_at": "2025-08-13T18:45:05.683054Z",
+      "id": 114312,
+      "league": "fl1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/AS Monaco FC-dbed9850c0.png",
+      "name": "AS Monaco FC",
+      "ordering": "away",
+      "provider_id": 549,
+      "record": "3-1-0",
+      "updated_at": "2026-05-14T03:33:34.471034Z"
+     }
+    ],
+    "totals_main_line": null
+   },
+   "state": {
+    "active": true,
+    "archived": false,
+    "automatically_active": true,
+    "closed": true,
+    "comments_enabled": null,
+    "cyom": false,
+    "ended": true,
+    "featured": false,
+    "live": false,
+    "new": false,
+    "requires_translation": false,
+    "restricted": true
+   },
+   "subcategory": null,
+   "subtitle": null,
+   "tags": [
+    {
+     "id": "1",
+     "label": "Sports",
+     "slug": "sports"
+    },
+    {
+     "id": "100639",
+     "label": "Games",
+     "slug": "games"
+    },
+    {
+     "id": "100350",
+     "label": "Soccer",
+     "slug": "soccer"
+    },
+    {
+     "id": "102070",
+     "label": "Ligue 1",
+     "slug": "ligue-1"
+    }
+   ],
+   "ticker": "fl1-str-asm-2026-09-12-more-markets",
+   "title": "RC Strasbourg Alsace vs. AS Monaco FC - More Markets",
+   "trading": {
+    "cumulative_markets": null,
+    "enable_neg_risk": false,
+    "enable_order_book": true,
+    "neg_risk": false,
+    "neg_risk_augmented": false,
+    "neg_risk_fee_bips": null,
+    "neg_risk_market_id": null
+   },
+   "updated_at": "2026-09-13T07:23:26.447714Z",
+   "version": "v1"
+  },
+  {
+   "category": null,
+   "created_at": "2026-09-04T16:59:28.133416Z",
+   "creators": [],
+   "description": "In the upcoming Ligue 1 game between RC Strasbourg Alsace and AS Monaco FC, scheduled for September 12, 2026 at 11:15 AM ET: This market will resolve based on the halftime score of the RC Strasbourg Alsace vs. AS Monaco FC match originally scheduled for September 12, 2026 at 11:15 AM ET, considering only goals scored within the first 45 minutes of regular play plus first-half stoppage time; second-half goals, extra time, and penalty shoot-outs are excluded. If the actual halftime score is not one of the explicitly listed outcomes, the market resolves to \"Any Other Score.\" If the match is postponed, the market will remain open until it is completed; if it is canceled with no make-up game, the market resolves to \"0-0.\" The primary resolution source for this market is the official statistics of the event as recognized by the governing body or event organizers. However, if the governing body or event organizers have not published final match statistics within 2 hours after the event's conclusion, data from Flashscore may be used; if Flashscore data is unavailable, data from Sofascore may be used; if neither is available, a consensus of credible reporting may be used instead. All markets will settle based on the official final result as recognized by the governing body or event organizers. Revisions to officially declared final scores made after market resolution will not be accounted for in determining the outcome. If no acceptable data is available within 24 hours of the event's conclusion, this market will resolve 50-50, or to \"Draw\" where applicable.",
+   "display": {
+    "color": null,
+    "country_name": null,
+    "election_type": null,
+    "featured_image_optimized": null,
+    "featured_order": null,
+    "gmp_chart_mode": null,
+    "icon_optimized": null,
+    "image_optimized": null,
+    "show_all_outcomes": true,
+    "show_market_images": false,
+    "sort_by": null
+   },
+   "estimation": {
+    "cant_estimate": null,
+    "estimate_value": null,
+    "estimated_value": null
+   },
+   "featured_image": null,
+   "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+   "id": "965250",
+   "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+   "markets": [
+    {
+     "category": null,
+     "condition_id": "0xab6085a6061390c57cec0f21df20efddad3d5441321814406022fd1f62137678",
+     "description": "In the upcoming Ligue 1 game between RC Strasbourg Alsace and AS Monaco FC, scheduled for September 12, 2026 at 11:15 AM ET: This market will resolve based on the halftime score of the RC Strasbourg Alsace vs. AS Monaco FC match originally scheduled for September 12, 2026 at 11:15 AM ET, considering only goals scored within the first 45 minutes of regular play plus first-half stoppage time; second-half goals, extra time, and penalty shoot-outs are excluded. If the actual halftime score is not one of the explicitly listed outcomes, the market resolves to \"Any Other Score.\" If the match is postponed, the market will remain open until it is completed; if it is canceled with no make-up game, the market resolves to \"0-0.\" The primary resolution source for this market is the official statistics of the event as recognized by the governing body or event organizers. However, if the governing body or event organizers have not published final match statistics within 2 hours after the event's conclusion, data from Flashscore may be used; if Flashscore data is unavailable, data from Sofascore may be used; if neither is available, a consensus of credible reporting may be used instead. All markets will settle based on the official final result as recognized by the governing body or event organizers. Revisions to officially declared final scores made after market resolution will not be accounted for in determining the outcome. If no acceptable data is available within 24 hours of the event's conclusion, this market will resolve 50-50, or to \"Draw\" where applicable.",
+     "events": [],
+     "group_item_title": "RC Strasbourg Alsace 0 - 0 AS Monaco FC",
+     "icon": null,
+     "id": "4219178",
+     "image": null,
+     "metrics": {
+      "liquidity": "0",
+      "liquidity_clob": "0",
+      "liquidity_num": "0",
+      "volume": null,
+      "volume_1mo": null,
+      "volume_1wk": null,
+      "volume_1yr": null,
+      "volume_24hr": null,
+      "volume_amm": null,
+      "volume_clob": null,
+      "volume_num": null
+     },
+     "outcomes": {
+      "no": {
+       "label": "No",
+       "position_id": "1242139618449351324504661582146049233748971980308558890734539194828761071617",
+       "price": "0",
+       "token_id": "19951350317110078551740108369710596069824822664901599845263807155424953321862"
+      },
+      "yes": {
+       "label": "Yes",
+       "position_id": "1242139618449351324504661582146049233748971980308558890734539194828761071616",
+       "price": "1",
+       "token_id": "29613741370034450731825884115240527003061638813814569715941870645960366540403"
+      }
+     },
+     "position_ids": [
+      "1242139618449351324504661582146049233748971980308558890734539194828761071616",
+      "1242139618449351324504661582146049233748971980308558890734539194828761071617"
+     ],
+     "prices": {
+      "best_ask": "1",
+      "best_bid": "0.81",
+      "last_trade_price": null,
+      "one_day_price_change": "0.685",
+      "one_hour_price_change": "0.38",
+      "one_month_price_change": null,
+      "one_week_price_change": "0.415",
+      "one_year_price_change": null,
+      "spread": "0.19"
+     },
+     "question": "1st Half Exact Score: RC Strasbourg Alsace 0 - 0 AS Monaco FC?",
+     "resolution": {
+      "neg_risk_request_id": "0x3cb8c12cdc130fe885c0566f1337465ee365e29af36ac26f5193cc2abbfbb2bd",
+      "question_id": "0x74e9bfd1473bab0a2f2298a4e6012e92bf06af20ad9441e9649b15a72d03c400",
+      "resolved_by": "0x69c47De9D4D3Dad79590d61b9e05918E03775f24",
+      "source": null,
+      "uma_resolution_status": "resolved"
+     },
+     "rewards": {
+      "clob_rewards": null,
+      "holding_rewards_enabled": false,
+      "rewards_max_spread": 4.5,
+      "rewards_min_size": "50"
+     },
+     "slug": "fl1-str-asm-2026-09-12-first-half-exact-score-0-0",
+     "sports": {
+      "game_id": null,
+      "game_start_time": "2026-09-12T15:15:00Z",
+      "line": null,
+      "sports_market_type": "soccer_first_half_exact_score"
+     },
+     "state": {
+      "accepting_orders": false,
+      "active": true,
+      "archived": false,
+      "closed": true,
+      "closed_time": "2026-09-12T17:43:22Z",
+      "combo_status": "enabled",
+      "enable_order_book": true,
+      "end_date": "2026-09-12T15:15:00Z",
+      "neg_risk": true,
+      "start_date": "2026-09-04T16:59:45Z"
+     },
+     "tags": [],
+     "trading": {
+      "fee_schedule": {
+       "exponent": 1,
+       "rate": "0.05",
+       "rebate_rate": "0.15",
+       "taker_only": true
+      },
+      "fee_type": "sports_fees_v3",
+      "fees_enabled": true,
+      "minimum_order_size": "5",
+      "minimum_tick_size": "0.001",
+      "seconds_delay": 1
+     },
+     "version": "v1"
+    }
+   ],
+   "metadata": {
+    "context_requires_regen": false,
+    "opticOddsFixtureId": "202609126F96365D",
+    "opticOddsGameId": "46692-70007-2026-09-12",
+    "opticOddsNumericalId": 1025071
+   },
+   "metrics": {
+    "comment_count": 0,
+    "competitive": 0.0,
+    "liquidity": "0",
+    "liquidity_amm": "0",
+    "liquidity_clob": "0",
+    "open_interest": null,
+    "tweet_count": null,
+    "volume": null,
+    "volume_1mo": null,
+    "volume_1wk": null,
+    "volume_1yr": null,
+    "volume_24hr": null
+   },
+   "parent_event_id": "934151",
+   "partners": [],
+   "published_at": null,
+   "resolution": {
+    "automatically_resolved": true,
+    "source": "https://www.ligue1.com/"
+   },
+   "schedule": {
+    "closed_time": "2026-09-12T17:43:22Z",
+    "creation_date": "2026-09-04T17:00:40.547871Z",
+    "end_date": "2026-09-12T15:15:00Z",
+    "event_date": "2026-09-12",
+    "event_week": null,
+    "finished_at": "2026-09-12T17:13:49.243274Z",
+    "start_date": "2026-09-04T16:59:45Z",
+    "start_time": "2026-09-12T15:15:00Z"
+   },
+   "series": [
+    {
+     "active": true,
+     "archived": false,
+     "closed": false,
+     "description": null,
+     "icon": null,
+     "id": "10195",
+     "image": null,
+     "liquidity": "9163883.40041",
+     "slug": "ligue-1-2025",
+     "start_date": null,
+     "subtitle": null,
+     "title": "Ligue 1 2025",
+     "volume": "258834.937912"
+    }
+   ],
+   "slug": "fl1-str-asm-2026-09-12-first-half-exact-score",
+   "sports": {
+    "away_team_name": null,
+    "best_lines": [],
+    "elapsed": "",
+    "game_id": 90112380,
+    "game_status": null,
+    "home_team_name": null,
+    "last_highlight": null,
+    "last_highlight_at": null,
+    "last_highlight_type": null,
+    "period": "VFT",
+    "rescheduled_from_game_id": null,
+    "score": "1-1",
+    "series_slug": "ligue-1-2025",
+    "sport": {
+     "created_at": "2025-11-05T19:27:45.399303Z",
+     "id": 11,
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-icons/fl1-1ddf3796.png",
+     "ordering": "home",
+     "resolution": "https://ligue1.com/en",
+     "series": "10195",
+     "sport": "fl1",
+     "tags": "1,100639,102070,100350",
+     "updated_at": null
+    },
+    "sportsradar_match_id": null,
+    "spreads_main_line": null,
+    "teams": [
+     {
+      "abbreviation": "str",
+      "alias": "Strasbourg",
+      "color": "#1c7bc4",
+      "created_at": "2025-08-13T18:45:05.683054Z",
+      "id": 114318,
+      "league": "fl1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/RC Strasbourg Alsace-28819e2527.png",
+      "name": "RC Strasbourg Alsace",
+      "ordering": "home",
+      "provider_id": 1119,
+      "record": "2-1-1",
+      "updated_at": "2026-05-14T03:33:34.149978Z"
+     },
+     {
+      "abbreviation": "asm",
+      "alias": "Monaco",
+      "color": "#df2043",
+      "created_at": "2025-08-13T18:45:05.683054Z",
+      "id": 114312,
+      "league": "fl1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/AS Monaco FC-dbed9850c0.png",
+      "name": "AS Monaco FC",
+      "ordering": "away",
+      "provider_id": 549,
+      "record": "3-1-0",
+      "updated_at": "2026-05-14T03:33:34.471034Z"
+     }
+    ],
+    "totals_main_line": null
+   },
+   "state": {
+    "active": true,
+    "archived": false,
+    "automatically_active": true,
+    "closed": true,
+    "comments_enabled": null,
+    "cyom": false,
+    "ended": true,
+    "featured": false,
+    "live": false,
+    "new": false,
+    "requires_translation": false,
+    "restricted": true
+   },
+   "subcategory": null,
+   "subtitle": null,
+   "tags": [
+    {
+     "id": "1",
+     "label": "Sports",
+     "slug": "sports"
+    },
+    {
+     "id": "100639",
+     "label": "Games",
+     "slug": "games"
+    },
+    {
+     "id": "100350",
+     "label": "Soccer",
+     "slug": "soccer"
+    },
+    {
+     "id": "102070",
+     "label": "Ligue 1",
+     "slug": "ligue-1"
+    }
+   ],
+   "ticker": "fl1-str-asm-2026-09-12-first-half-exact-score",
+   "title": "RC Strasbourg Alsace vs. AS Monaco FC - 1st Half Exact Score",
+   "trading": {
+    "cumulative_markets": null,
+    "enable_neg_risk": true,
+    "enable_order_book": true,
+    "neg_risk": true,
+    "neg_risk_augmented": false,
+    "neg_risk_fee_bips": null,
+    "neg_risk_market_id": "0x74e9bfd1473bab0a2f2298a4e6012e92bf06af20ad9441e9649b15a72d03c400"
+   },
+   "updated_at": "2026-09-12T17:44:22.594534Z",
+   "version": "v1"
+  },
+  {
+   "category": null,
+   "created_at": "2026-09-04T16:59:28.946551Z",
+   "creators": [],
+   "description": "In the upcoming match between RC Strasbourg Alsace and AS Monaco FC, scheduled for September 12, 2026 at 11:15 AM ET: This market will resolve to \"RC Strasbourg Alsace\" if RC Strasbourg Alsace are the first to score in the first half (first 45 minutes of regular play plus first-half stoppage time). This market will resolve to \"AS Monaco FC\" if AS Monaco FC are the first to score in the first half (first 45 minutes of regular play plus first-half stoppage time). If neither team scores in the first half (first 45 minutes of regular play plus first-half stoppage time), this market will resolve \"Neither\". If the game is postponed, this market will remain open until the game has been completed. If the game is canceled entirely, with no make-up game, this market will resolve to \"Neither\". This market refers only to goals scored within the first 45 minutes of regular play plus first-half stoppage time. Second-half goals, extra time, and penalty shoot-outs are excluded. The primary resolution source for this market is the official statistics of the event as recognized by the governing body or event organizers. However, if the governing body or event organizers have not published final match statistics within 2 hours after the event's conclusion, data from Flashscore may be used; if Flashscore data is unavailable, data from Sofascore may be used; if neither is available, a consensus of credible reporting may be used instead. All markets will settle based on the official final result as recognized by the governing body or event organizers. Revisions to officially declared final scores made after market resolution will not be accounted for in determining the outcome. If no acceptable data is available within 24 hours of the event's conclusion, this market will resolve 50-50, or to \"Draw\" where applicable.",
+   "display": {
+    "color": null,
+    "country_name": null,
+    "election_type": null,
+    "featured_image_optimized": null,
+    "featured_order": null,
+    "gmp_chart_mode": null,
+    "icon_optimized": null,
+    "image_optimized": null,
+    "show_all_outcomes": true,
+    "show_market_images": false,
+    "sort_by": null
+   },
+   "estimation": {
+    "cant_estimate": null,
+    "estimate_value": null,
+    "estimated_value": null
+   },
+   "featured_image": null,
+   "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+   "id": "965251",
+   "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+   "markets": [
+    {
+     "category": null,
+     "condition_id": "0x3ec27eb310da61e7c1642883f93817e5fed921af05fe58630916bc9a9bdedba1",
+     "description": "In the upcoming match between RC Strasbourg Alsace and AS Monaco FC, scheduled for September 12, 2026 at 11:15 AM ET: This market will resolve to \"RC Strasbourg Alsace\" if RC Strasbourg Alsace are the first to score in the first half (first 45 minutes of regular play plus first-half stoppage time). This market will resolve to \"AS Monaco FC\" if AS Monaco FC are the first to score in the first half (first 45 minutes of regular play plus first-half stoppage time). If neither team scores in the first half (first 45 minutes of regular play plus first-half stoppage time), this market will resolve \"Neither\". If the game is postponed, this market will remain open until the game has been completed. If the game is canceled entirely, with no make-up game, this market will resolve to \"Neither\". This market refers only to goals scored within the first 45 minutes of regular play plus first-half stoppage time. Second-half goals, extra time, and penalty shoot-outs are excluded. The primary resolution source for this market is the official statistics of the event as recognized by the governing body or event organizers. However, if the governing body or event organizers have not published final match statistics within 2 hours after the event's conclusion, data from Flashscore may be used; if Flashscore data is unavailable, data from Sofascore may be used; if neither is available, a consensus of credible reporting may be used instead. All markets will settle based on the official final result as recognized by the governing body or event organizers. Revisions to officially declared final scores made after market resolution will not be accounted for in determining the outcome. If no acceptable data is available within 24 hours of the event's conclusion, this market will resolve 50-50, or to \"Draw\" where applicable.",
+     "events": [],
+     "group_item_title": "RC Strasbourg Alsace",
+     "icon": null,
+     "id": "4219192",
+     "image": null,
+     "metrics": {
+      "liquidity": "0",
+      "liquidity_clob": "0",
+      "liquidity_num": "0",
+      "volume": null,
+      "volume_1mo": null,
+      "volume_1wk": null,
+      "volume_1yr": null,
+      "volume_24hr": null,
+      "volume_amm": null,
+      "volume_clob": null,
+      "volume_num": null
+     },
+     "outcomes": {
+      "no": {
+       "label": "No",
+       "position_id": "1091730427516369255194319719247859686224681604100206255664919332054133374977",
+       "price": "1",
+       "token_id": "16913314491355911490436629311765148104115188737724614654249409135513680132860"
+      },
+      "yes": {
+       "label": "Yes",
+       "position_id": "1091730427516369255194319719247859686224681604100206255664919332054133374976",
+       "price": "0",
+       "token_id": "81929536978528054532992241966761212158334538696910921930698439003302609481914"
+      }
+     },
+     "position_ids": [
+      "1091730427516369255194319719247859686224681604100206255664919332054133374976",
+      "1091730427516369255194319719247859686224681604100206255664919332054133374977"
+     ],
+     "prices": {
+      "best_ask": "0.001",
+      "best_bid": null,
+      "last_trade_price": null,
+      "one_day_price_change": "-0.4745",
+      "one_hour_price_change": "-0.4995",
+      "one_month_price_change": null,
+      "one_week_price_change": "-0.4995",
+      "one_year_price_change": null,
+      "spread": "0.001"
+     },
+     "question": "RC Strasbourg Alsace to score first in the 1st half vs. AS Monaco FC?",
+     "resolution": {
+      "neg_risk_request_id": "0x14868755d83b16a27bc2169d78aee7f94065e7fe68937c6cd3c2335eae793168",
+      "question_id": "0x3db0cdd2d6f701c34852aa2319fa015469e5c42a96c82a281325b6e87b643b00",
+      "resolved_by": "0x69c47De9D4D3Dad79590d61b9e05918E03775f24",
+      "source": null,
+      "uma_resolution_status": "resolved"
+     },
+     "rewards": {
+      "clob_rewards": null,
+      "holding_rewards_enabled": false,
+      "rewards_max_spread": 4.5,
+      "rewards_min_size": "50"
+     },
+     "slug": "fl1-str-asm-2026-09-12-first-half-first-to-score-home",
+     "sports": {
+      "game_id": null,
+      "game_start_time": "2026-09-12T15:15:00Z",
+      "line": null,
+      "sports_market_type": "soccer_first_half_first_to_score"
+     },
+     "state": {
+      "accepting_orders": false,
+      "active": true,
+      "archived": false,
+      "closed": true,
+      "closed_time": "2026-09-12T17:31:27Z",
+      "combo_status": "enabled",
+      "enable_order_book": true,
+      "end_date": "2026-09-12T15:15:00Z",
+      "neg_risk": true,
+      "start_date": "2026-09-04T16:59:42Z"
+     },
+     "tags": [],
+     "trading": {
+      "fee_schedule": {
+       "exponent": 1,
+       "rate": "0.05",
+       "rebate_rate": "0.15",
+       "taker_only": true
+      },
+      "fee_type": "sports_fees_v3",
+      "fees_enabled": true,
+      "minimum_order_size": "5",
+      "minimum_tick_size": "0.001",
+      "seconds_delay": 1
+     },
+     "version": "v1"
+    }
+   ],
+   "metadata": {
+    "context_requires_regen": false,
+    "opticOddsFixtureId": "202609126F96365D",
+    "opticOddsGameId": "46692-70007-2026-09-12",
+    "opticOddsNumericalId": 1025071
+   },
+   "metrics": {
+    "comment_count": 0,
+    "competitive": 0.0,
+    "liquidity": "0",
+    "liquidity_amm": "0",
+    "liquidity_clob": "0",
+    "open_interest": null,
+    "tweet_count": null,
+    "volume": null,
+    "volume_1mo": null,
+    "volume_1wk": null,
+    "volume_1yr": null,
+    "volume_24hr": null
+   },
+   "parent_event_id": "934151",
+   "partners": [],
+   "published_at": null,
+   "resolution": {
+    "automatically_resolved": true,
+    "source": "https://www.ligue1.com/"
+   },
+   "schedule": {
+    "closed_time": "2026-09-12T17:43:22Z",
+    "creation_date": "2026-09-04T17:00:40.547879Z",
+    "end_date": "2026-09-12T15:15:00Z",
+    "event_date": "2026-09-12",
+    "event_week": null,
+    "finished_at": "2026-09-12T17:13:49.243274Z",
+    "start_date": "2026-09-04T16:59:42Z",
+    "start_time": "2026-09-12T15:15:00Z"
+   },
+   "series": [
+    {
+     "active": true,
+     "archived": false,
+     "closed": false,
+     "description": null,
+     "icon": null,
+     "id": "10195",
+     "image": null,
+     "liquidity": "9163883.40041",
+     "slug": "ligue-1-2025",
+     "start_date": null,
+     "subtitle": null,
+     "title": "Ligue 1 2025",
+     "volume": "258834.937912"
+    }
+   ],
+   "slug": "fl1-str-asm-2026-09-12-first-half-first-to-score",
+   "sports": {
+    "away_team_name": null,
+    "best_lines": [],
+    "elapsed": "",
+    "game_id": 90112380,
+    "game_status": null,
+    "home_team_name": null,
+    "last_highlight": null,
+    "last_highlight_at": null,
+    "last_highlight_type": null,
+    "period": "VFT",
+    "rescheduled_from_game_id": null,
+    "score": "1-1",
+    "series_slug": "ligue-1-2025",
+    "sport": {
+     "created_at": "2025-11-05T19:27:45.399303Z",
+     "id": 11,
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-icons/fl1-1ddf3796.png",
+     "ordering": "home",
+     "resolution": "https://ligue1.com/en",
+     "series": "10195",
+     "sport": "fl1",
+     "tags": "1,100639,102070,100350",
+     "updated_at": null
+    },
+    "sportsradar_match_id": null,
+    "spreads_main_line": null,
+    "teams": [
+     {
+      "abbreviation": "str",
+      "alias": "Strasbourg",
+      "color": "#1c7bc4",
+      "created_at": "2025-08-13T18:45:05.683054Z",
+      "id": 114318,
+      "league": "fl1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/RC Strasbourg Alsace-28819e2527.png",
+      "name": "RC Strasbourg Alsace",
+      "ordering": "home",
+      "provider_id": 1119,
+      "record": "2-1-1",
+      "updated_at": "2026-05-14T03:33:34.149978Z"
+     },
+     {
+      "abbreviation": "asm",
+      "alias": "Monaco",
+      "color": "#df2043",
+      "created_at": "2025-08-13T18:45:05.683054Z",
+      "id": 114312,
+      "league": "fl1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/AS Monaco FC-dbed9850c0.png",
+      "name": "AS Monaco FC",
+      "ordering": "away",
+      "provider_id": 549,
+      "record": "3-1-0",
+      "updated_at": "2026-05-14T03:33:34.471034Z"
+     }
+    ],
+    "totals_main_line": null
+   },
+   "state": {
+    "active": true,
+    "archived": false,
+    "automatically_active": true,
+    "closed": true,
+    "comments_enabled": null,
+    "cyom": false,
+    "ended": true,
+    "featured": false,
+    "live": false,
+    "new": false,
+    "requires_translation": false,
+    "restricted": true
+   },
+   "subcategory": null,
+   "subtitle": null,
+   "tags": [
+    {
+     "id": "1",
+     "label": "Sports",
+     "slug": "sports"
+    },
+    {
+     "id": "100639",
+     "label": "Games",
+     "slug": "games"
+    },
+    {
+     "id": "100350",
+     "label": "Soccer",
+     "slug": "soccer"
+    },
+    {
+     "id": "102070",
+     "label": "Ligue 1",
+     "slug": "ligue-1"
+    }
+   ],
+   "ticker": "fl1-str-asm-2026-09-12-first-half-first-to-score",
+   "title": "RC Strasbourg Alsace vs. AS Monaco FC - 1st Half First Team to Score",
+   "trading": {
+    "cumulative_markets": null,
+    "enable_neg_risk": true,
+    "enable_order_book": true,
+    "neg_risk": true,
+    "neg_risk_augmented": false,
+    "neg_risk_fee_bips": null,
+    "neg_risk_market_id": "0x3db0cdd2d6f701c34852aa2319fa015469e5c42a96c82a281325b6e87b643b00"
+   },
+   "updated_at": "2026-09-12T17:44:22.516746Z",
+   "version": "v1"
+  },
+  {
+   "category": null,
+   "created_at": "2026-09-04T16:59:29.443689Z",
+   "creators": [],
+   "description": "In the upcoming match between RC Strasbourg Alsace and AS Monaco FC, scheduled for September 12, 2026 at 11:15 AM ET: This market will resolve to \"RC Strasbourg Alsace\" if RC Strasbourg Alsace are the first to score in the second half (second half of regular play plus second-half stoppage time). This market will resolve to \"AS Monaco FC\" if AS Monaco FC are the first to score in the second half (second half of regular play plus second-half stoppage time). If neither team scores in the second half (second half of regular play plus second-half stoppage time), this market will resolve \"Neither\". If the game is postponed, this market will remain open until the game has been completed. If the game is canceled entirely, with no make-up game, this market will resolve to \"Neither\". This market refers only to goals scored within the second half of regular play plus second-half stoppage time. First-half goals, extra time, and penalty shoot-outs are excluded. The primary resolution source for this market is the official statistics of the event as recognized by the governing body or event organizers. However, if the governing body or event organizers have not published final match statistics within 2 hours after the event's conclusion, data from Flashscore may be used; if Flashscore data is unavailable, data from Sofascore may be used; if neither is available, a consensus of credible reporting may be used instead. All markets will settle based on the official final result as recognized by the governing body or event organizers. Revisions to officially declared final scores made after market resolution will not be accounted for in determining the outcome. If no acceptable data is available within 24 hours of the event's conclusion, this market will resolve 50-50, or to \"Draw\" where applicable.",
+   "display": {
+    "color": null,
+    "country_name": null,
+    "election_type": null,
+    "featured_image_optimized": null,
+    "featured_order": null,
+    "gmp_chart_mode": null,
+    "icon_optimized": null,
+    "image_optimized": null,
+    "show_all_outcomes": true,
+    "show_market_images": false,
+    "sort_by": null
+   },
+   "estimation": {
+    "cant_estimate": null,
+    "estimate_value": null,
+    "estimated_value": null
+   },
+   "featured_image": null,
+   "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+   "id": "965252",
+   "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-fl1.png",
+   "markets": [
+    {
+     "category": null,
+     "condition_id": "0xfcb3006e6fe1b12aec436d776025cd1d9530e65308d9a4af68992052fbcb0a99",
+     "description": "In the upcoming match between RC Strasbourg Alsace and AS Monaco FC, scheduled for September 12, 2026 at 11:15 AM ET: This market will resolve to \"RC Strasbourg Alsace\" if RC Strasbourg Alsace are the first to score in the second half (second half of regular play plus second-half stoppage time). This market will resolve to \"AS Monaco FC\" if AS Monaco FC are the first to score in the second half (second half of regular play plus second-half stoppage time). If neither team scores in the second half (second half of regular play plus second-half stoppage time), this market will resolve \"Neither\". If the game is postponed, this market will remain open until the game has been completed. If the game is canceled entirely, with no make-up game, this market will resolve to \"Neither\". This market refers only to goals scored within the second half of regular play plus second-half stoppage time. First-half goals, extra time, and penalty shoot-outs are excluded. The primary resolution source for this market is the official statistics of the event as recognized by the governing body or event organizers. However, if the governing body or event organizers have not published final match statistics within 2 hours after the event's conclusion, data from Flashscore may be used; if Flashscore data is unavailable, data from Sofascore may be used; if neither is available, a consensus of credible reporting may be used instead. All markets will settle based on the official final result as recognized by the governing body or event organizers. Revisions to officially declared final scores made after market resolution will not be accounted for in determining the outcome. If no acceptable data is available within 24 hours of the event's conclusion, this market will resolve 50-50, or to \"Draw\" where applicable.",
+     "events": [],
+     "group_item_title": "RC Strasbourg Alsace",
+     "icon": null,
+     "id": "4219199",
+     "image": null,
+     "metrics": {
+      "liquidity": "0",
+      "liquidity_clob": "0",
+      "liquidity_num": "0",
+      "volume": null,
+      "volume_1mo": null,
+      "volume_1wk": null,
+      "volume_1yr": null,
+      "volume_24hr": null,
+      "volume_amm": null,
+      "volume_clob": null,
+      "volume_num": null
+     },
+     "outcomes": {
+      "no": {
+       "label": "No",
+       "position_id": "963445774635746807184834481064813309847964736172557630073590712966588661761",
+       "price": "0",
+       "token_id": "42135424313063039035471652847728194630338575510976348482493293235652138677798"
+      },
+      "yes": {
+       "label": "Yes",
+       "position_id": "963445774635746807184834481064813309847964736172557630073590712966588661760",
+       "price": "1",
+       "token_id": "14504775511008087271209214171277783053754570819178570311358786370372656371800"
+      }
+     },
+     "position_ids": [
+      "963445774635746807184834481064813309847964736172557630073590712966588661760",
+      "963445774635746807184834481064813309847964736172557630073590712966588661761"
+     ],
+     "prices": {
+      "best_ask": "1",
+      "best_bid": "0.99",
+      "last_trade_price": null,
+      "one_day_price_change": "0.5",
+      "one_hour_price_change": null,
+      "one_month_price_change": null,
+      "one_week_price_change": "0.495",
+      "one_year_price_change": null,
+      "spread": "0.01"
+     },
+     "question": "RC Strasbourg Alsace to score first in the 2nd half vs. AS Monaco FC?",
+     "resolution": {
+      "neg_risk_request_id": "0xededbd401f2be12dfcfbf7e4d7f92d828b44c3ba94542f2dae2b0ffaec3e8970",
+      "question_id": "0x7f437b84986c0e52634df9585d5b0c42214a7dee6b757ba9556867bc96746200",
+      "resolved_by": "0x69c47De9D4D3Dad79590d61b9e05918E03775f24",
+      "source": null,
+      "uma_resolution_status": "resolved"
+     },
+     "rewards": {
+      "clob_rewards": null,
+      "holding_rewards_enabled": false,
+      "rewards_max_spread": 4.5,
+      "rewards_min_size": "50"
+     },
+     "slug": "fl1-str-asm-2026-09-12-second-half-first-to-score-home",
+     "sports": {
+      "game_id": null,
+      "game_start_time": "2026-09-12T15:15:00Z",
+      "line": null,
+      "sports_market_type": "soccer_second_half_first_to_score"
+     },
+     "state": {
+      "accepting_orders": false,
+      "active": true,
+      "archived": false,
+      "closed": true,
+      "closed_time": "2026-09-12T17:43:22Z",
+      "combo_status": "enabled",
+      "enable_order_book": true,
+      "end_date": "2026-09-12T15:15:00Z",
+      "neg_risk": true,
+      "start_date": "2026-09-04T16:59:42Z"
+     },
+     "tags": [],
+     "trading": {
+      "fee_schedule": {
+       "exponent": 1,
+       "rate": "0.05",
+       "rebate_rate": "0.15",
+       "taker_only": true
+      },
+      "fee_type": "sports_fees_v3",
+      "fees_enabled": true,
+      "minimum_order_size": "5",
+      "minimum_tick_size": "0.001",
+      "seconds_delay": 1
+     },
+     "version": "v1"
+    }
+   ],
+   "metadata": {
+    "context_requires_regen": false,
+    "opticOddsFixtureId": "202609126F96365D",
+    "opticOddsGameId": "46692-70007-2026-09-12",
+    "opticOddsNumericalId": 1025071
+   },
+   "metrics": {
+    "comment_count": 0,
+    "competitive": 0.0,
+    "liquidity": "0",
+    "liquidity_amm": "0",
+    "liquidity_clob": "0",
+    "open_interest": null,
+    "tweet_count": null,
+    "volume": null,
+    "volume_1mo": null,
+    "volume_1wk": null,
+    "volume_1yr": null,
+    "volume_24hr": null
+   },
+   "parent_event_id": "934151",
+   "partners": [],
+   "published_at": null,
+   "resolution": {
+    "automatically_resolved": true,
+    "source": "https://www.ligue1.com/"
+   },
+   "schedule": {
+    "closed_time": "2026-09-12T17:43:22Z",
+    "creation_date": "2026-09-04T17:00:40.547820Z",
+    "end_date": "2026-09-12T15:15:00Z",
+    "event_date": "2026-09-12",
+    "event_week": null,
+    "finished_at": "2026-09-12T17:13:49.243274Z",
+    "start_date": "2026-09-04T16:59:42Z",
+    "start_time": "2026-09-12T15:15:00Z"
+   },
+   "series": [
+    {
+     "active": true,
+     "archived": false,
+     "closed": false,
+     "description": null,
+     "icon": null,
+     "id": "10195",
+     "image": null,
+     "liquidity": "9163883.40041",
+     "slug": "ligue-1-2025",
+     "start_date": null,
+     "subtitle": null,
+     "title": "Ligue 1 2025",
+     "volume": "258834.937912"
+    }
+   ],
+   "slug": "fl1-str-asm-2026-09-12-second-half-first-to-score",
+   "sports": {
+    "away_team_name": null,
+    "best_lines": [],
+    "elapsed": "",
+    "game_id": 90112380,
+    "game_status": null,
+    "home_team_name": null,
+    "last_highlight": null,
+    "last_highlight_at": null,
+    "last_highlight_type": null,
+    "period": "VFT",
+    "rescheduled_from_game_id": null,
+    "score": "1-1",
+    "series_slug": "ligue-1-2025",
+    "sport": {
+     "created_at": "2025-11-05T19:27:45.399303Z",
+     "id": 11,
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/league-icons/fl1-1ddf3796.png",
+     "ordering": "home",
+     "resolution": "https://ligue1.com/en",
+     "series": "10195",
+     "sport": "fl1",
+     "tags": "1,100639,102070,100350",
+     "updated_at": null
+    },
+    "sportsradar_match_id": null,
+    "spreads_main_line": null,
+    "teams": [
+     {
+      "abbreviation": "str",
+      "alias": "Strasbourg",
+      "color": "#1c7bc4",
+      "created_at": "2025-08-13T18:45:05.683054Z",
+      "id": 114318,
+      "league": "fl1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/RC Strasbourg Alsace-28819e2527.png",
+      "name": "RC Strasbourg Alsace",
+      "ordering": "home",
+      "provider_id": 1119,
+      "record": "2-1-1",
+      "updated_at": "2026-05-14T03:33:34.149978Z"
+     },
+     {
+      "abbreviation": "asm",
+      "alias": "Monaco",
+      "color": "#df2043",
+      "created_at": "2025-08-13T18:45:05.683054Z",
+      "id": 114312,
+      "league": "fl1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/AS Monaco FC-dbed9850c0.png",
+      "name": "AS Monaco FC",
+      "ordering": "away",
+      "provider_id": 549,
+      "record": "3-1-0",
+      "updated_at": "2026-05-14T03:33:34.471034Z"
+     }
+    ],
+    "totals_main_line": null
+   },
+   "state": {
+    "active": true,
+    "archived": false,
+    "automatically_active": true,
+    "closed": true,
+    "comments_enabled": null,
+    "cyom": false,
+    "ended": true,
+    "featured": false,
+    "live": false,
+    "new": false,
+    "requires_translation": false,
+    "restricted": true
+   },
+   "subcategory": null,
+   "subtitle": null,
+   "tags": [
+    {
+     "id": "1",
+     "label": "Sports",
+     "slug": "sports"
+    },
+    {
+     "id": "100639",
+     "label": "Games",
+     "slug": "games"
+    },
+    {
+     "id": "100350",
+     "label": "Soccer",
+     "slug": "soccer"
+    },
+    {
+     "id": "102070",
+     "label": "Ligue 1",
+     "slug": "ligue-1"
+    }
+   ],
+   "ticker": "fl1-str-asm-2026-09-12-second-half-first-to-score",
+   "title": "RC Strasbourg Alsace vs. AS Monaco FC - 2nd Half First Team to Score",
+   "trading": {
+    "cumulative_markets": null,
+    "enable_neg_risk": true,
+    "enable_order_book": true,
+    "neg_risk": true,
+    "neg_risk_augmented": false,
+    "neg_risk_fee_bips": null,
+    "neg_risk_market_id": "0x7f437b84986c0e52634df9585d5b0c42214a7dee6b757ba9556867bc96746200"
+   },
+   "updated_at": "2026-09-12T17:44:22.446547Z",
+   "version": "v1"
+  }
+ ],
+ "suspended_but_live": [
+  {
+   "category": null,
+   "created_at": "2026-08-17T19:00:06.696051Z",
+   "creators": [],
+   "description": "This event is for the upcoming Chile Primera game, scheduled for Sunday, August 30, 2026 between CD Coquimbo Unido and CD Huachipato.",
+   "display": {
+    "color": null,
+    "country_name": null,
+    "election_type": null,
+    "featured_image_optimized": null,
+    "featured_order": null,
+    "gmp_chart_mode": null,
+    "icon_optimized": null,
+    "image_optimized": null,
+    "show_all_outcomes": true,
+    "show_market_images": false,
+    "sort_by": null
+   },
+   "estimation": {
+    "cant_estimate": null,
+    "estimate_value": null,
+    "estimated_value": null
+   },
+   "featured_image": null,
+   "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/chile-primera-f7e672809d.png",
+   "id": "867018",
+   "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/chile-primera-f7e672809d.png",
+   "markets": [
+    {
+     "category": null,
+     "condition_id": "0xdf55c317915311fca1240a05d949f4098e9480479d47d6291b3040b5cdee872a",
+     "description": "In the upcoming game, scheduled for August 30, 2026\nIf CD Coquimbo Unido wins, this market will resolve to \"Yes\".\nOtherwise, this market will resolve to \"No\".\nIf the game is postponed, this market will remain open until the game has been completed.\nIf the game is canceled entirely, with no make-up game, this market will resolve \"No\".\nThis market refers only to the outcome within the first 90 minutes of regular play plus stoppage time.\n\nThe primary resolution source for this market is the official statistics of the event as recognized by the governing body or event organizers. However, if the governing body or event organizers have not published final match statistics within 2 hours after the event's conclusion, a consensus of credible reporting may be used instead. All markets will settle based on the official final result as recognized by the governing body or event organizers. Revisions to officially declared final scores made after market resolution will not be accounted for in determining the outcome.",
+     "events": [],
+     "group_item_title": "CD Coquimbo Unido",
+     "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/soccer ball-bba4025f77.png",
+     "id": "3679235",
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/chile-primera-f7e672809d.png",
+     "metrics": {
+      "liquidity": "987.60707",
+      "liquidity_clob": "987.60707",
+      "liquidity_num": "987.60707",
+      "volume": "9613.975138",
+      "volume_1mo": null,
+      "volume_1wk": null,
+      "volume_1yr": null,
+      "volume_24hr": null,
+      "volume_amm": null,
+      "volume_clob": "9613.975138",
+      "volume_num": "9613.975138"
+     },
+     "outcomes": {
+      "no": {
+       "label": "No",
+       "position_id": "1332873489914611881974341874705097966849061270255576445639258820391521484801",
+       "price": "0.814",
+       "token_id": "70075599857653986225027030675972939397435820510686159465009329711876598453138"
+      },
+      "yes": {
+       "label": "Yes",
+       "position_id": "1332873489914611881974341874705097966849061270255576445639258820391521484800",
+       "price": "0.186",
+       "token_id": "106072677495701747383583703721284023230584856913846377850469757439623024033820"
+      }
+     },
+     "position_ids": [
+      "1332873489914611881974341874705097966849061270255576445639258820391521484800",
+      "1332873489914611881974341874705097966849061270255576445639258820391521484801"
+     ],
+     "prices": {
+      "best_ask": "0.371",
+      "best_bid": "0.001",
+      "last_trade_price": "0.001",
+      "one_day_price_change": "0.0305",
+      "one_hour_price_change": "-0.009",
+      "one_month_price_change": null,
+      "one_week_price_change": "-0.012",
+      "one_year_price_change": null,
+      "spread": "0.37"
+     },
+     "question": "Will CD Coquimbo Unido win on 2026-08-30?",
+     "resolution": {
+      "neg_risk_request_id": "0xefa5be6782bba5c472c6253e1ac0e7eb016eef741312fd6ed4beb280ce5c78de",
+      "question_id": "0x08b65c6c318cc08937ea9c80a55a729ef261317802f0cfdc60378c02c73f0300",
+      "resolved_by": "0x69c47De9D4D3Dad79590d61b9e05918E03775f24",
+      "source": "https://anfp.cl/",
+      "uma_resolution_status": null
+     },
+     "rewards": {
+      "clob_rewards": null,
+      "holding_rewards_enabled": false,
+      "rewards_max_spread": 4.5,
+      "rewards_min_size": "50"
+     },
+     "slug": "chi1-ccu-cdh-2026-08-30-ccu",
+     "sports": {
+      "game_id": null,
+      "game_start_time": "2026-09-16T21:00:00Z",
+      "line": null,
+      "sports_market_type": "moneyline"
+     },
+     "state": {
+      "accepting_orders": true,
+      "active": true,
+      "archived": false,
+      "closed": false,
+      "closed_time": null,
+      "combo_status": "enabled",
+      "enable_order_book": true,
+      "end_date": "2026-09-16T21:00:00Z",
+      "neg_risk": true,
+      "start_date": "2026-08-17T19:04:00Z"
+     },
+     "tags": [],
+     "trading": {
+      "fee_schedule": {
+       "exponent": 1,
+       "rate": "0.05",
+       "rebate_rate": "0.15",
+       "taker_only": true
+      },
+      "fee_type": "sports_fees_v3",
+      "fees_enabled": true,
+      "minimum_order_size": "5",
+      "minimum_tick_size": "0.001",
+      "seconds_delay": 1
+     },
+     "version": "v1"
+    }
+   ],
+   "metadata": {
+    "context_requires_regen": false,
+    "opticOddsFixtureId": "20260830B983BF89",
+    "opticOddsGameId": "32647-12130-2026-08-30",
+    "opticOddsNumericalId": 953789
+   },
+   "metrics": {
+    "comment_count": 0,
+    "competitive": 0.6441792230139646,
+    "liquidity": "4017.57847",
+    "liquidity_amm": null,
+    "liquidity_clob": "4017.57847",
+    "open_interest": "27050.467108999997",
+    "tweet_count": null,
+    "volume": "35616.182569",
+    "volume_1mo": "22975.013665000002",
+    "volume_1wk": "1782.58848",
+    "volume_1yr": "22975.013665000002",
+    "volume_24hr": "41.396288999999996"
+   },
+   "parent_event_id": null,
+   "partners": [],
+   "published_at": null,
+   "resolution": {
+    "automatically_resolved": null,
+    "source": "https://anfp.cl/"
+   },
+   "schedule": {
+    "closed_time": null,
+    "creation_date": "2026-08-17T19:06:29.058179Z",
+    "end_date": "2026-09-16T21:00:00Z",
+    "event_date": "2026-09-16",
+    "event_week": 21,
+    "finished_at": null,
+    "start_date": "2026-08-17T19:04:00Z",
+    "start_time": "2026-09-16T21:00:00Z"
+   },
+   "series": [
+    {
+     "active": true,
+     "archived": false,
+     "closed": false,
+     "description": null,
+     "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/chile-primera-f7e672809d.png",
+     "id": "10965",
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/chile-primera-f7e672809d.png",
+     "liquidity": "305556.58268",
+     "slug": "primera-division",
+     "start_date": null,
+     "subtitle": null,
+     "title": "Primera Division",
+     "volume": "56979.788496999994"
+    }
+   ],
+   "slug": "chi1-ccu-cdh-2026-08-30",
+   "sports": {
+    "away_team_name": null,
+    "best_lines": [],
+    "elapsed": "",
+    "game_id": 90105718,
+    "game_status": null,
+    "home_team_name": null,
+    "last_highlight": null,
+    "last_highlight_at": null,
+    "last_highlight_type": null,
+    "period": "SUS",
+    "rescheduled_from_game_id": null,
+    "score": "0-1",
+    "series_slug": "primera-division",
+    "sport": {
+     "created_at": "2026-01-23T17:37:56.431456Z",
+     "id": 128,
+     "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/chile-primera-f7e672809d.png",
+     "ordering": "home",
+     "resolution": "https://www.laliga.com/en-GB/other-competitions/supercopa-de-espana",
+     "series": "10965",
+     "sport": "chi1",
+     "tags": "1,100639,100350,105923",
+     "updated_at": null
+    },
+    "sportsradar_match_id": null,
+    "spreads_main_line": null,
+    "teams": [
+     {
+      "abbreviation": "ccu",
+      "alias": "Coquimbo Unido",
+      "color": "#107070",
+      "created_at": "2026-01-23T17:37:57.815910Z",
+      "id": 230093,
+      "league": "chi1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/CD Coquimbo Unido-a095826274.png",
+      "name": "CD Coquimbo Unido",
+      "ordering": "home",
+      "provider_id": 2357,
+      "record": "8-5-9",
+      "updated_at": "2026-05-14T05:01:30.909747Z"
+     },
+     {
+      "abbreviation": "cdh",
+      "alias": "Huachipato",
+      "color": "#197db3",
+      "created_at": "2026-01-23T17:37:57.904228Z",
+      "id": 230094,
+      "league": "chi1",
+      "logo": "https://polymarket-upload.s3.us-east-2.amazonaws.com/CD Huachipato-546e99e601.png",
+      "name": "CD Huachipato",
+      "ordering": "away",
+      "provider_id": 2358,
+      "record": "7-4-10",
+      "updated_at": "2026-05-14T03:25:21.091151Z"
+     }
+    ],
+    "totals_main_line": null
+   },
+   "state": {
+    "active": true,
+    "archived": false,
+    "automatically_active": true,
+    "closed": false,
+    "comments_enabled": null,
+    "cyom": false,
+    "ended": false,
+    "featured": false,
+    "live": true,
+    "new": false,
+    "requires_translation": false,
+    "restricted": true
+   },
+   "subcategory": null,
+   "subtitle": null,
+   "tags": [
+    {
+     "id": "1",
+     "label": "Sports",
+     "slug": "sports"
+    },
+    {
+     "id": "100639",
+     "label": "Games",
+     "slug": "games"
+    },
+    {
+     "id": "100350",
+     "label": "Soccer",
+     "slug": "soccer"
+    }
+   ],
+   "ticker": "chi1-ccu-cdh-2026-08-30",
+   "title": "CD Coquimbo Unido vs. CD Huachipato",
+   "trading": {
+    "cumulative_markets": null,
+    "enable_neg_risk": true,
+    "enable_order_book": true,
+    "neg_risk": true,
+    "neg_risk_augmented": false,
+    "neg_risk_fee_bips": null,
+    "neg_risk_market_id": "0x08b65c6c318cc08937ea9c80a55a729ef261317802f0cfdc60378c02c73f0300"
+   },
+   "updated_at": "2026-09-13T07:21:10.201458Z",
+   "version": "v1"
+  }
+ ]
+}

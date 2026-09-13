@@ -9,9 +9,25 @@ the entire payload is:
     game_id, sportradar_game_id, slug, league_abbreviation, home_team,
     away_team, status, live, ended, score, period, elapsed, finished_at, turn
 
-``score`` is a single ``"<home>-<away>"`` string, not two fields. ``turn`` is
-possession and is populated for NFL and CFB only. The feed also carries an
-explicit disclaimer that it may be delayed, wrong, or incomplete.
+``score`` is a single ``"<home>-<away>"`` string, not two fields -- and on
+esports it is a composite, ``"000-000|1-1|Bo5"`` (rounds | maps | series
+length). ``turn`` is possession and is populated for NFL and CFB only. The feed
+also carries an explicit disclaimer that it may be delayed, wrong, or
+incomplete.
+
+Two things the documented list omits, observed on the wire on 2026-09-13:
+
+* **The wire is camelCase** (``gameId``, ``leagueAbbreviation``, ``homeTeam``).
+  The SDK renames them, so only a raw socket reader needs to know -- but a raw
+  reader keying on the snake_case names in this module silently sees no games at
+  all.
+* **There is a second, richer message shape.** College football sent an
+  ``eventState`` block -- a typed per-sport envelope (``type:
+  "college-football"``, ``footballState``) alongside ``turnProviderId`` and
+  ``updatedAt``. The SDK model is ``extra="ignore"``, so **it discards all
+  three**. ``eventState.type`` is an authoritative sport discriminator, better
+  than any heuristic in ``engines.sports.rules``; reading it requires bypassing
+  the SDK model.
 
 Two consequences the engines must respect:
 
@@ -21,10 +37,15 @@ Two consequences the engines must respect:
    ``GameState`` fields are not wrong, but they are not free either -- each one
    is a data-vendor dependency, and an engine that abstains without them will
    abstain permanently on this feed alone.
-2. **Cricket and badminton are not covered at all.** The documented league set
-   is NFL, NHL, MLB, NBA, CBB, CFB, Soccer, Esports and Tennis. There is no
-   cricket or badminton status vocabulary, so ``CricketEngine`` and
-   ``BadmintonEngine`` have no venue-native state source.
+2. **Cricket and badminton have no *socket* coverage -- which is not the same as
+   no coverage.** The documented league set is NFL, NHL, MLB, NBA, CBB, CFB,
+   Soccer, Esports and Tennis, and there is no cricket or badminton status
+   vocabulary here. But Gamma's event index carries live cricket state anyway: an
+   international fixture was observed live with ``score="74-100"`` and
+   ``period="Live"``, and open markets on it. It has no ``game_id``, so it is
+   reachable through :meth:`games.GammaGameLinks.in_play` and not through a
+   socket join. ``CricketEngine`` was disabled on the strength of the stronger
+   claim, which was wrong.
 
 The right response is a settings-level one, not a silent one: see
 ``SUPPORTED_LEAGUES`` and ``VENUE_NATIVE_CATEGORIES`` below, which the engine

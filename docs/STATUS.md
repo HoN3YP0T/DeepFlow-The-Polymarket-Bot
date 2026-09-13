@@ -158,30 +158,57 @@ calibration curves; failure-injection suite; paper then shadow run; limited live
 
 ## 5. Blockers that code cannot solve
 
-**The market ↔ live-game join does not exist.** Two independent problems (§45):
+**Retracted, 2026-09-13: the market ↔ live-game join does exist.** This section
+previously listed it as unsolvable. That was wrong, and it was wrong because the API
+surface was never read — the `gamma-openapi.yaml` spec was in the docs index the
+whole time. Corrected in `docs/POLYMARKET-API-CONFORMANCE.md` §46–52.
 
-- No shared key. The feed always carries `game_id` and never a `slug`; soccer markets
-  always carry a `slug` and **never** a `game_id` (0 of 26 sampled). The only link is
-  fuzzy team-name matching across two naming systems.
-- No in-play window. Across 600 open moneyline markets — 158 soccer, 144 NFL, 81
-  baseball, 31 esports, 23 cricket — **0 had a kickoff within −3h..+24h**, while the
-  feed streamed 17 live games. Exact team-name overlap: **0**.
+The join is `list_events(game_ids=…)` — on the **event**, not the market. Verified
+live twice: 9 of 9 fixtures streaming on the sports socket resolved to their events
+(15 tradeable markets with live asks), and again 8 of 8 on a later run. Reproduce with
+`scripts/verify_game_join.py`.
 
-Until this is solved, a sports probability engine has nothing to attach to. This is
-why `FootballEngine` is not written: it could not be verified, and unverified code is
-what this session's findings argue against.
+Why three probes all missed it:
+
+1. Looked on the **market**. `market.sports.game_id` is a *different id space* — the
+   child contest (`283508` for game 1 of a series whose fixture is `1642158`), and
+   `None` on fixture-level markets. So `list_markets(game_id=<fixture id>)` returns
+   nothing while looking correct.
+2. `streams.py` documented the wrong place to look — "match on `game_id` against
+   `Market.game_id`" — so the mistake was written down as the design.
+3. Filtered on `start_date_*` (when the *market* opened) instead of `start_time_*`
+   (kickoff). Sports markets open weeks early, so a "kickoff within −3h..+24h" window
+   expressed against `start_date` excludes nearly every live fixture. That is the
+   whole of the "0 of 600 markets" figure previously reported here.
+
+**Also retracted: cricket has no live state.** An international cricket fixture was
+observed live with `score="74-100"`, `period="Live"` and open markets. It carries no
+`game_id`, so it is reachable through the `live=True` sweep and not through a socket
+join. `CricketEngine` was disabled on the stronger, wrong claim.
+
+**Also retracted: a sports data feed must be bought.** One request —
+`list_events(live=True, closed=False)` — returns every in-play fixture with score,
+period and its open markets: 15 events and 278 open, order-accepting markets at the
+time of measurement. For `moneyline` and `child_moneyline` that is the entire model
+input. A paid feed buys only what the venue does not publish (xG, shot data,
+per-player state) and is therefore a *widening* decision, not a prerequisite.
+
+### What remains genuinely blocked
 
 **No short-dated crypto markets.** Scanned 900 open markets: 30 crypto, **all with
 windows over 24 hours**, none short-dated and unexpired. `Btc5mEngine` has no market.
+Unchanged by the above.
 
-**Two decisions are yours:**
+**Tennis in-play state.** The socket supplies games in the current set but not sets
+won by each player (`tennis.py` `BLOCKING`), and Gamma's event `score` for tennis was
+not observed carrying it either. Still needs checking against a live tennis fixture —
+none was in play during these runs.
 
-1. **Does "do not use Gamma" exclude Gamma-backed discovery?** The CLOB has no
-   catalogue endpoint; `list_markets` and `get_sports` hit `gamma-api.polymarket.com`.
-   Recorded as `allow_gamma_backed_discovery` — a flag that is *documentary only, not
-   enforced anywhere*. Needs deciding before live.
-2. **Will you buy a sports data feed?** Without one: no cricket or badminton at all,
-   tennis structurally impossible, and soccer limited to score-and-clock.
+**One decision is yours:** does "do not use Gamma" exclude Gamma-backed discovery?
+The CLOB has no catalogue endpoint; `list_markets`, `list_events` and `get_sports` all
+hit `gamma-api.polymarket.com`, and the join above makes that dependency deeper, not
+shallower. Recorded as `allow_gamma_backed_discovery` — a flag that is *documentary
+only, not enforced anywhere*. Needs deciding before live.
 
 ---
 
@@ -206,7 +233,9 @@ inputs exist for the 161 `MONITORED` markets with a probability injected as a
 fixture. It is also where the fee finding (§1) and the microstructure findings (§39)
 start doing work.
 
-Sports engines should wait for the join problem, not lead it.
+Sports engines are no longer blocked (§5). The join is built and verified; what they
+still need is a probability model, which is Phase 3 work resting on Phase 4's EV
+arithmetic.
 
-Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (45 findings).
+Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (52 findings).
 Build order and per-item notes: `docs/ROADMAP.md`.

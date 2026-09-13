@@ -85,12 +85,20 @@ can ever trade — see `docs/POLYMARKET-API-CONFORMANCE.md` §36-38.
 **Done when:** engines produce calibrated probabilities and abstain correctly
 on missing state.
 
-**Blocked, not merely unstarted.** No sports probability engine can be verified until
-the market-to-live-game join exists: the feed carries `game_id` and no slug, soccer
-markets carry a slug and no `game_id`, and across 600 open moneyline markets none had
-a kickoff within -3h..+24h while 17 games streamed live (see
-`docs/POLYMARKET-API-CONFORMANCE.md` §45). Per-sport *rules* are done and tested; the
-models that consume them are not, because they could not be checked against anything.
+**Unblocked, 2026-09-13.** This previously read "blocked, not merely unstarted", on the
+claim that no market-to-live-game join existed. That was wrong — see
+`docs/POLYMARKET-API-CONFORMANCE.md` §45 (retraction) and §46–52. The join is
+`list_events(game_ids=…)` on the event, built in `adapters/polymarket/games.py` and
+verified live against every fixture streaming at the time.
+
+What a sports engine now has to attach to: in-play fixtures with score and period from
+one request, their open `moneyline` and `child_moneyline` markets, and per-sport rules
+that are already done and tested. What it still lacks is the probability model itself —
+so the item is ordinary unstarted work, and the recommendation to do Phase 4 first
+stands on Phase 4's own merits (EV arithmetic is verifiable today), not on a blocker.
+
+Cricket is also no longer feed-blocked (§49); tennis still is, pending a live fixture
+to check `sets_won_by_each_player` against.
 
 ## Phase 4 — EV and safety
 16. `EvEngine` — price we would actually pay, never the mid, and the taker fee

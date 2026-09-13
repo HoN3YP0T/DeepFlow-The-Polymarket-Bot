@@ -734,21 +734,150 @@ The overlap is what made it subtle — `NFL`, `NBA` and `CFB` are both a family 
 league code, so a naive match appears to work while silently missing every soccer,
 tennis and esports league.
 
-## 45. The market ↔ live-game join does not exist
+## 45. RETRACTED — "the market ↔ live-game join does not exist"
 
-Two independent blockers found while trying to connect an engine to a market:
+**This finding was wrong.** Kept, not deleted, because the way it was reached matters
+more than the conclusion: every probe behind it was run against the live venue, and
+every one of them still produced a false negative. See §46–52 for the correction.
 
-- **No shared key.** The feed always carries `game_id` and never a `slug`; soccer
-  markets always carry a structured `slug` (`isp-che-pun-2026-03-22-che`) and
-  **never a `game_id`** (0 of 26 sampled). The only remaining link is fuzzy
-  team-name matching across two naming systems.
-- **No in-play window.** Across 600 open moneyline markets — 158 soccer, 144 NFL, 81
-  baseball, 31 esports, 23 cricket — **0 had a kickoff within −3h..+24h**, while the
-  feed streamed 17 live clock-running games. Exact team-name overlap between the two:
-  **0**.
+What it claimed, and what is actually true:
 
-Also: `start_date_min`/`max` filter on the *market's* open date, not `game_start_time`,
-and 144 of 300 open moneyline markets carry no `game_start_time` at all.
+| Claim | Reality |
+| --- | --- |
+| Markets never carry a `game_id` (0 of 26) | The *fixture* id is on the **event**. The market's `game_id` is a different id space — the child contest — and empty on fixture-level markets |
+| 0 of 600 moneyline markets had a kickoff in −3h..+24h | Measured with `start_date_*` (market open date) instead of `start_time_*` (kickoff). Sports markets open weeks early, so the window excluded almost everything |
+| Only fuzzy team-name matching remains | `list_events(game_ids=…)` is an exact join, and `list_events(live=True)` needs no key at all |
+
+The root cause was not a bad probe. It was never reading the API spec: `gamma-openapi.yaml`
+is listed in `https://docs.polymarket.com/llms.txt`, and the SDK already exposed every
+parameter involved (`list_events(game_ids=…, live=…, start_time_min=…)`).
+
+---
+
+## 46. The join is on the event, and it is exact
+
+`list_events(game_ids=[…])` maps a sports-feed `gameId` to the event families built on
+that fixture. `game_id` is a repeatable parameter, so twenty fixtures cost one request.
+
+Verified live on 2026-09-13: **9 of 9** fixtures streaming on the sports socket
+resolved, yielding 15 tradeable markets with live asks; a second run resolved **8 of
+8**. Also verified against a finished Ligue 1 fixture — feed `gameId` 90112380 returned
+`fl1-str-asm-2026-09-12`, "RC Strasbourg Alsace vs. AS Monaco FC", the same two teams
+the feed named.
+
+Reproduce: `scripts/verify_game_join.py`. Implemented in
+`adapters/polymarket/games.py`.
+
+---
+
+## 47. One fixture is many events, each repeating the same in-play state
+
+Game 90112380 returned **nine** events: moneyline, halftime result, second half
+result, exact score, first to score, spreads, and three first/second-half families.
+Every one carried the same `score`, `period` and `live`.
+
+Iterating events therefore produces nine game states for one game. `GameLink` folds by
+fixture; the fold keeps the shortest slug as the fixture's identity, because the
+siblings are that slug plus a market-family suffix.
+
+---
+
+## 48. `live=true` returns in-play fixtures with their state and markets — one request
+
+`list_events(live=True, closed=False)` returned 15 events with `score`, `period`,
+`elapsed` and their open markets: **278 open, order-accepting markets** in play at the
+time of measurement. No socket required.
+
+This is the better cold-start path. The sports socket only reports what *changes* after
+you connect, so a bot that has just started knows nothing about a game already at half
+time until something happens in it.
+
+**But `live=true` does not mean in play.** A suspended Chile Primera fixture reported
+`live=True` with `period="SUS"` and a `start_time` three days in the future. Guard:
+`GameLink.is_in_play` requires live, not ended, a period outside
+`{SUS, POST, CAN, INT, AB, DELAYED}`, and a kickoff that has passed.
+
+---
+
+## 49. Cricket has live state — retracting the "no venue-native feed" claim
+
+An international cricket fixture was observed live via Gamma with `score="74-100"`,
+`period="Live"` and open markets. `sports_feed` documents cricket as having no
+venue-native state source, and `CricketEngine` was disabled on that basis.
+
+The weaker claim is the true one: cricket has no *socket* coverage. It also carries
+**no `game_id`**, so it is reachable through the `live=true` sweep and not through a
+socket join. Folding keys on the event id when the game id is absent — dropping
+id-less fixtures would have removed an entire sport silently.
+
+---
+
+## 50. The sports wire is camelCase, and the SDK discards its richest field
+
+Read raw from `wss://sports-api.polymarket.com/ws`, the payload is `gameId`,
+`leagueAbbreviation`, `homeTeam`, `awayTeam` — not the snake_case names the docs and
+this codebase use. The SDK renames them via `validation_alias`, so only a raw reader is
+affected; a raw reader keying on snake_case sees **zero games** and reads as a dead
+feed.
+
+There is also a second, richer message shape. College football sent:
+
+```json
+{"gameId": 70898578, "sportradarGameId": "7c45f1f0-…", "turn": "haw",
+ "turnProviderId": "97673f68-…", "updatedAt": "2026-09-13T07:18:23Z",
+ "eventState": {"type": "college-football", "score": "19-29", "period": "Q4",
+                "elapsed": "01:05", "footballState": {"possessionProviderId": "…"}}}
+```
+
+`eventState` is a typed per-sport envelope, and `eventState.type` is an authoritative
+sport discriminator — strictly better than the league-tag and period-signature
+heuristics in `engines/sports/rules`. The SDK's base model is `extra="ignore"`, so
+**`eventState`, `turnProviderId` and `updatedAt` are all silently dropped**. Using them
+means bypassing `SportsGameResult`.
+
+Status casing is also inconsistent across sports for the same concept: `"running"`
+(esports), `"inprogress"` (college football), `"InProgress"` (earlier capture). Any
+exact-match status table will misread a live game as scheduled.
+
+---
+
+## 51. `sports_market_types` is silently ignored on the events endpoint
+
+`list_markets(sports_market_types=…)` filters correctly. The same filter on
+`/events/keyset` returns the **whole catalogue** — `kraken-ipo-in-2025`,
+`macron-out-in-2025` — with no error. A filter that is ignored rather than rejected is
+worse than one that is absent: it reads as a sports-only feed while delivering
+everything.
+
+`links_from_events` therefore skips events with no sports block instead of trusting the
+caller's filter.
+
+---
+
+## 52. The sports surface that was never read
+
+All of this was in `gamma-openapi.yaml` and in the SDK, unused:
+
+- **`/teams`** — 34 leagues on the first page alone, with `abbreviation`, `alias`,
+  `record`, `logo`, and an undocumented `providerId`. Market slugs are
+  `{league}-{home abbr}-{away abbr}-{date}`, so this is a second, offline join path.
+- **`/sports/market-types`** — **240** values. This system prices two (`moneyline`,
+  `child_moneyline`); `TRADEABLE_SPORTS_MARKET_TYPES` is the gate, and widening it is a
+  code change with a test attached.
+- **Event sports fields** — `score`, `elapsed`, `period`, `gameStatus`, `gameId`,
+  `rescheduledFromGameId`, `homeTeamName`, `awayTeamName`, `spreadsMainLine`,
+  `totalsMainLine`, `bestLines`, `teams`. The SDK models all of them on
+  `EventSportsMetadata`.
+- **Event query params** — `live`, `ended`, `game_id`, `event_date`, `event_week`,
+  `series_id`, `start_time_min`/`max`, `include_best_lines`.
+- **`eventMetadata`** — names the odds provider per fixture: `opticOddsGameId` on
+  soccer, `pandascoreMatchId` on esports (equal to the feed's `gameId`), plus
+  `gridSeriesId`, `league`, `leagueTier`, `tournament`.
+- **`/events/results`** — historical fixture results, marked `x-excluded` in the spec.
+  The obvious calibration corpus, and untouched.
+
+Also: `fee_type` is now `sports_fees_v3`, not the `sports_fees_v2` the classifier
+docstring names. Matching is prefix-based so behaviour is unaffected.
 
 ---
 
