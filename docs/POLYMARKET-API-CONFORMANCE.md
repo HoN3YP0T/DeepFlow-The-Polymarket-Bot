@@ -1294,6 +1294,24 @@ between the two sides; last activity is not an open time.
 Found the same way as §67 — by importing the adapter from a script and reading the
 installed model, not by type-checking it.
 
+## 69. A blank credential is not an absent credential (our bug, not the venue's)
+
+Recorded here because it is the same shape as the venue findings and was found the
+same way — by filling in a real `.env`.
+
+`.env.example` ships every credential as a bare `KEY=`. Copying it therefore loads
+`private_key` as `SecretStr("")`, which is **not `None`**, and
+`PolymarketSettings.is_authenticated` read `private_key is not None`. With a wallet
+address filled in and the key line left untouched, the guard would report an
+authenticated account, the session would build a secure client from an empty key, and
+the failure would surface as a signature rejection with nothing pointing at the
+cause. The LIVE guard has the same hole, on the side that matters.
+
+Fixed with one `mode="before"` validator over every credential field — normalising
+blank-to-`None` in a single place, so a new credential field cannot reintroduce it —
+and pinned by two tests. This is hard rule 2 in `CLAUDE.md`: a check that passes for
+want of an input is worse than no check.
+
 ---
 
 ## Confirmed correct

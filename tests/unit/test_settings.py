@@ -57,3 +57,38 @@ def test_paper_mode_needs_no_credentials() -> None:
 def test_secrets_are_not_exposed_in_repr() -> None:
     settings = Settings(_env_file=None)
     assert "deepflow:deepflow" not in repr(settings)
+
+
+def test_a_blank_credential_counts_as_absent() -> None:
+    """`.env.example` ships every credential as a bare `KEY=`, so copying it yields
+    `SecretStr("")` — which is not `None`. Read literally, a blank key with a wallet
+    address filled in made `is_authenticated` True, and the session would then build
+    a secure client from an empty key: the failure arrives as a signature rejection
+    with nothing pointing at the cause."""
+    settings = Settings(
+        _env_file=None,
+        polymarket={
+            "private_key": "",
+            "wallet_address": "   ",
+            "relayer_api_key": "",
+        },
+    )
+    poly = settings.polymarket
+    assert poly.private_key is None
+    assert poly.account_wallet is None
+    assert not poly.is_authenticated
+    assert not poly.can_submit_relayer_transactions
+
+
+def test_live_mode_refuses_a_blank_key_rather_than_signing_with_it() -> None:
+    """The same hole in the direction that matters: blank credentials must fail the
+    LIVE guard, not satisfy it."""
+    with pytest.raises(LiveModeNotConfirmedError, match="private key"):
+        Settings(
+            _env_file=None,
+            mode=RunMode.LIVE,
+            live_trading_confirmed=True,
+            live_trading_ack=LIVE_ACK_PHRASE,
+            api={"jwt_secret": "x" * 32},
+            polymarket={"private_key": "", "wallet_address": "0xabc"},
+        )

@@ -1,5 +1,5 @@
 .PHONY: install test test-integration lint fmt typecheck check verify capture-fixtures \
-	audit-surface verify-account db-local up down migrate run api clean
+	audit-surface verify-account db-local redis-local up down migrate run api clean
 
 install:
 	python -m venv .venv
@@ -58,6 +58,11 @@ capture-fixtures:
 db-local:
 	su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /var/lib/postgresql/deepflow-dev -l /tmp/pg.log start" || true
 	su postgres -c "/usr/lib/postgresql/16/bin/pg_isready"
+
+## Local redis (no docker). Persistence off: the cache holds nothing worth keeping
+## across a restart, and an appendonly file in a dev container is only disk.
+redis-local:
+	redis-cli ping 2>/dev/null || redis-server --daemonize yes --save "" --appendonly no
 
 up:
 	docker compose up -d db redis

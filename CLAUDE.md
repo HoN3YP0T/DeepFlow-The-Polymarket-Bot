@@ -14,7 +14,7 @@ mistakes are not made a fourth time.
 | Question | File |
 | --- | --- |
 | What is done, what is left, what broke and was fixed | `docs/STATUS.md` — **start here** |
-| What the venue actually does (68 findings, 4 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
+| What the venue actually does (69 findings, 4 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
 | The venue's full surface + the method for not misreading it | `docs/POLYMARKET-SURFACE-AUDIT.md` |
 | Build order, per-phase state | `docs/ROADMAP.md` |
 | Module map, dependency rule, data flow | `docs/ARCHITECTURE.md` |
@@ -29,6 +29,7 @@ the reason — §5, §34, §45 and §53 are all corrections and the trail matter
 ```bash
 make check              # lint + typecheck + tests. Run before every commit.
 make db-local           # local postgres (no docker). Without it 30 integration tests SKIP.
+make redis-local        # local redis (no docker), persistence off.
 make verify             # 5 scripts against the live venue. No credentials needed.
 make verify-account     # read-only credentialed checks (needs .env). Places no orders.
 make audit-surface      # raw venue JSON vs what our code can see. See Traps.

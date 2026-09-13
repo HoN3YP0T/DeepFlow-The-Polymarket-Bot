@@ -10,7 +10,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from deepflow.config.thresholds import Thresholds
@@ -62,6 +62,34 @@ class PolymarketSettings(BaseModel):
     # (see docs/ADR-0002). This flag records the policy explicitly so the
     # decision is visible rather than buried in an adapter.
     allow_gamma_backed_discovery: bool = False
+
+    @field_validator(
+        "private_key",
+        "relayer_api_key",
+        "wallet_address",
+        "relayer_api_key_address",
+        "funder_address",
+        mode="before",
+    )
+    @classmethod
+    def _blank_is_absent(cls, value: object) -> object:
+        """An empty or whitespace value means "not configured", not "configured empty".
+
+        ``.env.example`` ships every credential as a bare ``KEY=``, so copying it
+        yields ``SecretStr("")`` -- which is not ``None``, and so
+        :attr:`is_authenticated` read a blank key as a *present* key. With a wallet
+        address filled in and the key line untouched, the session would then try to
+        build a secure client from an empty key and the failure would arrive as a
+        signature rejection with nothing pointing at the cause.
+
+        Normalising here rather than in each property keeps one definition of
+        "absent", so a new credential field cannot reintroduce the same hole.
+        """
+        if isinstance(value, str) and not value.strip():
+            return None
+        if isinstance(value, SecretStr) and not value.get_secret_value().strip():
+            return None
+        return value
 
     @property
     def account_wallet(self) -> str | None:
