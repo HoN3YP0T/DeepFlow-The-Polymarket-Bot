@@ -1,7 +1,7 @@
 # Status and handover
 
 **As of:** 2026-09-13 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· 30 commits · **570 tests passing, 0 skipped** · **78 stubs remain** · 65 findings recorded
+· 31 commits · **604 tests passing, 0 skipped** · **78 stubs remain** · 65 findings recorded
 · 109 source files, ~12,500 lines
 
 **Phase 1** complete · **Phase 2** complete · **Phase 3** 3 of 6 · **Phase 4** complete
@@ -23,7 +23,7 @@
 | `discovery` | Sweep the catalogue, classify, validate resolution text, persist | 300 s |
 | `live-games` | Resolve in-play fixtures, read each with its own sport's rules | 20 s |
 | `market-stream` | Fold the book stream, assess quality, persist snapshots | live socket |
-| `health` | Report feed liveness, reconnects, drops, snapshot count | 30 s |
+| `health` | Feed liveness and reconnects, fed to the breaker supervisor | 30 s |
 
 ```
 orchestrator.starting   mode=PAPER not_yet_wired=['sports socket (…)', 'signal loop', …]

@@ -75,10 +75,20 @@ async def test_is_running_is_false_before_start() -> None:
 
 async def test_unwired_tasks_are_declared() -> None:
     """Logged at startup on purpose: "the bot is running" must not be mistaken for
-    "the bot is trading"."""
-    assert "signal loop" in NOT_YET_WIRED
-    assert "reconciliation" in NOT_YET_WIRED
-    assert "circuit breakers" in NOT_YET_WIRED
+    "the bot is trading".
+
+    Matched on substrings rather than exact strings, so an entry can gain detail
+    without breaking the test — but an entry *leaving* this list still does break it,
+    which is the point. "circuit breakers" was removed on 2026-09-13 when the
+    supervisor was wired into the health loop; reconciliation stays, qualified with
+    what it is waiting on.
+    """
+    declared = " | ".join(NOT_YET_WIRED)
+    assert "signal loop" in declared
+    assert "reconciliation" in declared
+    assert "position manager" in declared
+    # Wired as of Phase 5 item 24: the health loop feeds BreakerSupervisor.
+    assert "circuit breakers" not in declared
 
 
 async def test_a_dead_task_is_surfaced() -> None:

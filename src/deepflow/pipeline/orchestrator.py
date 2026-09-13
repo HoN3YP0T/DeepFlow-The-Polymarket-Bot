@@ -37,11 +37,13 @@ from deepflow.adapters.polymarket.streams import PolymarketStreams
 from deepflow.config.settings import Settings
 from deepflow.core.clock import SystemClock
 from deepflow.core.domain import Market, MarketSnapshot
-from deepflow.core.enums import DataQuality, RunMode
+from deepflow.core.enums import BreakerReason, DataQuality, RunMode
 from deepflow.core.logging import get_logger
 from deepflow.core.types import ClobTokenId
 from deepflow.engines.sports.rules import SportRegistry, category_for
 from deepflow.pipeline.features import FeatureEngine
+from deepflow.risk.breaker_supervisor import BreakerSupervisor
+from deepflow.risk.circuit_breakers import CircuitBreakerRegistry
 
 log = get_logger(__name__)
 
@@ -55,8 +57,7 @@ NOT_YET_WIRED = (
     "smart-money poll",
     "signal loop",
     "position manager",
-    "circuit breakers",
-    "reconciliation",
+    "reconciliation (needs an authenticated venue adapter)",
 )
 
 #: How often the health line is emitted.
@@ -76,7 +77,7 @@ class Orchestrator:
     * smart-money poll       -- Data API wallet activity
     * signal loop            -- probability, EV, safety gate, execution
     * position manager       -- exit reevaluation for open positions
-    * health monitor         -- breakers, freshness, reconciliation triggers
+    * health monitor         -- freshness and reconnects, fed to the breakers
     """
 
     settings: Settings
@@ -90,6 +91,8 @@ class Orchestrator:
     _features: FeatureEngine | None = None
     _games: GammaGameLinks | None = None
     _sports: SportRegistry | None = None
+    _breakers: CircuitBreakerRegistry | None = None
+    _supervisor: BreakerSupervisor | None = None
     _tracked: tuple[Market, ...] = ()
     _in_play: tuple[GameLink, ...] = ()
     _snapshots_written: int = 0
@@ -140,6 +143,19 @@ class Orchestrator:
         # narrows coverage to the explicit map rather than stopping the process.
         self._sports = SportRegistry()
         await self._sports.load_from_venue(self._venue.public)
+
+        # Breakers are constructed here even though nothing can trade yet: the
+        # supervisor's staleness and reconnect conditions are about the data feed,
+        # not about orders, and a feed problem is worth latching from the first run.
+        clock = SystemClock()
+        self._breakers = CircuitBreakerRegistry(self.settings.thresholds.breakers, clock)
+        self._supervisor = BreakerSupervisor(
+            registry=self._breakers,
+            thresholds=self.settings.thresholds.breakers,
+            execution=self.settings.thresholds.execution,
+            limits=self.settings.thresholds.risk,
+            clock=clock,
+        )
 
         # Discovery runs once synchronously so the stream has a token set to open
         # with. Starting the stream first would mean subscribing to nothing and
@@ -260,7 +276,15 @@ class Orchestrator:
             # Losing a snapshot row costs history, not correctness. Killing the
             # pump over it would cost the feed, so this is logged and skipped --
             # the database being down must not take the market data with it.
+            #
+            # It does trip the database breaker, though. A snapshot is history, but a
+            # database that cannot be written to means positions, orders and the
+            # journal are all diverging from reality, and the system can no longer
+            # establish what it owns. Losing the row is survivable; trading on top of
+            # it is not.
             log.warning("snapshot.persist_failed", exc_info=True)
+            if self._supervisor is not None:
+                self._supervisor.record_database_failure("snapshot persist failed")
 
     async def _live_game_loop(self) -> None:
         """Sweep in-play fixtures and read each one with its own sport's rules.
@@ -314,17 +338,32 @@ class Orchestrator:
         )
 
     async def _health_loop(self) -> None:
-        """Emit a periodic health line.
+        """Report health, and let the supervisor act on it.
 
-        Deliberately a log line rather than a breaker. Watching feed liveness and
-        tripping on it is the circuit-breaker registry's job (Phase 5); reporting
-        it is useful now, and conflating the two would put trading policy in the
-        orchestrator.
+        The loop reports; the supervisor decides. Keeping the decision out of here
+        is what stops trading policy accreting in the orchestrator -- this function
+        knows how to observe a stream and nothing about what a reconnect rate means.
+
+        Reconnects are fed in as *deltas*. The stream exposes a lifetime count and
+        the supervisor measures a rate over a sliding hour, so handing it the total
+        would replay the whole history into the window on every tick and trip on a
+        long-running process that is currently fine.
         """
+        seen_reconnects = 0
         while not self._stopping.is_set():
             await asyncio.sleep(HEALTH_INTERVAL_SECONDS)
             if self._stopping.is_set() or self._streams is None:
                 return
+
+            for _ in range(max(0, self._streams.reconnect_count - seen_reconnects)):
+                if self._supervisor is not None:
+                    self._supervisor.record_reconnect()
+            seen_reconnects = self._streams.reconnect_count
+
+            open_reasons: tuple[BreakerReason, ...] = ()
+            if self._supervisor is not None:
+                open_reasons = self._supervisor.evaluate(last_event_at=self._streams.last_event_at)
+
             log.info(
                 "orchestrator.health",
                 connected=self._streams.is_connected,
@@ -334,4 +373,6 @@ class Orchestrator:
                 tracked_markets=len(self._tracked),
                 in_play_fixtures=len(self._in_play),
                 snapshots_written=self._snapshots_written,
+                breakers_open=[str(reason) for reason in open_reasons],
+                entries_allowed=self._breakers.entries_allowed() if self._breakers else None,
             )

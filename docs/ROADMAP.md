@@ -208,7 +208,16 @@ and the refusals are verifiable today, the models are not.
     venue is a live commitment appearing in no local exposure figure, which is
     exactly what a process killed mid-submission leaves behind. An unreadable venue
     is a discrepancy, never a pass
-24. `CircuitBreakerRegistry` wired to real triggers
+24. ~~`CircuitBreakerRegistry` wired to real triggers~~ **done** — the registry was
+    already the halt *authority*; `BreakerSupervisor` is the half that observes and
+    decides, so the registry can be consulted without importing streams, orders,
+    bankrolls and the database. Rate conditions use a **sliding hour**, not a
+    lifetime counter — twenty reconnects in a month is healthy and twenty in an hour
+    is a broken feed, and a counter that cannot tell them apart teaches operators to
+    ignore the breaker. Wired into the orchestrator's health loop, which feeds
+    reconnects as *deltas* and trips the database breaker on a persist failure.
+    Nothing in the supervisor resets a breaker: they latch, and each flap of a
+    self-rearming breaker is a window in which entries are allowed again
 25. `PolymarketExecution`, `PolymarketRelayer` — including the venue rules the
     conformance review surfaced: tick/size rounding before submission, `delayed`
     acceptance handled as pending, 425 and post-only windows waited out rather
