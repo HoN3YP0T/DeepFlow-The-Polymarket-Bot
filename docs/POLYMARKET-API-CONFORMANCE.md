@@ -1236,7 +1236,7 @@ Two consequences worth stating, because they are now load-bearing:
    lookup appears as inventory, not as a working order. This is why only
    `UncertainOutcome.ABSENT` permits a re-intend.
 
-## 67. `AssetType` is a `Literal` alias, not an enum — and mypy cannot see the difference
+## 67. A wrong import path turns an SDK symbol into `Any`, and hides the next error
 
 `polymarket.models.clob.AssetType` is
 
@@ -1244,23 +1244,35 @@ Two consequences worth stating, because they are now load-bearing:
 AssetType = Literal["COLLATERAL", "CONDITIONAL", "CONDITIONAL-V2"]
 ```
 
-so `AssetType.COLLATERAL` raises `AttributeError` at call time. Both collateral
-reads in the execution adapter were written that way and both were dead on the
-first call. The SDK passes the value straight through to the query string, so the
-correct argument is the plain string; the adapter now names it as
-`COLLATERAL: Final = "COLLATERAL"`.
+so `AssetType.COLLATERAL` raises `AttributeError` at call time. Both collateral reads
+in the execution adapter were written that way and both were dead on the first call.
+The SDK passes the value straight through to the query string, so the correct argument
+is the plain string; the adapter now names it `COLLATERAL: Final = "COLLATERAL"`.
 
-The part worth keeping is **why it survived lint, mypy and 604 tests**:
-`pyproject.toml` sets `ignore_missing_imports` for `polymarket.*`, which makes every
-SDK symbol `Any`, and `Any.ANYTHING` type-checks. The import path was also wrong
-(`polymarket.models.clob.enums` does not exist) and that too was invisible for the
-same reason. Nothing that consults only the type checker can catch this class of
-error — it needs an actual import and an actual call.
+**The mechanism is the part worth keeping, and it is not "mypy cannot see the SDK".**
+Measured directly: mypy *does* type-check the installed package (it ships `py.typed`)
+and *does* catch the attribute access —
 
-Which is what `scripts/verify_account.py` is for: it importing the adapter is what
-found both bugs. Recorded alongside §50 and §60 as another instance of the standing
-lesson in the other direction — **a typed symbol that satisfies mypy is not a symbol
-that exists at runtime.**
+```
+error: "<typing special form>" has no attribute "COLLATERAL"  [attr-defined]
+```
+
+What it did not catch was the import, which named a module that does not exist:
+`polymarket.models.clob.enums`. `pyproject.toml` sets `ignore_missing_imports` for
+`polymarket.*`, so an unresolvable module is silently `Any`, every symbol imported
+from it is `Any`, and `Any.COLLATERAL` type-checks. **One silenced import erased the
+type information that would have caught the real bug**, and lint, mypy and 604 tests
+all passed.
+
+So the rule is narrower and more useful than "don't trust mypy here": a *wrong path*
+into an `ignore_missing_imports` package poisons everything downstream of it. Import
+from the real module and the type checker works normally — the very next SDK mistake
+in this session (`api_key=` typed as `object | None`) was caught by mypy immediately,
+because that symbol was imported from a module that exists.
+
+Found by importing the adapter from `scripts/verify_account.py`. Nothing that consults
+only the type checker catches the poisoned case; an actual import and an actual call
+does.
 
 ## 68. Position size is `current_size`, and reading the wrong name reports a flat account
 
@@ -1311,6 +1323,42 @@ Fixed with one `mode="before"` validator over every credential field — normali
 blank-to-`None` in a single place, so a new credential field cannot reintroduce it —
 and pinned by two tests. This is hard rule 2 in `CLAUDE.md`: a check that passes for
 want of an input is worse than no check.
+
+## 70. The credentialed path, verified live — and the relayer key that reached nothing
+
+First run of `make verify-account` against a real account. What it establishes:
+
+- **No CLOB API credential triple is needed.** `AsyncSecureClient.create` derives the
+  API key, secret and passphrase from the signing key at construction
+  (`credentials=None` means "derive"). There is nothing for a `.env` to hold, which is
+  why the file has no api-key/secret/passphrase fields — the key alone is the
+  credential. Confirmed: every authenticated read below worked with key + wallet only.
+- **`wallet` must still be passed**, and `deposit` (signature_type 3) is right for a
+  wallet distinct from the signer. Cross-checked by deriving the signer address from
+  the key: it differs from the account wallet, which rules out `eoa`.
+- **`get_balance_allowance` returns both figures as `0` for an unfunded wallet** — not
+  an error, not a null. Cross-checked against the public Data API (`/value`,
+  `/positions`, `/activity` all empty for both the wallet and the signer), so the zero
+  is the account's real state rather than a signature-type misread reading a different
+  account. That distinction is the one §68 turned on and it cannot be made from the
+  authenticated read alone.
+- `get_closed_only_mode` → `false`, `list_open_orders` → empty, `list_positions` →
+  empty. The read-only half of the adapter is verified against the venue.
+
+**The gap this surfaced.** `PolymarketSettings.can_submit_relayer_transactions`
+reported relayer operations reachable, while `PolymarketSession.start` never passed the
+key to the SDK at all: `create(api_key=...)` is what installs the relayer header
+resolver and nothing sets one afterwards, so a configured relayer key reached nothing.
+The property was also satisfied by the key alone, when `polymarket.auth.RelayerApiKey`
+requires `key` **and** a checksum-valid `address` and cannot be constructed without
+both. Now wired at construction, and the property requires both halves.
+
+Watch the two `ApiKey` names: `polymarket.ApiKey` is `NewType("ApiKey", str)`, while
+the type `create` accepts is `polymarket.auth.ApiKey = BuilderApiKey | RelayerApiKey`.
+
+**Still unverified, and not verifiable read-only:** whether that relayer key is valid.
+Nothing read exercises it — approvals, redemptions, splits and merges are all writes.
+It is configured, not confirmed.
 
 ---
 

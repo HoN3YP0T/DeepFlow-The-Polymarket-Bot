@@ -1,7 +1,7 @@
 # Status and handover
 
 **As of:** 2026-09-13 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· 31 commits · **623 tests passing, 0 skipped** · **72 stubs remain** · 69 findings recorded
+· 31 commits · **623 tests passing, 0 skipped** · **72 stubs remain** · 70 findings recorded
 · 109 source files, ~12,500 lines
 
 **Phase 1** complete · **Phase 2** complete · **Phase 3** 3 of 6 · **Phase 4** complete
@@ -272,10 +272,14 @@ minutes across 8 assets, resolution is a Chainlink TWAP with a 30 s lookback);
 calibration fitting (needs recorded in-play history, which only our own recorder can
 collect).
 
-**Phase 5 — execution (0 of 6).** `OrderManager.execute` / `reprice`;
-`ExecutionEngine`; `Reconciler`; `CircuitBreakerRegistry` wiring;
-`PolymarketExecution` (10) and `PolymarketRelayer` (2); the order heartbeat;
-`PaperExecutor` / `ShadowExecutor`. **Uncertain-outcome handling comes before the
+**Phase 5 — execution (4 of 6).** Done: `OrderManager.execute` / `reprice`;
+`ExecutionEngine`; `Reconciler`; `PaperExecutor` / `ShadowExecutor`; breaker
+supervision; and the **read-only** half of `PolymarketExecution`, now verified against
+a live account (§70) — balance, allowance, closed-only mode, open orders, positions,
+`get_order`, `find_by_intent`. Left: `submit` / `cancel` / `cancel_all` / the order
+heartbeat (4 stubs) and `PolymarketRelayer` (2). **No order has been submitted to this
+venue**, so those four ship unverified when written, and the relayer key is configured
+but unconfirmed — nothing read exercises it. **Uncertain-outcome handling comes before the
 happy path**, and the reconciler must land before the execution adapter — a process
 that can trade but cannot establish what it already owns is the one configuration
 this design refuses.
@@ -325,8 +329,11 @@ only, enforced nowhere*. Needs deciding before live.
 ## 7. What is not proven
 
 - **The hypertable conversion** — no Timescale locally. First real run is on CI.
-- **Every authenticated path** — orders, balances, approvals, the relayer. Nothing has
-  needed credentials yet; first real need is Phase 5.
+- **Order submission, cancellation and the relayer.** Reads are now verified live
+  against a real account (§70): the credentials derive an API key, and balance,
+  allowance, closed-only mode, open orders and positions all come back. Every **write**
+  remains unexercised — no order has been placed, and the relayer key cannot be
+  confirmed by any read, since approvals and redemptions are writes.
 - **Market variety** — verification ran mostly against binary politics markets and
   sports fixtures. Neg-risk groups will have their own surprises.
 - **Anything about profitability.** No model produces a probability. The fee
@@ -356,7 +363,7 @@ is the point of having built it first.
 
 ---
 
-Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (69 findings).
+Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (70 findings).
 Venue surface map and the method for not misreading it:
 `docs/POLYMARKET-SURFACE-AUDIT.md` — 9 hosts, 223 operations, plus
 `make audit-surface`.

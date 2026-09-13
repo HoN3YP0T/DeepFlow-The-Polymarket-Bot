@@ -44,7 +44,14 @@ class PolymarketSettings(BaseModel):
 
     relayer_api_key: SecretStr | None = None
     relayer_api_key_address: str | None = None
-    """Needed for gasless approvals, redemptions, splits and merges. Without one,
+    """Both halves are required, not just the key.
+
+    ``polymarket.auth.RelayerApiKey`` takes ``key`` **and** ``address`` and
+    checksum-validates the address, so a key without its address cannot be
+    constructed at all -- and reporting relayer operations as reachable on the key
+    alone is a claim the client cannot honour (finding 70).
+
+    Needed for gasless approvals, redemptions, splits and merges. Without one,
     ``ensure_allowances`` and ``redeem_positions`` cannot run even though order
     placement works -- which surfaces as every order being rejected for
     allowance on a fresh wallet."""
@@ -107,7 +114,11 @@ class PolymarketSettings(BaseModel):
         separate: a key-only LIVE run places orders right up until the first one
         needs an allowance that was never granted.
         """
-        return self.is_authenticated and self.relayer_api_key is not None
+        return (
+            self.is_authenticated
+            and self.relayer_api_key is not None
+            and self.relayer_api_key_address is not None
+        )
 
 
 class DatabaseSettings(BaseModel):

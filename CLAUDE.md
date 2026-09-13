@@ -14,7 +14,7 @@ mistakes are not made a fourth time.
 | Question | File |
 | --- | --- |
 | What is done, what is left, what broke and was fixed | `docs/STATUS.md` — **start here** |
-| What the venue actually does (69 findings, 4 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
+| What the venue actually does (70 findings, 4 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
 | The venue's full surface + the method for not misreading it | `docs/POLYMARKET-SURFACE-AUDIT.md` |
 | Build order, per-phase state | `docs/ROADMAP.md` |
 | Module map, dependency rule, data flow | `docs/ARCHITECTURE.md` |
@@ -101,12 +101,14 @@ the venue lacks anything, run `make audit-surface` and paste what it returned.
 - **Crypto up/down settles on a Chainlink TWAP** (30 s lookback at 5 min, 60 s at
   15 min and 4 h), not spot (§63). Modelling spot prices a different instrument.
 
-- **mypy cannot see the SDK.** `polymarket.*` is under `ignore_missing_imports`, so
-  every SDK symbol is `Any` and `Any.ANYTHING` type-checks. `AssetType.COLLATERAL`
-  (a `Literal` alias, not an enum) and `polymarket.models.clob.enums` (no such module)
-  both passed lint, mypy and 604 tests while being dead on the first call (§67). Before
-  trusting any SDK attribute, read the installed model in `.venv/.../polymarket/models/`
-  or import and call it. `scripts/verify_account.py` exists partly as that check.
+- **A wrong import path poisons everything downstream of it.** mypy *does* check the
+  SDK (it ships `py.typed`) and would have caught `AssetType.COLLATERAL` — but the
+  import named `polymarket.models.clob.enums`, which does not exist, and
+  `ignore_missing_imports` made that module and every symbol from it `Any`. One
+  silenced import erased the type information that would have caught the real bug;
+  604 tests, ruff and mypy all passed while the call was dead (§67). Import from the
+  module that actually exists and the type checker works. Verify a path by importing
+  it, not by reading it.
 - **Position size is `current_size`**, not `size`. Reading the wrong name yields zero
   shares, and the zero-filter then drops the position, so a funded account reconciles
   as **flat** (§68). Both sites now share `mapping.position_shares`.

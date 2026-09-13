@@ -68,6 +68,7 @@ class PolymarketSession:
             return
 
         from polymarket import AsyncPublicClient, AsyncSecureClient
+        from polymarket.auth import ApiKey, RelayerApiKey
         from polymarket.environments import PRODUCTION
 
         configured = self._settings.polymarket.environment
@@ -95,10 +96,29 @@ class PolymarketSession:
             )
             return
 
+        # The relayer key, when both halves are configured. Passing it at construction
+        # is the only way it reaches the client: ``create(api_key=...)`` installs a
+        # relayer header resolver, and nothing sets one later. Without it the gasless
+        # paths -- approvals, redemptions, splits, merges -- are unreachable however
+        # the settings are filled in, which is why
+        # ``can_submit_relayer_transactions`` requires both halves (finding 70).
+        #
+        # Note the two ``ApiKey`` names in the SDK: ``polymarket.ApiKey`` is
+        # ``NewType("ApiKey", str)``, while the type ``create`` accepts is
+        # ``polymarket.auth.ApiKey = BuilderApiKey | RelayerApiKey``. Importing the
+        # wrong one type-checks and fails at the header resolver.
+        relayer: ApiKey | None = None
+        if settings.relayer_api_key is not None and settings.relayer_api_key_address:
+            relayer = RelayerApiKey(
+                key=settings.relayer_api_key.get_secret_value(),
+                address=settings.relayer_api_key_address,
+            )
+
         self._secure = await AsyncSecureClient.create(
             private_key=settings.private_key.get_secret_value(),
             wallet=settings.account_wallet,
             environment=environment,
+            api_key=relayer,
         )
         log.info(
             "polymarket.secure_client_started",
