@@ -1466,6 +1466,39 @@ not be guessed at: accepted, zero filled amounts, no trade ids, matches later. R
 fill it books a position that does not exist; read as a rejection it abandons a live
 order.
 
+## 75. Closed positions are sorted by PnL descending, so one page is a wallet's best trades
+
+`list_positions(user=..., status="CLOSED")` returns its first page ordered by **realized
+PnL, descending**, and the page caps at 100. A hit rate computed from that page is not a
+hit rate; it is a measure of how many winners a wallet has.
+
+Measured on a live wallet:
+
+| Figure | Value |
+| --- | --- |
+| Closed positions returned (page 1) | 100 |
+| Of those, profitable | **100** |
+| Sum of their realized PnL | **+3,861 USDC** |
+| The wallet's cumulative realized PnL | **−964 USDC** |
+
+So the wallet is *down* on the window while its first page shows a flawless record —
+the losses are on pages nobody read. Every wallet with 100 or more resolved positions
+would have scored a 100% hit rate, and since a high hit rate is exactly what a
+smart-money scorer looks for, the bias runs in the worst possible direction: it promotes
+prolific wallets regardless of whether they make money.
+
+Fixed by sorting explicitly (`sort_by="TIMESTAMP"`, `sort_direction="DESC"`). That does
+not make the sample random, but it makes it **unbiased with respect to the thing being
+measured**, which is what a rate needs. The same wallet then reports 85 of 100 — a
+figure consistent with its negative PnL, and a useful one: many small wins against a few
+large losses is precisely the profile a high-probability strategy must not copy. It is
+now the calibration case in `tests/unit/test_smart_money.py`, and the reason realized
+PnL carries twice the weight of win rate in the score.
+
+The general lesson, which the paging findings (§65) only half-covered: **a truncated page
+is a sample, and a default sort order decides what kind of sample it is.** Neither the
+SDK signature nor the docs state this ordering; it took dumping the values to see it.
+
 ---
 
 ## Confirmed correct

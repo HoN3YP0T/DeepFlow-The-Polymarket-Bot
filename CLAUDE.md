@@ -14,7 +14,7 @@ mistakes are not made a fourth time.
 | Question | File |
 | --- | --- |
 | What is done, what is left, what broke and was fixed | `docs/STATUS.md` — **start here** |
-| What the venue actually does (74 findings, 4 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
+| What the venue actually does (75 findings, 4 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
 | The venue's full surface + the method for not misreading it | `docs/POLYMARKET-SURFACE-AUDIT.md` |
 | Build order, per-phase state | `docs/ROADMAP.md` |
 | Module map, dependency rule, data flow | `docs/ARCHITECTURE.md` |
@@ -96,6 +96,10 @@ the venue lacks anything, run `make audit-surface` and paste what it returned.
   `period="SUS"`, kickoff three days out. Guard with `GameLink.is_in_play`.
 - **`funded` and `ready` are not tradeability gates** — both `false` on 100 of 100
   markets accepting orders (§60).
+- **A default sort order decides what a truncated page *means*.** Closed positions come
+  back sorted by realized PnL descending, so page 1 of a prolific wallet is its 100 best
+  trades — a wallet down 964 USDC showed 100 of 100 winners (§75). Sort explicitly
+  whenever a page is used as a sample.
 - **Documented pagination maxima are wrong.** `/events/keyset` says `limit` up to
   500; the server caps at 100 (§65). A sweep sized at 500 silently receives a fifth.
 - **A rejected order is a *return value*** (`AcceptedOrder | RejectedOrder`, read `ok`),

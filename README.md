@@ -242,7 +242,7 @@ correctly protective gate from one that never fires.
 - [`docs/ADR-0001-sdk-choice.md`](docs/ADR-0001-sdk-choice.md) — why `polymarket-client`
 - [`docs/ADR-0002-market-discovery.md`](docs/ADR-0002-market-discovery.md) — the Gamma constraint
 - [`docs/ADR-0003-venue-rules-vs-thresholds.md`](docs/ADR-0003-venue-rules-vs-thresholds.md) — why exchange rules are code, not config
-- [`docs/POLYMARKET-API-CONFORMANCE.md`](docs/POLYMARKET-API-CONFORMANCE.md) — 74 findings against the live venue, including four retractions
+- [`docs/POLYMARKET-API-CONFORMANCE.md`](docs/POLYMARKET-API-CONFORMANCE.md) — 75 findings against the live venue, including four retractions
 - [`docs/POLYMARKET-SURFACE-AUDIT.md`](docs/POLYMARKET-SURFACE-AUDIT.md) — the venue's full surface (9 hosts, 223 operations) and the method for not misreading it
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — build order
 

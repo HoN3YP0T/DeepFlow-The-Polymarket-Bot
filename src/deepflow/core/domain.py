@@ -481,6 +481,54 @@ class SmartMoneyEntry(Frozen):
     is_exit: bool = False
 
 
+class WalletHolding(Frozen):
+    """One wallet's stake in one outcome, as the venue's holder list reports it."""
+
+    wallet: WalletAddress
+    token_id: ClobTokenId
+    shares: Decimal
+    average_entry_price: Decimal | None = None
+    realized_pnl: Decimal | None = None
+    unrealized_pnl: Decimal | None = None
+    """``None`` throughout means the venue did not report it -- the holder list only
+    carries PnL when asked for it -- never that the figure is zero."""
+
+
+class WalletPerformance(Frozen):
+    """What a wallet has actually achieved, which is the only basis for scoring it.
+
+    Deliberately excludes position size and portfolio value from its *identity*: size
+    makes a whale, and whales are not automatically informed. Size appears here only as
+    ``portfolio_value_usdc``, and only so that a position can be judged *relative* to
+    the wallet's own book -- a $50k bet is conviction for one wallet and a rounding
+    error for another.
+
+    Every field is optional because the Data API answers each question separately and a
+    wallet can be missing any of them. ``None`` means unmeasured, and the scorer treats
+    unmeasured as unproven rather than as average.
+    """
+
+    wallet: WalletAddress
+    realized_pnl_usdc: Decimal | None = None
+    volume_usdc: Decimal | None = None
+    trade_count: int | None = None
+    markets_traded: int | None = None
+    first_seen_at: datetime | None = None
+    portfolio_value_usdc: Decimal | None = None
+    closed_positions: int | None = None
+    winning_positions: int | None = None
+    """Closed positions that realized a profit. With ``closed_positions`` this gives a
+    directional hit rate on markets that actually resolved -- which is a different and
+    far better question than whether the wallet is currently up on open bets."""
+
+    @property
+    def win_rate(self) -> Decimal | None:
+        """Share of resolved positions that made money, or ``None`` when unmeasurable."""
+        if not self.closed_positions or self.winning_positions is None:
+            return None
+        return Decimal(self.winning_positions) / Decimal(self.closed_positions)
+
+
 class SmartMoneySignal(Frozen):
     """Aggregated wallet intelligence for one market.
 

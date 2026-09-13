@@ -1,7 +1,7 @@
 # Status and handover
 
 **As of:** 2026-09-13 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· 31 commits · **664 tests passing, 0 skipped** · **66 stubs remain** · 74 findings recorded
+· 31 commits · **720 tests passing, 0 skipped** · **52 stubs remain** · 75 findings recorded
 · 109 source files, ~12,500 lines
 
 **Phase 1** complete · **Phase 2** complete · **Phase 3** 3 of 6 · **Phase 4** complete
@@ -251,16 +251,16 @@ is right 0.93 of the time turns a positive edge negative.
 
 ## 5. What is left
 
-**66 stubs**, by area:
+**52 stubs**, by area:
 
 | Area | Stubs | Notable |
 | --- | --- | --- |
-| `adapters/polymarket` | 8 | `data_api.py` (5), `streams.py` (3); `execution.py` and `relayer.py` complete |
+| `adapters/polymarket` | 3 | `streams.py` (3); `execution.py`, `relayer.py` and `data_api.py` complete |
 | `api/routers` + `api` | 24 | Whole dashboard surface: auth, health, overview, positions, risk, strategies, trades, whales, journal, WebSocket |
 | `engines/sports` | 8 | Four engine bodies (football, tennis, cricket, badminton) |
 | `execution` | 0 | complete — `OrderManager`, `ExecutionEngine`, `Reconciler` all implemented |
-| `positions` | 6 | `PositionManager` (4), `ExitEngine` (2) |
-| `engines` | 6 | `smart_money` (3), `signal` (1), `cross_market` (2) |
+| `positions` | 0 | complete — `PositionManager` and `ExitEngine` implemented |
+| `engines` | 3 | `signal` (1), `cross_market` (2); `smart_money` complete |
 | `modes` | 2 | `backtest` (2); `paper` complete |
 | `adapters/persistence` | 3 | `SqlPositionRepository` |
 | `adapters/cache` | 3 | `RedisCache` |
@@ -289,7 +289,13 @@ happy path**, and the reconciler must land before the execution adapter — a pr
 that can trade but cannot establish what it already owns is the one configuration
 this design refuses.
 
-**Phase 6 — positions and intelligence (0 of 4).** `PositionManager`; `ExitEngine`;
+**Phase 6 — positions and intelligence (2 of 4).** Done: `ExitEngine` and
+`PositionManager` (item 27), `SmartMoneyEngine` and `DataApiWalletIntel` (item 28, the
+wallet reads verified live). Left: the event pipeline with the geopolitical and political
+engines (item 29) and `CrossMarketEngine` (item 30, which stays disabled until
+backtested).
+
+**Phase 6 — original scope (0 of 4).** `PositionManager`; `ExitEngine`;
 `SmartMoneyEngine`; `DataApiWalletIntel`; `EventPipeline`; `PoliticalEngine`;
 `GeopoliticalEngine`; `CrossMarketEngine`.
 
@@ -368,7 +374,7 @@ is the point of having built it first.
 
 ---
 
-Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (74 findings).
+Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (75 findings).
 Venue surface map and the method for not misreading it:
 `docs/POLYMARKET-SURFACE-AUDIT.md` — 9 hosts, 223 operations, plus
 `make audit-surface`.
