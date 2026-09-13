@@ -212,16 +212,10 @@ class FeatureEngine:
         if size_shares is None or size_shares <= 0 or book.best_ask is None:
             return None
 
-        remaining = Decimal(size_shares)
-        cost = Decimal(0)
-        for level in book.asks:
-            take = min(remaining, level.size)
-            cost += take * level.price
-            remaining -= take
-            if remaining <= 0:
-                vwap = cost / Decimal(size_shares)
-                return (vwap - book.best_ask) / book.best_ask * Decimal(10_000)
-        return None
+        vwap = book.vwap_to_fill(size_shares, side=OrderSide.BUY)
+        if vwap is None:
+            return None
+        return (vwap - book.best_ask) / book.best_ask * Decimal(10_000)
 
     def _velocity(self, history: tuple[OrderBook, ...]) -> Decimal | None:
         """Mid-price change per second across the history window."""

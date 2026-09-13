@@ -125,9 +125,13 @@ Cricket is also no longer feed-blocked (§49); tennis still is, pending a live f
 to check `sets_won_by_each_player` against.
 
 ## Phase 4 — EV and safety
-16. `EvEngine` — price we would actually pay, never the mid, and the taker fee
-    from the market's own `fee_schedule` (`EvEngine.fee_bps`) rather than zero
-17. `MicrostructureEngine`
+16. ~~`EvEngine`~~ **done** — `market_probability` is the ask crossed, never the mid,
+    so the edge is net of the half-spread by construction; `spread_cost_bps` is
+    therefore zero *and says why*, because charging it again would reject profitable
+    trades. Costs are bps of notional and the edge is payoff units, converted in one
+    place. A book too thin to fill the size is no assessment rather than a bad one
+17. ~~`MicrostructureEngine`~~ **done in Phase 3 (item 10)** — listed twice in the
+    original plan; kept here as a pointer rather than silently dropped
 18. All 15 `SafetyGate` checks wired
 19. `RiskEngine`, `ExposureTracker` (correlation grouping included)
 20. `JournalRecorder`

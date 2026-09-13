@@ -319,6 +319,34 @@ class OrderBook(Frozen):
             return None
         return self.best_ask - self.best_bid
 
+    def vwap_to_fill(self, size_shares: Decimal, *, side: OrderSide) -> Decimal | None:
+        """Volume-weighted price to fill ``size_shares`` by crossing the book.
+
+        A BUY sweeps asks upward from the touch; a SELL sweeps bids downward.
+
+        ``None`` when the book cannot fill the size at all -- which is a different
+        statement from a bad price, and must stay different. Returning the average
+        of a *partial* walk understates the cost of entry at exactly the moment
+        the book is too thin to enter, which is the direction that loses money.
+
+        Lives on the book rather than in the engines because three callers need
+        the same walk -- the EV cost stack, the microstructure slippage feature,
+        and sizing -- and three copies of a loop that must stop at the right place
+        is three chances to stop at the wrong one.
+        """
+        if size_shares <= 0:
+            return None
+        levels = self.asks if side is OrderSide.BUY else self.bids
+        remaining = Decimal(size_shares)
+        cost = Decimal(0)
+        for level in levels:
+            take = min(remaining, level.size)
+            cost += take * level.price
+            remaining -= take
+            if remaining <= 0:
+                return cost / Decimal(size_shares)
+        return None
+
 
 class PublicTrade(Frozen):
     """A trade printed on the tape."""
