@@ -189,7 +189,16 @@ and the refusals are verifiable today, the models are not.
     the working loop with the attempt counter reset (bounded nothing, recursed
     forever), and the poll loop trusted the clock alone — a stopped clock would have
     polled an order indefinitely, so it now has a poll budget as well
-22. `ExecutionEngine`, `PaperExecutor`
+22. ~~`ExecutionEngine`, `PaperExecutor`~~ **done** — the limit price is the signal's
+    target walked by the **assessed** slippage, so the order and the arithmetic that
+    approved it describe the same trade; prices and sizes snap to the venue grid
+    conservatively (both roundings from the price tick, which is what the venue
+    derives size precision from) and the idempotency key is taken from the *rounded*
+    intent, so two intents the venue sees as identical cannot produce two orders.
+    Paper fills walk the real book at the same VWAP the EV engine priced,
+    partial-fill when depth runs out, charge the market's own fee schedule, and
+    **refuse to invent a fill** with no observed book. `ShadowExecutor` validates
+    what is checkable without credentials and records every suppressed order
 23. `Reconciler`
 24. `CircuitBreakerRegistry` wired to real triggers
 25. `PolymarketExecution`, `PolymarketRelayer` — including the venue rules the

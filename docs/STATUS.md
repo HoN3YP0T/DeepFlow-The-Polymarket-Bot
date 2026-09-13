@@ -1,7 +1,7 @@
 # Status and handover
 
 **As of:** 2026-09-13 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· 28 commits · **525 tests passing, 0 skipped** · **85 stubs remain** · 65 findings recorded
+· 29 commits · **550 tests passing, 0 skipped** · **80 stubs remain** · 65 findings recorded
 · 109 source files, ~12,500 lines
 
 **Phase 1** complete · **Phase 2** complete · **Phase 3** 3 of 6 · **Phase 4** complete
