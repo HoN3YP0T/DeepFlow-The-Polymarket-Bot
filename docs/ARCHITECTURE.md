@@ -7,9 +7,11 @@
 `core.domain`. This is what lets the whole system be tested without a network,
 and what confines an SDK upgrade to one package.
 
-**Fail closed.** Every default is the safe one. An unregistered safety check
-fails. A safety check that raises fails. An engine without state abstains. An
-unclassifiable market is not traded. An uncertain order is never retried.
+**Fail closed.** Every default is the safe one. An unregistered safety check fails. A
+safety check that raises fails. **A safety check whose input is missing fails** —
+`GateContext` defaults every field to `None`, and `None` is a refusal naming the
+absent input, never a pass. An engine without state abstains. An unclassifiable
+market is not traded. An uncertain order is never retried.
 
 **Explainable.** Every decision — taken or rejected — is journalled with the
 evidence that produced it.
@@ -97,36 +99,43 @@ Edges that carry real safety weight:
 
 ## Data flow
 
+`✔` is implemented and tested; `·` is a stub.
+
 ```
-Discovery (slow poll)                WebSocket (push)
-  SDK discovery ──► classify           CLOB market stream ──┐
-       └──► validate resolution        Sports stream ───────┤
-              └──► MONITORED           Crypto price stream ─┤
-                       │               User stream ─────────┘
-                       ▼                        │
-                 monitored set ◄────────────────┘
+Discovery (slow poll)                  Live game sweep (REST)      WebSocket (push)
+  ✔ discovery ──► ✔ classify             ✔ list_events(live=true)    ✔ CLOB market stream ─┐
+       └──► ✔ validate resolution             └──► ✔ SportRegistry    · Sports socket ──────┤
+              └──► ✔ MONITORED                      └──► ✔ MatchState · Crypto prices ──────┤
+                       │                                   │          · User stream ────────┘
+                       ▼                                   ▼                   │
+                 ✔ monitored set ◄────────────────────────────────────────────┘
                        │
                        ▼
-              FeatureEngine ──► microstructure + data quality
+              ✔ FeatureEngine ──► microstructure + data quality
                        │
        ┌───────────────┼────────────────┐
        ▼               ▼                ▼
-  probability     smart money      cross-market
-   engine          engine            engine
+  · probability   · smart money    · cross-market
+     engine          engine            engine
        └───────────────┼────────────────┘
                        ▼
-                  EvEngine ──► net EV after all costs
+                  ✔ EvEngine ──► net EV after all costs
                        │
-                  SafetyGate ──► 15 mandatory checks
+                  ✔ SafetyGate ──► 17 mandatory checks
                        │
-                  RiskEngine ──► capped fractional Kelly
+                  ✔ RiskEngine ──► capped fractional Kelly + ✔ ExposureTracker
                        │
-              ExecutionEngine ──► mode-routed submission
+              · ExecutionEngine ──► mode-routed submission
                        │
-              PositionManager ──► ExitEngine (continuous)
+              · PositionManager ──► · ExitEngine (continuous)
                        │
-                   Journal + PostgreSQL ──► Dashboard
+                   ✔ Journal + ✔ PostgreSQL ──► · Dashboard
 ```
+
+**The gap that matters is in the middle.** Everything above the probability engines
+and everything below them is implemented; the engines themselves are not. So the
+decision layer is complete and runs on injected estimates — the pipeline can reach a
+reasoned refusal end to end, and cannot reach an approval from live data.
 
 ## Concurrency
 

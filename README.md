@@ -96,10 +96,10 @@ uvicorn deepflow.api.app:create_app --factory --reload   # dashboard API
 
 ## What runs today
 
-Phase 1 is complete, so the process is runnable and collects data. It does not
-trade, and cannot — the signal loop and execution adapter are not wired, and
-`Orchestrator.start` refuses LIVE mode outright until reconciliation and the
-safety gate exist.
+Phases 1, 2 and 4 are complete; Phase 3 is 3 of 6. The process is runnable, collects
+data, and can decide — it cannot trade, and cannot be made to: the execution adapter
+is not written and `Orchestrator.start` refuses LIVE mode outright until
+reconciliation and the safety gate exist.
 
 ```bash
 make up                  # postgres + redis
@@ -107,14 +107,24 @@ make migrate             # apply migrations
 make run                 # discover, stream, persist
 ```
 
-Running it does three things: sweeps the market catalogue on a slow interval,
-folds the live order-book stream for every tracked token, and writes a snapshot
-row per priced book. A health line reports feed liveness, reconnects, dropped
-events and rows written.
+Four supervised tasks:
 
-Worth starting early for one reason: the snapshot history a backtest replays can
+| Task | What it does | Cadence |
+| --- | --- | --- |
+| `discovery` | Sweep the catalogue, classify, validate resolution text, persist | 300 s |
+| `live-games` | Resolve in-play fixtures, read each with its own sport's rules | 20 s |
+| `market-stream` | Fold the book stream, assess quality, persist snapshots | live socket |
+| `health` | Feed liveness, reconnects, drops, snapshot count | 30 s |
+
+Worth running early for one reason: the snapshot history a backtest replays can
 only be gathered in real time. It is the single part of this build that cannot be
 caught up on later.
+
+**What it cannot do is produce a probability.** The decision layer — expected value,
+a 17-check safety gate, position sizing, exposure limits and the journal — is
+finished and tested against *injected* estimates. No model is written, so the system
+can explain in full why it would not trade and cannot yet explain why it would. See
+`docs/STATUS.md`.
 
 Verification scripts, all runnable without credentials:
 
@@ -173,12 +183,17 @@ Five independent layers. Each assumes the others may have failed.
 1. **Resolution validation** — a market is tradeable only when its YES/NO
    conditions, deadline and source are parsed from the resolution text.
    Never inferred from the title.
-2. **Safety gate** (`risk/safety_gate.py`) — 15 mandatory checks, no weighting.
-   An unregistered check counts as a failure; a check that raises counts as a
-   failure.
+2. **Safety gate** (`risk/safety_gate.py`) — **17** mandatory checks, no weighting.
+   An unregistered check counts as a failure, a check that raises counts as a
+   failure, and **a missing input counts as a failure**: every context field
+   defaults to `None`, and `None` fails the check that reads it. A gate whose
+   checks pass for want of an input is worse than no gate, because the journal then
+   records that the checklist ran and approved.
 3. **Risk engine** — capped fractional Kelly with an uncertainty haircut and a
    hard cap. Full Kelly is never used: it is optimal only under a *correct*
-   probability, and ours is an estimate.
+   probability, and ours is an estimate. Exposure is tracked at **cost basis, never
+   mark value** — marking to market frees capacity as a position moves in our
+   favour, concentrating the book exactly when it feels safest.
 4. **Circuit breakers** — halt new entries, never exits. A system that cannot
    reduce risk during a failure is more dangerous than one that keeps trading.
 5. **Reconciliation** — venue state versus local state, on startup, reconnect
@@ -227,7 +242,8 @@ correctly protective gate from one that never fires.
 - [`docs/ADR-0001-sdk-choice.md`](docs/ADR-0001-sdk-choice.md) — why `polymarket-client`
 - [`docs/ADR-0002-market-discovery.md`](docs/ADR-0002-market-discovery.md) — the Gamma constraint
 - [`docs/ADR-0003-venue-rules-vs-thresholds.md`](docs/ADR-0003-venue-rules-vs-thresholds.md) — why exchange rules are code, not config
-- [`docs/POLYMARKET-API-CONFORMANCE.md`](docs/POLYMARKET-API-CONFORMANCE.md) — review against the published API docs, and what it changed
+- [`docs/POLYMARKET-API-CONFORMANCE.md`](docs/POLYMARKET-API-CONFORMANCE.md) — 65 findings against the live venue, including four retractions
+- [`docs/POLYMARKET-SURFACE-AUDIT.md`](docs/POLYMARKET-SURFACE-AUDIT.md) — the venue's full surface (9 hosts, 223 operations) and the method for not misreading it
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — build order
 
 ## Security

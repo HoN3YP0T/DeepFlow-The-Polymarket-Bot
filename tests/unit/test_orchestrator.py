@@ -37,12 +37,13 @@ def _live_settings() -> Settings:
     )
 
 
-async def test_live_mode_is_refused_while_safety_is_unwired() -> None:
+async def test_live_mode_is_refused_while_execution_is_unwired() -> None:
     """The interlock that matters most right now.
 
-    Every settings-level guard can be satisfied and the process still must not
-    start in LIVE, because reconciliation and the safety gate do not exist yet. A
-    process that can trade but cannot establish what it already owns is the one
+    Every settings-level guard can be satisfied and the process still must not start
+    in LIVE. The safety gate and risk engine exist as of Phase 4; the execution
+    adapter and the reconciler do not, and the second is what makes the first unsafe
+    — a process that can trade but cannot establish what it already owns is the one
     configuration this design refuses.
     """
     orchestrator = Orchestrator(settings=_live_settings())

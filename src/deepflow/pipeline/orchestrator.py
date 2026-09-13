@@ -119,8 +119,10 @@ class Orchestrator:
         if self.settings.mode is RunMode.LIVE:
             # Reachable only if someone wires execution without the reconciler.
             raise RuntimeError(
-                "refusing to start in LIVE mode: reconciliation and the safety gate "
-                "are not wired yet (Phase 4-5)"
+                "refusing to start in LIVE mode: no execution adapter and no "
+                "reconciler exist (Phase 5). The safety gate and risk engine are "
+                "implemented, but nothing can submit an order or establish what is "
+                "already owned, and the second is the one that makes the first unsafe"
             )
 
         self._venue = PolymarketSession(self.settings)

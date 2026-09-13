@@ -3,6 +3,23 @@
 The skeleton is step 0. Each step below is independently testable, and the
 ordering is a dependency order — nothing here is optional scaffolding.
 
+**As of 2026-09-13:**
+
+| Phase | State | Note |
+| --- | --- | --- |
+| 1 · Data spine | ✅ complete | verified live end to end by `verify_phase1.py` |
+| 2 · Classification and validation | ✅ complete | 300 live markets, 0 unresolved |
+| 3 · Probability | 3 of 6 | microstructure, per-sport rules and the live-game join done; **no model written** |
+| 4 · EV and safety | ✅ complete | decides in full, on injected probabilities |
+| 5 · Execution | not started | reconciler before the execution adapter, not after |
+| 6 · Positions and intelligence | not started | |
+| 7 · Dashboard | not started | 24 API stubs; frontend is scaffolding |
+| 8 · Validation before live | not started | |
+
+The pipeline is finished at both ends and hollow in the middle: everything up to the
+probability engines works, everything after them works, and the engines themselves
+are stubs. Current state in detail: `docs/STATUS.md`.
+
 ## Phase 1 — Data spine
 
 Verified vertical slice first (`scripts/verify_slice.py`): session → discovery →
