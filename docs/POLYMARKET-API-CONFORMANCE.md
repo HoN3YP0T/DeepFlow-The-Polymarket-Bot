@@ -1047,6 +1047,111 @@ must use `eventStartTime` — the same distinction as §54.
 
 ---
 
+## 58. The spec declares a staging CLOB that does not answer
+
+`clob-openapi.yaml` lists `https://clob-staging.polymarket.com` as a server, and
+`data-openapi.yaml` lists `data-api-rs.stage.pmd.use1.polymarket.sh`. Neither
+resolves: `GET https://clob-staging.polymarket.com/time` fails to connect, where the
+production host returns `200` immediately.
+
+So the earlier finding — no usable staging environment, therefore every verification
+runs against production with real markets — **stands**, and is now better grounded: it
+is not that the venue never mentions staging, it is that what it mentions is not
+reachable. The SDK agrees; `polymarket.environments` exposes `PRODUCTION` only.
+
+Recorded because the spec listing it was nearly written up as a retraction. Checking
+before concluding cuts both ways.
+
+---
+
+## 59. `/clob-markets/{condition_id}` exists, and its keys are abbreviated
+
+An earlier finding recorded that Gamma's `get_market` accepts only `id`, `slug` or
+`url`, so a condition-id lookup required a filtered `list_markets` call. True of
+Gamma — and the CLOB has had a direct one all along.
+
+It returns a terse payload unlike anything else on the venue. Decoded against Gamma
+for the same market (the cricket toss market), every key maps 1:1:
+
+| Key | Gamma field | Example |
+| --- | --- | --- |
+| `gst` | `gameStartTime` | `2026-09-13T13:30:00Z` |
+| `sd` | `secondsDelay` | `1` |
+| `mos` | `orderMinSize` | `5` |
+| `mts` | `orderPriceMinTickSize` | `0.01` |
+| `mbf` / `tbf` | `makerBaseFee` / `takerBaseFee` | `1000` |
+| `ao` | `acceptingOrders` | `true` |
+| `cbos` | `clearBookOnStart` | `true` |
+| `aot` | `acceptingOrdersTimestamp` | `2026-09-06T14:16:21Z` |
+| `fd` | `feeSchedule` | `{"r":0.05,"e":1,"to":true}` |
+| `r` | rewards | `{"mi":50,"ma":4.5,"moas":30}` |
+| `t` | tokens | `[{"t":"<token id>","o":"India"}]` |
+| `c` | `conditionId` | — |
+| `ibce` | (undocumented, `true`) | — |
+
+This is the cheapest single call for everything the order path needs: tick size, min
+order size, delay, fee schedule, accepting-orders, token ids. One caveat — **`fd`
+omits `rebateRate`**, which Gamma reports as `0.15` on the same market, so it is not a
+complete fee schedule.
+
+Two things it confirms about cricket in passing: the toss market has `sd = 1`, so it
+is a *delayed* market and our own `max_seconds_delay = 0` default excludes it; and its
+tick is `0.01`, not `0.001`.
+
+---
+
+## 60. `funded` and `ready` are not tradeability gates
+
+Both read `false` on **100 of 100** open markets that were simultaneously
+`acceptingOrders: true` and `enableOrderBook: true`. Gating discovery on either would
+reject the entire catalogue.
+
+Recorded as a negative result because the names invite exactly that mistake, and
+because a filter that silently rejects everything looks identical to a venue with no
+markets — which is the shape of §53's error.
+
+---
+
+## 61. The Data API publishes its own ingestion lag
+
+`GET data-api.polymarket.com/v2/status` returns a freshness report:
+
+```json
+{"computed_at": "2026-09-13T13:15:30Z", "age_seconds": 11,
+ "serving": {"lag_seconds": 4, "worst": "activity_feed",
+   "mechanisms": [{"name": "activity_feed", "age_seconds": 4},
+                  {"name": "custody_balances", "age_seconds": 0, "blocks_behind": 27},
+                  {"name": "pnl", "age_seconds": 2, "blocks_behind": 2}]},
+ "ingestion": {"cursors": 148, "network": "polygon", "chain_id": 137,
+               "max_synced_block": 93733530}}
+```
+
+`features.assess_quality` measures the age of data against **our** clock only, so a
+Data API that is four seconds behind chain head is invisible to it: trades read from
+it are stale by that much no matter how fresh our timestamps look. Per-mechanism
+`age_seconds` and `blocks_behind` make that measurable rather than assumed, and
+`worst` names the laggard directly.
+
+Not yet wired. Recorded as the correct input to a staleness decision that currently
+has no view of the source's own delay.
+
+---
+
+## 62. `makerBaseFee` and `takerBaseFee` are a constant `1000` and reconcile with nothing
+
+Sampled across 100 open markets: `1000` for both, on every market, regardless of
+`feeType`, while the same markets carry `feeSchedule: {"rate": 0.04, "exponent": 1,
+"takerOnly": true}` (politics) or `0.05` (sports). The CLOB spec types them as bare
+`integer` with no description, and `takerOnly: true` means makers pay nothing at all —
+which a non-zero `makerBaseFee` contradicts outright.
+
+So they are almost certainly an AMM-era remnant. The conclusion is not "they mean bps"
+or "they mean hundredths of bps": it is that **fee arithmetic must keep using
+`feeSchedule`**, and that reading these as a rate in any unit would be a large, silent
+error in the one calculation that decides whether a trade is worth making.
+
+---
+
 ## Confirmed correct
 
 Worth recording, since these were guesses that happened to be right:
@@ -1110,3 +1215,9 @@ curl -sS https://docs.polymarket.com/changelog/predictions.md
 `tests/unit/test_venue.py` pins the fee tables, tick grid and GTD arithmetic
 against the published values, so a venue change surfaces as a test failure
 rather than as a slow bleed in production.
+
+**Read `docs/POLYMARKET-SURFACE-AUDIT.md` first.** It holds the complete inventory
+(9 hosts, 223 operations, 5 WebSocket channels) and `make audit-surface`, which diffs
+raw venue JSON against what the SDK and our domain model can see. Three findings in
+this document were wrong because that diff did not exist; running it is now the step
+before recording that the venue lacks anything.

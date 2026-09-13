@@ -1,5 +1,5 @@
 .PHONY: install test test-integration lint fmt typecheck check verify capture-fixtures \
-	db-local up down migrate run api clean
+	audit-surface db-local up down migrate run api clean
 
 install:
 	python -m venv .venv
@@ -35,6 +35,11 @@ verify:
 	.venv/bin/python scripts/verify_game_join.py
 	.venv/bin/python scripts/verify_short_dated_crypto.py
 	.venv/bin/python scripts/verify_phase1.py
+
+## Diff raw venue JSON against what the SDK and our domain model can see. Read this
+## before recording that the venue lacks a field -- three findings were wrong that way.
+audit-surface:
+	.venv/bin/python scripts/audit_venue_surface.py --verbose
 
 ## Refresh the captured payload corpus. Exits non-zero if the capture would test
 ## less than the committed one -- do not commit a warning capture.
