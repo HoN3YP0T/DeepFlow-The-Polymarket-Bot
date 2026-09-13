@@ -1152,6 +1152,61 @@ error in the one calculation that decides whether a trade is worth making.
 
 ---
 
+## 63. Crypto up/down markets resolve on a Chainlink TWAP, not a price snapshot
+
+From the changelog (7 Aug 2026), found via the docs MCP server:
+
+* Crypto up/down markets resolve using **Chainlink-computed time-weighted average
+  prices**, not a single price at the boundary.
+* **Both** the price to beat and the settlement price come from the TWAP feed.
+* Averaging windows: **5-minute markets use a 30-second lookback; 15-minute and
+  4-hour markets use 60 seconds.**
+* A **4-hour** variant exists, in addition to the 5- and 15-minute ones already found
+  live (§53).
+
+This answers the open question recorded against roadmap item 14 — "which feed (Binance
+spot vs Chainlink TWAP 30/60 s) does each market settle against?" — and the answer
+means a `Btc5mEngine` priced off Binance spot would be mispriced by the basis between
+spot and a 30-second Chainlink average, at exactly the horizon where that basis is the
+whole edge.
+
+Symbol formats differ by source and are not interchangeable: Binance takes
+`btcusdt`, `ethusdt`, `solusdt`, `xrpusdt`; Chainlink takes `btc/usd`, `eth/usd`,
+`sol/usd`, `xrp/usd`. Note the live venue runs the cadence on eight assets (§53),
+more than either list covers.
+
+---
+
+## 64. Sports limit orders are cancelled automatically at game start — and may not be
+
+Documented behaviour, and the counterpart to the `clearBookOnStart` flag the surface
+audit surfaced:
+
+> Outstanding limit orders are **automatically cancelled** once the game begins,
+> clearing the order book at the official start time. However, game start times can
+> shift — if a game starts earlier than scheduled, orders may not be cleared in time.
+
+Two consequences. Any folded book state held across the start boundary is stale by
+construction, because the venue empties the book there. And the guarantee is
+best-effort: an early start can leave a resting order live into a game in progress,
+which is the one case a pre-game price was never meant to survive. Resting orders into
+a start time therefore need cancelling by us, not by the venue.
+
+---
+
+## 65. The documented pagination maximum is wrong
+
+`/events/keyset` documents `limit` as "Maximum number of results to return (max 500)".
+Measured: requesting 100, 200 and 500 returns **100 every time**. The server caps at
+100 regardless of what the spec claims, which confirms the earlier finding of a
+100-item page cap and contradicts the published figure.
+
+Recorded because the direction matters: a caller trusting the spec would size its
+sweep at 500, silently receive a fifth of it, and conclude the venue had fewer markets
+than it does. That is the mechanism behind §53.
+
+---
+
 ## Confirmed correct
 
 Worth recording, since these were guesses that happened to be right:

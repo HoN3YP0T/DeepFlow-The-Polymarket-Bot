@@ -1,7 +1,7 @@
 # Status and handover
 
 **As of:** 2026-09-13 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· 21 commits · **418 tests passing, 0 skipped** · **99 stubs remain** · 62 findings recorded
+· 22 commits · **418 tests passing, 0 skipped** · **99 stubs remain** · 65 findings recorded
 
 An earlier version of this line read "395 tests green" while 30 of those were
 integration tests **skipped** for want of a database — a skipped test reporting as
@@ -284,7 +284,7 @@ Sports engines are no longer blocked (§5). The join is built and verified; what
 still need is a probability model, which is Phase 3 work resting on Phase 4's EV
 arithmetic.
 
-Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (62 findings).
+Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (65 findings).
 Venue surface map and the method for not misreading it:
 `docs/POLYMARKET-SURFACE-AUDIT.md` — 9 hosts, 223 operations, plus
 `make audit-surface`, which diffs raw venue JSON against what our code can see.

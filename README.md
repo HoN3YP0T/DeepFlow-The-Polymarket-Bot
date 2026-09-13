@@ -126,7 +126,8 @@ Verification scripts, all runnable without credentials:
 | `scripts/verify_short_dated_crypto.py` | 5-minute crypto windows exist and classify as `BTC_5M` |
 | `scripts/verify_phase1.py` | the whole chain, including persistence and staleness |
 
-`make audit-surface` diffs raw venue JSON against what the SDK and our domain model
+The docs MCP server is configured in `.mcp.json` as `polymarket-docs` — use it for
+intent and semantics. `make audit-surface` diffs raw venue JSON against what the SDK and our domain model
 can see — run it before concluding the venue lacks a field. `make verify` runs all
 five verification scripts. `make capture-fixtures` refreshes the captured payload
 corpus the sports tests read.

@@ -99,9 +99,11 @@ can ever trade — see `docs/POLYMARKET-API-CONFORMANCE.md` §36-38.
     five minutes across eight assets, plus a 15-minute variant, so the cadence
     question is answered as *both* (§53). Classification now reaches `BTC_5M` via the
     venue's own `5M` tag and a correctly measured contest window (§54–55). What
-    remains is the model: reference price handling is the whole problem, and which
-    feed (Binance spot vs Chainlink TWAP 30/60 s) each market settles against still
-    has to be read from its resolution text
+    remains is the model. The feed question is answered (§63): these markets resolve
+    on a **Chainlink TWAP**, with a 30-second lookback for 5-minute markets and 60
+    seconds for 15-minute and 4-hour ones, and both the price to beat and the
+    settlement price come from that feed — so pricing off Binance spot would be wrong
+    by the spot-to-TWAP basis at precisely the horizon where that basis is the edge
 15. Calibration fitting (`BaseProbabilityEngine._calibrate`)
 
 **Done when:** engines produce calibrated probabilities and abstain correctly
