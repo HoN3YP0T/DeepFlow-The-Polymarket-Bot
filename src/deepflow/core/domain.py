@@ -589,6 +589,27 @@ class Position(Frozen):
         return (mark_price - self.average_entry_price) * self.shares
 
 
+class ClosedFill(Frozen):
+    """What a position reduction actually achieved.
+
+    Separate from the :class:`ExitDecision` that asked for it because the two disagree
+    routinely: the intended fraction and the filled fraction are different numbers, and
+    a book that could not absorb the whole size produces a partial close that still
+    leaves a position to manage. Recording only the intent makes a partial exit
+    invisible.
+    """
+
+    shares: Decimal = Field(gt=0)
+    """Shares actually closed. Never zero -- a fill of nothing is ``None``, not a
+    :class:`ClosedFill` with a zero, so no caller can treat "did not fill" as "filled"."""
+
+    price: Decimal = Field(gt=0, le=1)
+    """The price they closed at, which is what realized P&L is computed from -- not the
+    quote that prompted the exit."""
+
+    fees_usdc: Decimal = Decimal(0)
+
+
 class ExitDecision(Frozen):
     """Output of the exit engine. Section 9."""
 

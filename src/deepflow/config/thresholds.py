@@ -308,6 +308,68 @@ class CircuitBreakerThresholds(BaseModel):
     """Breakers latch. A human decides when the cause is actually fixed."""
 
 
+class ExitThresholds(BaseModel):
+    """Section 9. The noise band, and how far a position must move to be believed.
+
+    Every number here exists to answer one question: has the position changed, or has
+    the book merely wobbled? Exiting on a wobble pays the spread twice and turns a
+    positive-EV trade into a realized loss, repeatedly -- and at the prices this system
+    trades (0.85-0.98) the spread is a large fraction of the whole edge.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    noise_band: Decimal = Field(default=Decimal("0.03"), gt=0, le=1)
+    """Adverse probability move treated as noise by default.
+
+    3 points at 0.94 is roughly half the distance to 0.90, and on a thin outcome book a
+    single impatient seller moves it that far. Scaled per market by realized volatility
+    rather than used raw -- see ``volatility_multiple``."""
+
+    volatility_multiple: Decimal = Field(default=Decimal(2), gt=0)
+    """Band as a multiple of the market's own realized volatility, when it is measured.
+
+    A fixed band is too tight on a 5-minute BTC market and far too loose on a settled
+    football market, so the measured band wins when available. ``None`` volatility falls
+    back to ``noise_band`` rather than to zero: an unmeasured volatility must not make
+    every tick significant."""
+
+    min_noise_band: Decimal = Field(default=Decimal("0.01"), gt=0, le=1)
+    max_noise_band: Decimal = Field(default=Decimal("0.15"), gt=0, le=1)
+    """Bounds on the scaled band. A volatility estimate near zero would otherwise make
+    the band vanish and every tick a trigger; a spike would make it so wide that a real
+    state change reads as noise."""
+
+    full_exit_score: int = Field(default=70, ge=0, le=100)
+    partial_exit_score: int = Field(default=40, ge=0, le=100)
+    """Score at which deterioration stops being tolerable. Two thresholds rather than
+    one because the middle band has a genuinely different answer: reduce size, keep the
+    thesis."""
+
+    partial_exit_fraction: Decimal = Field(default=Decimal("0.5"), gt=0, le=1)
+    """How much of the position a PARTIAL_EXIT closes."""
+
+    add_min_probability_gain: Decimal = Field(default=Decimal("0.02"), gt=0, le=1)
+    """Model improvement required before adding. Adding is a new trade and goes through
+    the same risk limits as an entry, so the bar is a real edge, not a flat tick."""
+
+    late_window_seconds: int = Field(default=300, ge=0)
+    late_window_band_multiple: Decimal = Field(default=Decimal("0.5"), gt=0, le=1)
+    """Inside this many seconds of resolution the band tightens by this multiple.
+
+    Close to resolution a small adverse move is far more informative than the same move
+    an hour earlier: there is less time left for it to mean-revert, and less time for the
+    thesis to be right. The same 2-point drop is noise at 60 minutes and a warning at 60
+    seconds."""
+
+    emergency_exit_uses_market_order: bool = True
+    """A verified state change exits at market.
+
+    The thesis is void, so the risk of not getting out dominates the cost of crossing
+    the spread -- which is the opposite of the trade-off everywhere else in this
+    system."""
+
+
 class Thresholds(BaseModel):
     """Root of the tunable tree."""
 
@@ -323,4 +385,5 @@ class Thresholds(BaseModel):
     cross_market: CrossMarketThresholds = CrossMarketThresholds()
     risk: RiskLimits = RiskLimits()
     execution: ExecutionThresholds = ExecutionThresholds()
+    exits: ExitThresholds = ExitThresholds()
     breakers: CircuitBreakerThresholds = CircuitBreakerThresholds()

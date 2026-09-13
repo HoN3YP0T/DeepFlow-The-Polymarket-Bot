@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from decimal import Decimal
 from typing import Protocol, runtime_checkable
 
-from deepflow.core.domain import OrderIntent, OrderRecord, Position
+from deepflow.core.domain import ClosedFill, OrderIntent, OrderRecord, Position
 from deepflow.core.types import OrderId
 
 
@@ -57,6 +57,31 @@ class AccountPort(Protocol):
     async def get_collateral_balance(self) -> Decimal: ...
 
     async def list_positions(self) -> Sequence[Position]: ...
+
+
+@runtime_checkable
+class PositionCloserPort(Protocol):
+    """Reduces or closes an existing position.
+
+    Narrow on purpose. The position manager's job is position *state* -- what is held,
+    what it is worth, what should happen to it -- and giving it the whole execution
+    engine would drag tick grids, fee schedules and order typing into a class that
+    should not know about any of them. This is the one verb it needs.
+
+    ``urgent`` is the emergency path: the caller has established that the thesis is void,
+    so crossing the spread costs less than staying in. Everywhere else in this system
+    the trade-off runs the other way, which is why it is an explicit argument rather
+    than a judgement made inside the implementation.
+
+    Returns the shares actually closed and the price they closed at, or ``None`` when
+    nothing closed. ``None`` is not a failure to report upward -- a partial or absent
+    fill is normal -- but it must never be reported as a full close, because the
+    position is still open and still needs watching.
+    """
+
+    async def close(
+        self, position: Position, *, fraction: Decimal, urgent: bool = False
+    ) -> ClosedFill | None: ...
 
 
 @runtime_checkable
