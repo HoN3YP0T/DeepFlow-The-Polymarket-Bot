@@ -181,7 +181,14 @@ is tested against injected probabilities, which is the honest scope: the arithme
 and the refusals are verifiable today, the models are not.
 
 ## Phase 5 — Execution
-21. `OrderManager` — uncertain-outcome handling first, before the happy path
+21. ~~`OrderManager`~~ **done** — the uncertain path first: an `ExecutionUncertainError`
+    ends submission immediately as `UNKNOWN`, with no retry, because a timeout means
+    the order *may* be live. Only a definitive rejection retries. A reprice submits
+    the unfilled **remainder** under a **fresh client key**, and only after the
+    cancellation is confirmed. Two bugs found while building it: reprice re-entered
+    the working loop with the attempt counter reset (bounded nothing, recursed
+    forever), and the poll loop trusted the clock alone — a stopped clock would have
+    polled an order indefinitely, so it now has a poll budget as well
 22. `ExecutionEngine`, `PaperExecutor`
 23. `Reconciler`
 24. `CircuitBreakerRegistry` wired to real triggers
