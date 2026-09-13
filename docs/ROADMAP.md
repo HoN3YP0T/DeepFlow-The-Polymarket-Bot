@@ -47,8 +47,14 @@ when the clock is advanced past the budget.
    47% VALID, 36% AMBIGUOUS, 17% UNPARSEABLE
 9. ~~`DiscoveryService` — lifecycle transitions and rejection journalling~~
    **done** — sweeps are idempotent, every transition and refusal is journalled with
-   its reason, and nothing advances past `CLASSIFIED` because the validator does not
-   exist yet. Live: 400 markets, 393 classified, 7 rejected (1.8%)
+   its reason, and `CLASSIFIED → VALIDATED → MONITORED` runs as two separate edges so
+   "rules read and accepted" is recorded distinctly from "we are watching it". Live:
+   400 markets, 393 classified, 7 rejected (1.8%); on a second run against a real
+   database, 300 markets → 161 monitored, 139 rejected, 0 unresolved.
+
+   *(This entry previously ended "nothing advances past `CLASSIFIED` because the
+   validator does not exist yet" — written before item 8 landed and left standing
+   after it did.)*
 
 **Done when:** every discovered market reaches `MONITORED` or a documented
 rejection.
