@@ -1,7 +1,7 @@
 # Status and handover
 
 **As of:** 2026-09-13 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· 24 commits · **474 tests passing, 0 skipped** · **96 stubs remain** · 65 findings recorded
+· 25 commits · **495 tests passing, 0 skipped** · **92 stubs remain** · 65 findings recorded
 
 An earlier version of this line read "395 tests green" while 30 of those were
 integration tests **skipped** for want of a database — a skipped test reporting as

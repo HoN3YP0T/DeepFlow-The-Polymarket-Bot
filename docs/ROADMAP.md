@@ -137,7 +137,14 @@ to check `sets_won_by_each_player` against.
     are pure functions over a `GateContext`; **a missing input fails the check that
     reads it**, so a context assembled by a forgetful caller refuses and names the
     gap rather than approving. `default_gate()` registers all 17
-19. `RiskEngine`, `ExposureTracker` (correlation grouping included)
+19. ~~`RiskEngine`, `ExposureTracker`~~ **done** — six independent vetoes in a fixed
+    order, portfolio stops before sizing so a system in drawdown never computes a
+    position size; a rejection still reports the stake it *would* have taken, which
+    is the only record of whether a limit binds meaningfully or strangles everything.
+    Correlation grouping is three tiers (explicit key → shared event → the market
+    itself), and an unknown market is its own group rather than pooled or exempt.
+    Exposure is cost basis, never mark value: marking to market frees capacity as a
+    position moves in our favour, concentrating the book exactly when it feels safest
 20. `JournalRecorder`
 
 **Done when:** the system produces signals and rejections with full reasoning,
