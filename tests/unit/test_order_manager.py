@@ -75,7 +75,7 @@ class _Venue:
         self.cancel_result = cancel_result
         self.submits: list[OrderIntent] = []
         self.cancels: list[OrderId] = []
-        self.lookups: list[ClientOrderKey] = []
+        self.lookups: list[OrderIntent] = []
 
     async def submit(self, intent: OrderIntent) -> OrderRecord:
         self.submits.append(intent)
@@ -104,8 +104,8 @@ class _Venue:
             return self.poll_results.pop(0)
         return _record(OrderStatus.OPEN)
 
-    async def find_by_client_key(self, key: ClientOrderKey) -> OrderRecord | None:
-        self.lookups.append(key)
+    async def find_by_intent(self, intent: OrderIntent) -> OrderRecord | None:
+        self.lookups.append(intent)
         return self.existing
 
     async def list_open_orders(self) -> list[OrderRecord]:
@@ -203,7 +203,7 @@ async def test_a_failed_duplicate_check_does_not_halt_trading() -> None:
     """
 
     class _Failing(_Venue):
-        async def find_by_client_key(self, key: ClientOrderKey) -> OrderRecord | None:
+        async def find_by_intent(self, intent: OrderIntent) -> OrderRecord | None:
             raise RuntimeError("lookup unavailable")
 
     venue = _Failing()

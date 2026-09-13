@@ -21,10 +21,9 @@ from enum import StrEnum
 from typing import Final
 
 from deepflow.core.clock import Clock, SystemClock
-from deepflow.core.domain import OrderRecord
+from deepflow.core.domain import OrderIntent, OrderRecord
 from deepflow.core.enums import OrderStatus
 from deepflow.core.logging import get_logger
-from deepflow.core.types import ClientOrderKey
 from deepflow.ports.execution import AccountPort, ExecutionPort
 from deepflow.ports.repository import UnitOfWork
 
@@ -319,7 +318,7 @@ class Reconciler:
         except Exception:
             log.warning("reconcile.persist_failed", exc_info=True)
 
-    async def resolve_uncertain_order(self, client_key: str) -> UncertainResolution:
+    async def resolve_uncertain_order(self, intent: OrderIntent) -> UncertainResolution:
         """Determine whether an uncertain submission actually executed.
 
         The single most important routine in the execution path. It runs before
@@ -337,9 +336,15 @@ class Reconciler:
         It answers one question and lets the caller act, because an answer that also
         acts cannot be reused by reconciliation, the order manager and a human
         operator alike.
+
+        Takes the whole intent rather than a key because the venue has no notion of
+        our client key -- see :meth:`ExecutionPort.find_by_intent`. Resolving an
+        uncertain order means matching the intent's own fields against what the venue
+        is working, so the fields have to be in hand.
         """
+        client_key = str(intent.client_key)
         try:
-            found = await self._execution.find_by_client_key(ClientOrderKey(client_key))
+            found = await self._execution.find_by_intent(intent)
         except Exception as exc:
             log.error("reconcile.uncertain_lookup_failed", client_key=client_key, detail=str(exc))
             return UncertainResolution(

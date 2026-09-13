@@ -14,8 +14,8 @@ from decimal import Decimal
 import pytest
 
 from deepflow.core.clock import ManualClock
-from deepflow.core.domain import OrderRecord, Position
-from deepflow.core.enums import OrderStatus
+from deepflow.core.domain import OrderIntent, OrderRecord, Position
+from deepflow.core.enums import OrderSide, OrderStatus, OrderType
 from deepflow.core.types import (
     ClientOrderKey,
     ClobTokenId,
@@ -31,6 +31,19 @@ from deepflow.execution.reconciliation import (
 
 NOW = datetime(2026, 9, 13, 12, 0, tzinfo=UTC)
 KEY = "k1"
+
+# The venue indexes no client key (finding 66), so a lookup is by intent: the
+# fingerprint the key is itself derived from.
+INTENT = OrderIntent(
+    client_key=ClientOrderKey(KEY),
+    condition_id=ConditionId("0xabc"),
+    token_id=ClobTokenId("1"),
+    side=OrderSide.BUY,
+    order_type=OrderType.LIMIT,
+    size_shares=Decimal(100),
+    limit_price=Decimal("0.95"),
+    max_slippage_bps=Decimal(50),
+)
 
 
 def _order(status: OrderStatus, *, key: str = KEY, filled: str = "0") -> OrderRecord:
@@ -74,7 +87,7 @@ class _Venue:
     async def get_order(self, order_id: OrderId) -> OrderRecord | None:
         return None
 
-    async def find_by_client_key(self, key: ClientOrderKey) -> OrderRecord | None:
+    async def find_by_intent(self, intent: OrderIntent) -> OrderRecord | None:
         if self._raises:
             raise self._raises
         return self._found
@@ -177,7 +190,7 @@ def _reconciler(venue: _Venue, account: _Account, repo: _Repo) -> Reconciler:
 async def test_only_a_positive_absence_permits_a_retry() -> None:
     """The venue does not have it, so a fresh intent cannot duplicate anything."""
     resolution = await _reconciler(_Venue(found=None), _Account(), _Repo()).resolve_uncertain_order(
-        KEY
+        INTENT
     )
     assert resolution.outcome is UncertainOutcome.ABSENT
     assert resolution.safe_to_reintend
@@ -191,7 +204,7 @@ async def test_a_failed_lookup_forbids_a_retry() -> None:
     ABSENT, and only a missed trade if it is not.
     """
     venue = _Venue(raises=RuntimeError("gateway timeout"))
-    resolution = await _reconciler(venue, _Account(), _Repo()).resolve_uncertain_order(KEY)
+    resolution = await _reconciler(venue, _Account(), _Repo()).resolve_uncertain_order(INTENT)
     assert resolution.outcome is UncertainOutcome.UNRESOLVED
     assert not resolution.safe_to_reintend
     assert "lookup failed" in resolution.detail
@@ -206,7 +219,7 @@ async def test_an_order_that_did_something_forbids_a_retry(status: OrderStatus) 
     """MATCHED_UNSETTLED counts: the trade exists even before settlement confirms,
     so re-intending would duplicate a position that is already probable."""
     venue = _Venue(found=_order(status, filled="40"))
-    resolution = await _reconciler(venue, _Account(), _Repo()).resolve_uncertain_order(KEY)
+    resolution = await _reconciler(venue, _Account(), _Repo()).resolve_uncertain_order(INTENT)
     assert resolution.outcome is UncertainOutcome.FILLED
     assert not resolution.safe_to_reintend
     assert resolution.record is not None
@@ -215,7 +228,7 @@ async def test_an_order_that_did_something_forbids_a_retry(status: OrderStatus) 
 @pytest.mark.asyncio
 async def test_a_live_order_is_resting_not_absent() -> None:
     venue = _Venue(found=_order(OrderStatus.OPEN))
-    resolution = await _reconciler(venue, _Account(), _Repo()).resolve_uncertain_order(KEY)
+    resolution = await _reconciler(venue, _Account(), _Repo()).resolve_uncertain_order(INTENT)
     assert resolution.outcome is UncertainOutcome.RESTING
     assert not resolution.safe_to_reintend
 
@@ -226,7 +239,7 @@ async def test_a_spent_key_is_not_reported_as_absent(status: OrderStatus) -> Non
     """The order existed and is finished having done nothing — but the key is spent,
     so a re-intend needs a new one and must not reuse this."""
     venue = _Venue(found=_order(status))
-    resolution = await _reconciler(venue, _Account(), _Repo()).resolve_uncertain_order(KEY)
+    resolution = await _reconciler(venue, _Account(), _Repo()).resolve_uncertain_order(INTENT)
     assert resolution.outcome is UncertainOutcome.UNRESOLVED
     assert not resolution.safe_to_reintend
     assert "spent" in resolution.detail
@@ -238,7 +251,7 @@ async def test_resolution_does_not_act() -> None:
     order manager, reconciliation and a human operator alike."""
     repo = _Repo()
     venue = _Venue(found=_order(OrderStatus.FILLED, filled="100"))
-    await _reconciler(venue, _Account(), repo).resolve_uncertain_order(KEY)
+    await _reconciler(venue, _Account(), repo).resolve_uncertain_order(INTENT)
     assert repo.decisions == []
 
 

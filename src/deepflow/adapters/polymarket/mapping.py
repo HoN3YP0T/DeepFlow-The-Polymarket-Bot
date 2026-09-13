@@ -19,8 +19,9 @@ the field names alone do not tell you, both load-bearing:
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Final
 
 from deepflow.adapters.polymarket.sports_feed import SportsFeedEvent
 from deepflow.core.domain import (
@@ -28,11 +29,30 @@ from deepflow.core.domain import (
     FeeSchedule,
     Market,
     OrderBook,
+    OrderRecord,
     Outcome,
+    Position,
     PublicTrade,
 )
-from deepflow.core.enums import OrderSide, OutcomeSide
-from deepflow.core.types import ClobTokenId, ConditionId, EventId
+from deepflow.core.enums import OrderSide, OrderStatus, OutcomeSide
+from deepflow.core.logging import get_logger
+from deepflow.core.types import (
+    ClientOrderKey,
+    ClobTokenId,
+    ConditionId,
+    EventId,
+    OrderId,
+    PositionId,
+)
+
+log = get_logger(__name__)
+
+#: Stand-in for a position the venue reports with no creation time.
+#:
+#: Epoch rather than "now": a position dated now would look freshly opened, and exit
+#: rules that read holding age would treat a long-held position as new. An obviously
+#: wrong date is safer than a plausibly wrong one.
+_EPOCH: Final = datetime(1970, 1, 1, tzinfo=UTC)
 
 
 def _fee_schedule(sdk_schedule: Any) -> FeeSchedule | None:
@@ -166,6 +186,103 @@ def with_event_context(market: Market, sdk_event: Any) -> Market:
         update["tag_ids"] = tuple(_tag_attr(tag, "id") for tag in event_tags)
 
     return market.model_copy(update=update)
+
+
+#: Venue order status -> ours. The venue reports lowercase strings.
+#:
+#: ``delayed`` is the one that must not be collapsed: on a market with a matching
+#: delay an accepted order returns zero fills and no trade ids, which reads as either
+#: a rejection or an unfilled order unless it is carried through as its own state.
+_ORDER_STATUS: Final[dict[str, OrderStatus]] = {
+    "live": OrderStatus.OPEN,
+    "open": OrderStatus.OPEN,
+    "delayed": OrderStatus.DELAYED,
+    "matched": OrderStatus.MATCHED_UNSETTLED,
+    "partially_filled": OrderStatus.PARTIALLY_FILLED,
+    "filled": OrderStatus.FILLED,
+    "canceled": OrderStatus.CANCELLED,
+    "cancelled": OrderStatus.CANCELLED,
+    "unmatched": OrderStatus.CANCELLED,
+    "rejected": OrderStatus.REJECTED,
+}
+
+
+def to_order_status(raw: object, *, filled: Decimal, size: Decimal) -> OrderStatus:
+    """Map a venue status string, falling back to what the fills say.
+
+    An **unrecognised** status becomes ``UNKNOWN`` rather than a guess. A new venue
+    state read as OPEN would leave an order being polled forever; read as FILLED it
+    would book a position that may not exist. ``UNKNOWN`` routes it to reconciliation,
+    which is the only safe destination for a state we do not understand.
+
+    A recognised ``OPEN`` is upgraded to ``PARTIALLY_FILLED`` when the venue reports
+    a non-zero matched size, because "live with 40 of 100 matched" is a partial fill
+    whatever the status field says.
+    """
+    status = _ORDER_STATUS.get(str(raw or "").strip().lower())
+    if status is None:
+        log.warning("mapping.unknown_order_status", status=str(raw))
+        return OrderStatus.UNKNOWN
+    if status is OrderStatus.OPEN and filled > 0:
+        return OrderStatus.FILLED if filled >= size > 0 else OrderStatus.PARTIALLY_FILLED
+    return status
+
+
+def to_order_record(sdk_order: Any, *, client_key: ClientOrderKey | None = None) -> OrderRecord:
+    """Normalize a venue open order into :class:`OrderRecord`.
+
+    ``client_key`` is supplied by the caller because **the venue does not carry
+    one** -- the CLOB accepts no client-supplied order id (see
+    :meth:`deepflow.ports.execution.ExecutionPort.find_by_intent`). Left absent, the
+    venue's own order id stands in, which keeps the record self-describing rather
+    than silently attributing it to the wrong intent.
+
+    ``average_fill_price`` is the order's limit price rather than a true average: an
+    open order exposes ``price``, ``original_size`` and ``size_matched`` and no
+    per-fill detail. Recorded because it is the best available and named here so
+    nobody mistakes it for a realized average -- the realized figure comes from the
+    trade history.
+    """
+    size = Decimal(str(getattr(sdk_order, "original_size", 0) or 0))
+    filled = Decimal(str(getattr(sdk_order, "size_matched", 0) or 0))
+    order_id = getattr(sdk_order, "id", None)
+
+    return OrderRecord(
+        client_key=client_key or ClientOrderKey(str(order_id or "")),
+        order_id=OrderId(str(order_id)) if order_id else None,
+        status=to_order_status(getattr(sdk_order, "status", None), filled=filled, size=size),
+        filled_shares=filled,
+        average_fill_price=(
+            Decimal(str(sdk_order.price)) if getattr(sdk_order, "price", None) else None
+        ),
+        submitted_at=getattr(sdk_order, "created_at", None),
+        updated_at=getattr(sdk_order, "created_at", None),
+    )
+
+
+def to_position(sdk_position: Any) -> Position:
+    """Normalize a venue position.
+
+    ``entry_probability`` is set to the average entry price, which is the same number
+    read as a probability -- a contract bought at 0.95 embeds a 95% implied view. It
+    is *not* the model probability that justified the trade; that lives in the
+    journal, and the venue has no idea it existed.
+    """
+    shares = Decimal(str(getattr(sdk_position, "size", 0) or 0))
+    entry = Decimal(str(getattr(sdk_position, "avg_price", 0) or 0))
+    condition_id = getattr(sdk_position, "condition_id", "") or ""
+    token_id = getattr(sdk_position, "asset", None) or getattr(sdk_position, "asset_id", "") or ""
+
+    return Position(
+        position_id=PositionId(f"{condition_id}:{token_id}"),
+        condition_id=ConditionId(str(condition_id)),
+        token_id=ClobTokenId(str(token_id)),
+        shares=shares,
+        average_entry_price=entry,
+        entry_probability=entry,
+        opened_at=getattr(sdk_position, "created_at", None) or _EPOCH,
+        realized_pnl=Decimal(str(getattr(sdk_position, "realized_pnl", 0) or 0)),
+    )
 
 
 def to_order_book(sdk_book: Any) -> OrderBook:

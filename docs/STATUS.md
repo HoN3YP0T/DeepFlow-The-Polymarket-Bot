@@ -1,7 +1,7 @@
 # Status and handover
 
 **As of:** 2026-09-13 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· 31 commits · **604 tests passing, 0 skipped** · **78 stubs remain** · 65 findings recorded
+· 31 commits · **604 tests passing, 0 skipped** · **72 stubs remain** · 66 findings recorded
 · 109 source files, ~12,500 lines
 
 **Phase 1** complete · **Phase 2** complete · **Phase 3** 3 of 6 · **Phase 4** complete
@@ -251,17 +251,17 @@ is right 0.93 of the time turns a positive edge negative.
 
 ## 5. What is left
 
-**87 stubs**, by area:
+**72 stubs**, by area:
 
 | Area | Stubs | Notable |
 | --- | --- | --- |
-| `adapters/polymarket` | 20 | `execution.py` (10), `data_api.py` (5), `streams.py` (3), `relayer.py` (2) |
+| `adapters/polymarket` | 14 | `execution.py` (4: submit, cancel, cancel_all, heartbeat), `data_api.py` (5), `streams.py` (3), `relayer.py` (2) |
 | `api/routers` + `api` | 24 | Whole dashboard surface: auth, health, overview, positions, risk, strategies, trades, whales, journal, WebSocket |
 | `engines/sports` | 8 | Four engine bodies (football, tennis, cricket, badminton) |
-| `execution` | 7 | `OrderManager` (2), `ExecutionEngine` (3), `Reconciler` (2) |
+| `execution` | 0 | complete — `OrderManager`, `ExecutionEngine`, `Reconciler` all implemented |
 | `positions` | 6 | `PositionManager` (4), `ExitEngine` (2) |
 | `engines` | 6 | `smart_money` (3), `signal` (1), `cross_market` (2) |
-| `modes` | 4 | `paper` (2), `backtest` (2) |
+| `modes` | 2 | `backtest` (2); `paper` complete |
 | `adapters/persistence` | 3 | `SqlPositionRepository` |
 | `adapters/cache` | 3 | `RedisCache` |
 | `engines/geopolitics` + `crypto` + `politics` | 6 | `EventPipeline` (2), `Btc5mEngine` (2), the engine bodies |
@@ -356,7 +356,7 @@ is the point of having built it first.
 
 ---
 
-Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (65 findings).
+Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (66 findings).
 Venue surface map and the method for not misreading it:
 `docs/POLYMARKET-SURFACE-AUDIT.md` — 9 hosts, 223 operations, plus
 `make audit-surface`.

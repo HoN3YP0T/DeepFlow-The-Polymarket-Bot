@@ -7,7 +7,7 @@ from decimal import Decimal
 from typing import Protocol, runtime_checkable
 
 from deepflow.core.domain import OrderIntent, OrderRecord, Position
-from deepflow.core.types import ClientOrderKey, OrderId
+from deepflow.core.types import OrderId
 
 
 @runtime_checkable
@@ -29,9 +29,22 @@ class ExecutionPort(Protocol):
 
     async def get_order(self, order_id: OrderId) -> OrderRecord | None: ...
 
-    async def find_by_client_key(self, key: ClientOrderKey) -> OrderRecord | None:
+    async def find_by_intent(self, intent: OrderIntent) -> OrderRecord | None:
         """Resolve an uncertain submission. This is how the system decides
-        whether a timed-out order actually landed, before any retry."""
+        whether a timed-out order actually landed, before any retry.
+
+        Takes the **intent**, not the client key, and the reason is a venue fact
+        rather than a preference: Polymarket's CLOB accepts no client-supplied order
+        id. ``client_order_id`` exists on the perps API and nowhere else, the order
+        creation call has no such parameter, and an open order comes back carrying
+        only the venue's own id. So the client key is a purely local fingerprint --
+        the venue has never seen it and cannot be asked about it.
+
+        What an implementation can do is recompute the fingerprint's *material* --
+        token, side, price, size, and the time bucket -- and match that against the
+        orders the venue is working. The intent carries all of it; the key, being a
+        hash, carries none of it recoverably.
+        """
         ...
 
     async def list_open_orders(self) -> Sequence[OrderRecord]: ...

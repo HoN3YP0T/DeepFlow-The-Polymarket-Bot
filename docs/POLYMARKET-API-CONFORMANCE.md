@@ -1205,6 +1205,37 @@ Recorded because the direction matters: a caller trusting the spec would size it
 sweep at 500, silently receive a fifth of it, and conclude the venue had fewer markets
 than it does. That is the mechanism behind §53.
 
+## 66. The CLOB accepts no client-supplied order id
+
+`ExecutionPort.find_by_client_key(key)` could not be implemented, and the reason is
+a venue fact rather than an SDK gap:
+
+- `create_limit_order` / `create_market_order` take no client-id parameter.
+- `OpenOrder` returns only the venue's own `id`; there is no field our key could
+  come back in.
+- `client_order_id` exists **only on the perps API**, which is a different venue
+  surface and not one this system trades.
+- The signed order's `metadata` bytes32 is neither indexed nor echoed, and
+  `_order_contents_hash` is private to the SDK.
+
+So the idempotency key is ours alone: the venue never sees it and cannot be asked
+about it. The port therefore became
+`find_by_intent(intent: OrderIntent) -> OrderRecord | None`, matching on the
+material the key is itself derived from — token id, side, **exact** price, **exact**
+size — read back off the open-order set (`_matches_intent` in
+`adapters/polymarket/execution.py`).
+
+Two consequences worth stating, because they are now load-bearing:
+
+1. **Two identical intents inside one idempotency window are indistinguishable at
+   the venue.** A scale-in at the same price must pass an explicit salt, which is
+   what `execution.engine.build_intent(..., salt=...)` is for.
+2. **Absence from the open set is not proof the order never existed.** A filled or
+   cancelled order is not "open". The reconciler pairs the lookup with a position
+   read for exactly this reason — an order that filled between our request and the
+   lookup appears as inventory, not as a working order. This is why only
+   `UncertainOutcome.ABSENT` permits a re-intend.
+
 ---
 
 ## Confirmed correct

@@ -14,7 +14,7 @@ mistakes are not made a fourth time.
 | Question | File |
 | --- | --- |
 | What is done, what is left, what broke and was fixed | `docs/STATUS.md` — **start here** |
-| What the venue actually does (65 findings, 4 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
+| What the venue actually does (66 findings, 4 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
 | The venue's full surface + the method for not misreading it | `docs/POLYMARKET-SURFACE-AUDIT.md` |
 | Build order, per-phase state | `docs/ROADMAP.md` |
 | Module map, dependency rule, data flow | `docs/ARCHITECTURE.md` |
@@ -146,7 +146,7 @@ exchange rules, imports nothing, and any layer may import it (ADR-0003).
   implemented — that has happened twice (`is_modellable`, `sports_feed`).
 - **Dead code gets deleted, not justified.** Five constants were once kept alive by a
   circular argument.
-- **Stubs raise `NotImplementedError`**, never return a plausible default. 87 remain
+- **Stubs raise `NotImplementedError`**, never return a plausible default. 72 remain
   and the count is a tracked figure in `docs/STATUS.md`.
 
 ## Current shape of the work

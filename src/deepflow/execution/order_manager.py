@@ -233,7 +233,7 @@ class OrderManager:
         a venue hiccup into a halt.
         """
         try:
-            found = await self._execution.find_by_client_key(intent.client_key)
+            found = await self._execution.find_by_intent(intent)
         except Exception:
             log.warning("order.duplicate_check_failed", client_key=str(intent.client_key))
             return None
