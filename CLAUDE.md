@@ -14,7 +14,7 @@ mistakes are not made a fourth time.
 | Question | File |
 | --- | --- |
 | What is done, what is left, what broke and was fixed | `docs/STATUS.md` — **start here** |
-| What the venue actually does (70 findings, 4 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
+| What the venue actually does (74 findings, 4 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
 | The venue's full surface + the method for not misreading it | `docs/POLYMARKET-SURFACE-AUDIT.md` |
 | Build order, per-phase state | `docs/ROADMAP.md` |
 | Module map, dependency rule, data flow | `docs/ARCHITECTURE.md` |
@@ -45,9 +45,12 @@ their result depends on what is trading right now.
 ## Hard rules
 
 1. **Never make LIVE mode reachable.** `Orchestrator.start` raises on
-   `RunMode.LIVE` before constructing anything. There is no execution adapter and no
-   reconciler; a process that can trade but cannot establish what it already owns is
-   the one configuration this design refuses.
+   `RunMode.LIVE` before constructing anything. As of Phase 5 the reason is no longer
+   missing plumbing — the adapter, reconciler and breakers all exist. It is that **no
+   probability model exists**, so the decision layer runs on injected estimates, and
+   that **no order has ever been submitted to this venue**, so every write path is
+   unverified against it. Both reasons are stated in the refusal and pinned by a test;
+   if you change one, change the message.
 2. **Never weaken a fail-closed default.** An unregistered safety check fails, a
    check that raises fails, and a check whose input is `None` fails. A gate that
    passes for want of an input is worse than no gate, because the journal then
@@ -95,6 +98,18 @@ the venue lacks anything, run `make audit-surface` and paste what it returned.
   markets accepting orders (§60).
 - **Documented pagination maxima are wrong.** `/events/keyset` says `limit` up to
   500; the server caps at 100 (§65). A sweep sized at 500 silently receives a fifth.
+- **A rejected order is a *return value*** (`AcceptedOrder | RejectedOrder`, read `ok`),
+  and the venue sends `"success": true` alongside an `errorMsg` for a post-only refusal
+  (§74). Catching exceptions only reads every rejection as a live order.
+- **`"context canceled"` comes back as 400** — a dropped request wearing the status that
+  means "definitively refused" (§71). Test the message before the status, or the retry
+  duplicates the position.
+- **`place_limit_order` hides an on-chain approval and a re-post** (§73). Use `create_*`
+  + `post_order`: approvals belong to the relayer at startup, retries to the order
+  manager.
+- **A BUY's filled shares are `takingAmount`; a SELL's are `makingAmount`** (§74), both
+  in 6-decimal fixed math. One reading is right half the time and off by `1 / price` the
+  rest.
 - **The book is cleared when a contest starts**, best-effort — an early start can
   leave a resting order live into play (§64). Any folded state held across that
   boundary is stale.
@@ -137,7 +152,7 @@ adapters/     polymarket/ (SDK, venue rules, streams, games, mapping), persisten
 pipeline/     discovery, classifier, resolution, features, orchestrator
 engines/      ev, microstructure, sports/{rules,models}, crypto, politics, geopolitics
 risk/         safety_gate (17 checks), limits (RiskEngine), exposure, sizing
-execution/    order manager, reconciliation           ← Phase 5, stubs
+execution/    order manager, reconciliation, engine  ← complete; venue writes unverified
 positions/    manager, exit engine                    ← Phase 6, stubs
 journal/      recorder
 api/          FastAPI routers                         ← Phase 7, stubs
@@ -160,12 +175,12 @@ exchange rules, imports nothing, and any layer may import it (ADR-0003).
   implemented — that has happened twice (`is_modellable`, `sports_feed`).
 - **Dead code gets deleted, not justified.** Five constants were once kept alive by a
   circular argument.
-- **Stubs raise `NotImplementedError`**, never return a plausible default. 72 remain
+- **Stubs raise `NotImplementedError`**, never return a plausible default. 66 remain
   and the count is a tracked figure in `docs/STATUS.md`.
 
 ## Current shape of the work
 
-Phases 1, 2 and 4 complete; Phase 3 is 3 of 6; Phases 5–8 not started.
+Phases 1, 2, 4 and 5 complete; Phase 3 is 3 of 6; Phases 6–8 not started.
 
 **The pipeline is finished at both ends and hollow in the middle.** Discovery,
 classification, streaming, the live-game join, EV, the 17-check gate, risk, exposure

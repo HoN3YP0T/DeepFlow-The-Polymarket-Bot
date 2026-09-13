@@ -120,12 +120,18 @@ class Orchestrator:
             not_yet_wired=list(NOT_YET_WIRED),
         )
         if self.settings.mode is RunMode.LIVE:
-            # Reachable only if someone wires execution without the reconciler.
+            # The interlock stands, but the reason has changed and saying the old one
+            # would be a lie: the execution adapter, the reconciler and the breakers
+            # all exist now. Two things still make LIVE indefensible, and neither is
+            # about plumbing.
             raise RuntimeError(
-                "refusing to start in LIVE mode: no execution adapter and no "
-                "reconciler exist (Phase 5). The safety gate and risk engine are "
-                "implemented, but nothing can submit an order or establish what is "
-                "already owned, and the second is the one that makes the first unsafe"
+                "refusing to start in LIVE mode. (1) No probability model exists, so "
+                "the decision layer runs on injected estimates: the system can explain "
+                "why it would not trade and cannot yet explain why it would. (2) No "
+                "order has ever been submitted to this venue -- submit, cancel, "
+                "cancel_all, the order heartbeat and the relayer are written from the "
+                "published spec and unverified against it, and the first live "
+                "submission is their first test. Reads are verified; writes are not"
             )
 
         self._venue = PolymarketSession(self.settings)

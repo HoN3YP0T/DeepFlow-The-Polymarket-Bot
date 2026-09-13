@@ -1360,6 +1360,112 @@ the type `create` accepts is `polymarket.auth.ApiKey = BuilderApiKey | RelayerAp
 Nothing read exercises it — approvals, redemptions, splits and merges are all writes.
 It is configured, not confirmed.
 
+## 71. `"context canceled"` is returned as 400 — a dropped request dressed as a refusal
+
+From the CLOB's own error reference:
+
+> The CLOB API has an internal override: any error message containing `"not found"`
+> returns `404`, `"unauthorized"` returns `401`, and `"context canceled"` returns
+> `400`, regardless of the original status code.
+
+The third one is dangerous in a specific way. A cancelled context means the request was
+dropped mid-flight — **the single case that must never be retried**, because the order
+may well have reached the book. It arrives with the status this system uses to mean
+"definitively refused, safe to re-send". Read at face value, the retry is a duplicate
+position.
+
+`_translate_write` therefore tests the message for `"context canceled"` *before* any
+status test, and everything it cannot positively classify falls through to
+`ExecutionUncertainError`. Cost of being wrong in that direction: a missed trade. Cost
+of the other: two positions where one was intended.
+
+The `"not found"` override is the benign half of the same behaviour, and is why
+`_is_not_found` matches on text as well as on 404.
+
+## 72. The CLOB order heartbeat exists and the SDK does not wrap it
+
+`POST /v1/heartbeats` is the order dead-man's switch: send an empty `heartbeat_id` to
+arm, then echo the id each response returns, every 5 s. If no valid heartbeat arrives
+within 10 s the venue cancels every open order owned by those CLOB credentials (swept
+every 5 s, so cancellation can lag the timeout by up to 5 s more). An invalid or expired
+id comes back as 400 **carrying the expected id**, so the recovery is to adopt it.
+
+`AsyncSecureClient` has no heartbeat method. Every `heartbeat` in the SDK is a WebSocket
+keepalive (`_internal/ws/heartbeat.py` and the per-stream variants), and the perps
+`PATCH /v1/trade/auto-cancel` dead-man's switch is a different venue surface that does
+not cover CLOB orders.
+
+So it is posted through `client._ctx.secure_clob.post_json(...)` — private SDK surface,
+and the right route rather than a shortcut: the L2 HMAC signature must cover the *exact*
+serialized body, and that transport's header resolver already signs
+`(method, path, body)` with the derived CLOB credentials. Hand-rolling the signing is how
+a heartbeat 400s forever while the operator believes orders are protected. The access is
+isolated in `_clob_transport()` so an SDK move fails with an explanation instead of an
+`AttributeError` inside a loop whose only symptom is a warning every five seconds.
+
+Note the path carries a `/v1` prefix where most CLOB routes in this SDK are unversioned.
+
+## 73. `place_limit_order` hides an on-chain approval and a re-post
+
+`place_limit_order` and `place_market_order` are `create_*` followed by
+`post_order_with_allowance_recovery`, which on a **400 allowance rejection** submits an
+approval transaction (`approve_erc20` / `approve_erc1155_for_all`, awaited) and then
+**posts the order again**.
+
+The re-post is not a duplication risk — the rejection it triggers on is definitive — but
+both halves are wrong for this system:
+
+- **Approvals are the relayer's explicit job**, run once at startup where a failure is
+  legible, not a side effect of the first trade. A submission path that quietly spends
+  gas does something the journal does not record.
+- **Retry policy belongs to the order manager**, whose rule is that only a definitively
+  refused order may be re-sent, under a fresh key. A retry buried in the SDK is
+  invisible to that rule even when it happens to obey it.
+
+`submit` therefore calls `create_*` then `post_order` — the same request minus the
+hidden recovery — and the unit fake raises if either one-call helper is touched.
+
+Two related facts found alongside: `setup_trading_approvals` returns a **deprecated**
+handle whose `wait()` returns immediately, so it proves nothing about what landed on
+chain (the relayer re-reads `get_trading_approvals_state` instead); and
+`redeem_positions` accepts **exactly one** of `condition_id` / `market_id` /
+`position_id` and raises on more, so there is no batch redemption.
+
+## 74. A rejected order is a return value, and `success: true` can accompany an error
+
+`place_*` / `post_order` return `AcceptedOrder | RejectedOrder`, discriminated by `ok`.
+A refusal is a **normal return**, not an exception, so code that only catches exceptions
+reads every rejection as a live order.
+
+Worse, the venue's post-only-mode refusal is documented with `"success": true` *and* a
+non-empty `errorMsg`:
+
+```json
+{"errorMsg": "post-only mode: ...", "orderID": "", "takingAmount": "", "status": "", "success": true}
+```
+
+The SDK is right about this — `_is_accepted` requires `success` **and** an empty
+`errorMsg` **and** a non-empty `orderID` **and** a recognised status — which is exactly
+why `submit` reads `response.ok` and never `success`.
+
+Fill accounting from the response has one side-dependent trap and one open question:
+
+- **Which amount is shares depends on the side.** For a BUY `makerAmount` is
+  `price x size` in pUSD and `takerAmount` is shares; for a SELL they swap. Reading one
+  of them unconditionally is right half the time and off by `1 / price` the rest — 20x
+  on a 0.05 contract.
+- **Both are documented as 6-decimal fixed math**, in the response as well as the
+  request, and the SDK does not scale them. That scaling is unconfirmed against a live
+  response, so it is checked rather than trusted: a fill cannot exceed the order, and a
+  violation raises `ExecutionUncertainError` so the truth comes from reconciliation
+  reading `size_matched` — an unambiguous share count — rather than from arithmetic that
+  may be off by a million.
+
+Accepted statuses are `live` / `matched` / `delayed`, and `delayed` is the one that must
+not be guessed at: accepted, zero filled amounts, no trade ids, matches later. Read as a
+fill it books a position that does not exist; read as a rejection it abandons a live
+order.
+
 ---
 
 ## Confirmed correct

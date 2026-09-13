@@ -307,6 +307,12 @@ POST_ONLY_WINDOW_AFTER_RESTART_SECONDS: Final = 120
 #: Order-heartbeat dead-man's switch: send every 5s, orders are cancelled if no
 #: valid heartbeat arrives within 10s, and the sweep runs every 5s (so
 #: cancellation can lag the timeout by up to 5s).
+#: The CLOB route for the order dead-man's switch. Unwrapped by the SDK, whose only
+#: heartbeats are WebSocket keepalives, so it is posted through the authenticated
+#: transport directly (finding 72). Note the ``/v1`` prefix: most CLOB routes in this
+#: SDK are unversioned, and this one is not.
+ORDER_HEARTBEAT_PATH: Final = "/v1/heartbeats"
+
 ORDER_HEARTBEAT_SEND_INTERVAL_SECONDS: Final = 5.0
 ORDER_HEARTBEAT_TIMEOUT_SECONDS: Final = 10.0
 ORDER_HEARTBEAT_SWEEP_INTERVAL_SECONDS: Final = 5.0

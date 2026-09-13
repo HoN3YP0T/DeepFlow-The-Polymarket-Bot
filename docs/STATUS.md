@@ -1,7 +1,7 @@
 # Status and handover
 
 **As of:** 2026-09-13 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· 31 commits · **623 tests passing, 0 skipped** · **72 stubs remain** · 70 findings recorded
+· 31 commits · **664 tests passing, 0 skipped** · **66 stubs remain** · 74 findings recorded
 · 109 source files, ~12,500 lines
 
 **Phase 1** complete · **Phase 2** complete · **Phase 3** 3 of 6 · **Phase 4** complete
@@ -251,11 +251,11 @@ is right 0.93 of the time turns a positive edge negative.
 
 ## 5. What is left
 
-**72 stubs**, by area:
+**66 stubs**, by area:
 
 | Area | Stubs | Notable |
 | --- | --- | --- |
-| `adapters/polymarket` | 14 | `execution.py` (4: submit, cancel, cancel_all, heartbeat), `data_api.py` (5), `streams.py` (3), `relayer.py` (2) |
+| `adapters/polymarket` | 8 | `data_api.py` (5), `streams.py` (3); `execution.py` and `relayer.py` complete |
 | `api/routers` + `api` | 24 | Whole dashboard surface: auth, health, overview, positions, risk, strategies, trades, whales, journal, WebSocket |
 | `engines/sports` | 8 | Four engine bodies (football, tennis, cricket, badminton) |
 | `execution` | 0 | complete — `OrderManager`, `ExecutionEngine`, `Reconciler` all implemented |
@@ -272,14 +272,19 @@ minutes across 8 assets, resolution is a Chainlink TWAP with a 30 s lookback);
 calibration fitting (needs recorded in-play history, which only our own recorder can
 collect).
 
-**Phase 5 — execution (4 of 6).** Done: `OrderManager.execute` / `reprice`;
-`ExecutionEngine`; `Reconciler`; `PaperExecutor` / `ShadowExecutor`; breaker
-supervision; and the **read-only** half of `PolymarketExecution`, now verified against
-a live account (§70) — balance, allowance, closed-only mode, open orders, positions,
-`get_order`, `find_by_intent`. Left: `submit` / `cancel` / `cancel_all` / the order
-heartbeat (4 stubs) and `PolymarketRelayer` (2). **No order has been submitted to this
-venue**, so those four ship unverified when written, and the relayer key is configured
-but unconfirmed — nothing read exercises it. **Uncertain-outcome handling comes before the
+**Phase 5 — execution: complete (6 of 6), with the writes unverified.** `OrderManager`,
+`ExecutionEngine`, `Reconciler`, `PaperExecutor` / `ShadowExecutor`, breaker
+supervision, all of `PolymarketExecution` (submit, cancel, cancel_all, the order
+heartbeat, and the reads) and `PolymarketRelayer` (approvals, redemptions).
+
+**Reads are verified live (§70); every write is not.** No order has ever been submitted
+to this venue, no approval granted, no heartbeat posted, and the relayer key is
+configured but unconfirmed — nothing readable exercises it. The write paths are written
+from the published spec and the installed SDK models, and four findings (§71–74) came out
+of reading them closely: the `"context canceled"` → 400 override, the unwrapped
+heartbeat route, the hidden approval-and-re-post inside `place_*_order`, and rejection
+arriving as a return value alongside `success: true`. The first live submission is their
+first real test. **Uncertain-outcome handling comes before the
 happy path**, and the reconciler must land before the execution adapter — a process
 that can trade but cannot establish what it already owns is the one configuration
 this design refuses.
@@ -363,7 +368,7 @@ is the point of having built it first.
 
 ---
 
-Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (70 findings).
+Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (74 findings).
 Venue surface map and the method for not misreading it:
 `docs/POLYMARKET-SURFACE-AUDIT.md` — 9 hosts, 223 operations, plus
 `make audit-surface`.

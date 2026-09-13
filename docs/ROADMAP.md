@@ -11,7 +11,7 @@ ordering is a dependency order — nothing here is optional scaffolding.
 | 2 · Classification and validation | ✅ complete | 300 live markets, 0 unresolved |
 | 3 · Probability | 3 of 6 | microstructure, per-sport rules and the live-game join done; **no model written** |
 | 4 · EV and safety | ✅ complete | decides in full, on injected probabilities |
-| 5 · Execution | not started | reconciler before the execution adapter, not after |
+| 5 · Execution | ✅ complete | reads verified live; **every write unverified** — no order has been submitted |
 | 6 · Positions and intelligence | not started | |
 | 7 · Dashboard | not started | 24 API stubs; frontend is scaffolding |
 | 8 · Validation before live | not started | |
@@ -218,16 +218,38 @@ and the refusals are verifiable today, the models are not.
     reconnects as *deltas* and trips the database breaker on a persist failure.
     Nothing in the supervisor resets a breaker: they latch, and each flap of a
     self-rearming breaker is a window in which entries are allowed again
-25. `PolymarketExecution`, `PolymarketRelayer` — including the venue rules the
-    conformance review surfaced: tick/size rounding before submission, `delayed`
-    acceptance handled as pending, 425 and post-only windows waited out rather
-    than tripping a breaker, and settlement followed to `CONFIRMED`
-26. Venue order heartbeat (`start_order_heartbeat`) — the only safety mechanism
-    that survives this process dying, so it lands with execution, not after it
+25. ~~`PolymarketExecution`, `PolymarketRelayer`~~ **done, unverified** — reads are
+    verified against a live account (§70); **no order has ever been submitted**, no
+    approval granted and no heartbeat posted, so every write is written from the
+    published spec and the installed SDK models. Reading them closely produced four
+    findings, each of which would have been a live bug: a rejection arrives as a
+    *return value* and the venue sends `success: true` beside an `errorMsg` (§74);
+    `"context canceled"` comes back as **400**, the status meaning "definitively
+    refused", when it is the one case that must never be retried (§71);
+    `place_limit_order` hides an on-chain approval **and a re-post**, so submission
+    now signs and posts explicitly (§73); and a BUY's filled shares are
+    `takingAmount` while a SELL's are `makingAmount`, both in 6-decimal fixed math
+    whose scaling is checked rather than trusted, since a fill that exceeds its order
+    goes to reconciliation instead of the books (§74). The relayer re-reads the
+    approval state rather than believing `setup_trading_approvals`, whose handle is
+    deprecated and returns immediately, and redeems one condition per call because
+    the venue has no batch form
+26. ~~Venue order heartbeat~~ **done, unverified** — `POST /v1/heartbeats` is a real
+    CLOB route the SDK does not wrap; its only heartbeats are WebSocket keepalives
+    and the perps auto-cancel is a different surface (§72). Posted through the
+    authenticated transport so the L2 signature covers the exact wire body, with the
+    expected id adopted from the 400 that rejects a stale one — otherwise one dropped
+    response ends order protection permanently and the only symptom is a log line
+    every five seconds
 
 **Done when:** paper trading runs end to end and survives an induced
 kill/restart mid-order without losing or duplicating a position, and a killed
 process leaves no resting orders behind.
+
+**Not done, and deliberately so:** the venue-facing half of that sentence. Confirming
+it needs a funded, approved account and a real order — a single minimum-size order on a
+liquid market would exercise submit, the response mapping, the heartbeat and a cancel in
+one pass. Until then the writes are code, not behaviour.
 
 ## Phase 6 — Positions and intelligence
 27. `PositionManager`, `ExitEngine` — noise band before exit triggers

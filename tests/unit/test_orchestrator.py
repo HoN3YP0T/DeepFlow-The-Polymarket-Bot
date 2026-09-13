@@ -37,19 +37,24 @@ def _live_settings() -> Settings:
     )
 
 
-async def test_live_mode_is_refused_while_execution_is_unwired() -> None:
+async def test_live_mode_is_refused_while_no_model_exists_and_writes_are_unverified() -> None:
     """The interlock that matters most right now.
 
-    Every settings-level guard can be satisfied and the process still must not start
-    in LIVE. The safety gate and risk engine exist as of Phase 4; the execution
-    adapter and the reconciler do not, and the second is what makes the first unsafe
-    — a process that can trade but cannot establish what it already owns is the one
-    configuration this design refuses.
+    Every settings-level guard can be satisfied and the process still must not start in
+    LIVE. As of Phase 5 the reason is no longer missing plumbing — the execution
+    adapter, the reconciler and the breakers all exist. It is that no probability model
+    exists, so the decision layer runs on injected estimates, and that no order has
+    ever been submitted to this venue, so every write path is unverified against it.
     """
     orchestrator = Orchestrator(settings=_live_settings())
-    with pytest.raises(RuntimeError, match="refusing to start in LIVE mode"):
+    with pytest.raises(RuntimeError, match="refusing to start in LIVE mode") as caught:
         await orchestrator.start()
     assert not orchestrator.is_running
+    # Pinned because a refusal that states a reason which is no longer true is worse
+    # than a bare refusal: it sends the next reader to fix the wrong thing.
+    message = str(caught.value)
+    assert "No probability model exists" in message
+    assert "No order has ever been submitted" in message
 
 
 async def test_live_refusal_happens_before_any_connection() -> None:

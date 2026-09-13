@@ -69,4 +69,12 @@ class RelayerPort(Protocol):
 
     async def ensure_allowances(self) -> bool: ...
 
-    async def redeem_positions(self, condition_ids: Sequence[str]) -> object: ...
+    async def redeem_positions(self, condition_ids: Sequence[str]) -> Sequence[str]:
+        """Redeem resolved positions, returning the condition ids that succeeded.
+
+        A sequence rather than a bare success flag because redemption is
+        per-condition -- the venue accepts exactly one id per call and has no batch
+        form -- so a partial result is the normal case, and the caller needs to know
+        which half it got before deciding what capital is available.
+        """
+        ...
