@@ -199,7 +199,15 @@ and the refusals are verifiable today, the models are not.
     partial-fill when depth runs out, charge the market's own fee schedule, and
     **refuse to invent a fill** with no observed book. `ShadowExecutor` validates
     what is checkable without credentials and records every suppressed order
-23. `Reconciler`
+23. ~~`Reconciler`~~ **done** — `resolve_uncertain_order` returns one of four
+    outcomes, and **only a positive "the venue does not have it" permits a
+    re-intend**: a failed lookup is `UNRESOLVED`, not `ABSENT`, because being wrong
+    that way costs a missed trade while the other costs twice the position.
+    `MATCHED_UNSETTLED` counts as filled for this purpose. Full reconciliation diffs
+    balance, orders and positions in **both** directions — an orphan order at the
+    venue is a live commitment appearing in no local exposure figure, which is
+    exactly what a process killed mid-submission leaves behind. An unreadable venue
+    is a discrepancy, never a pass
 24. `CircuitBreakerRegistry` wired to real triggers
 25. `PolymarketExecution`, `PolymarketRelayer` — including the venue rules the
     conformance review surfaced: tick/size rounding before submission, `delayed`
