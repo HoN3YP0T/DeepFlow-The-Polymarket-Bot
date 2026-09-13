@@ -71,12 +71,21 @@ can ever trade — see `docs/POLYMARKET-API-CONFORMANCE.md` §36-38.
     (§41). Rules parse it; `is_modellable` is False with the reason named.
     Per-sport rule modules landed instead — soccer, gridiron, tennis, esports —
     resolving 22/22 captured leagues (§40, §43)
+11b. ~~The market-to-live-game join~~ **done** — `list_events(game_ids=...)` on the
+    event, plus a `live=True` sweep that returns every in-play fixture with its
+    state and markets in one request (§46, §48). Wired into the orchestrator as the
+    `live-games` task, which resolves each fixture's sport through `SportRegistry`
+    and parses it with that sport's rules; `scripts/verify_game_join.py` proves it
+    against the live venue. Tradeable types gated to `moneyline` and
+    `child_moneyline` — 2 of the venue's 240
 12. `FootballEngine` — the venue feed supplies score, period and clock only, so
     build the score-and-clock model first and treat xG/shots/cards as a later
     upgrade gated on a third-party feed
-13. `CricketEngine`, `BadmintonEngine` — **blocked**: no venue-native state feed
-    exists for either sport. Needs an external data source before it is worth
-    writing the model (see `docs/POLYMARKET-API-CONFORMANCE.md` §5)
+13. `CricketEngine` — **unblocked, unwritten**: live cricket state does exist, via
+    Gamma's event index rather than the socket (§49, superseding §5). It needs a
+    `rules/cricket.py` to read `period="Live"` and its score before the model is
+    worth writing. `BadmintonEngine` stays blocked — no live state observed on
+    either source, which is "not seen yet" rather than proven absent
 14. `Btc5mEngine` — reference price handling is the whole problem; confirm
     against live markets whether the cadence is 5 or 15 minutes, and which feed
     (Binance spot vs Chainlink TWAP 30/60 s) each market settles against

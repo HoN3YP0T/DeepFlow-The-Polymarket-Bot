@@ -62,9 +62,7 @@ class CrossMarketEngine:
         and infer relation kinds. Entity overlap in a title is not a relation."""
         raise NotImplementedError("CrossMarketEngine.find_relations")
 
-    async def find_inconsistencies(
-        self, relation: MarketRelation
-    ) -> Sequence[object]:
+    async def find_inconsistencies(self, relation: MarketRelation) -> Sequence[object]:
         """Probability violations implied by a relation.
 
         Reported for observability whatever the flags say; only tradeable once

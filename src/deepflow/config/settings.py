@@ -136,6 +136,14 @@ class Settings(BaseSettings):
     would burn rate limit re-reading fields that did not move, and prices come
     from the stream regardless."""
 
+    live_game_interval_seconds: float = Field(default=20.0, gt=0)
+    """How often the in-play fixture sweep runs.
+
+    Faster than discovery and slower than the book feed, because that is the rate
+    the underlying data moves at: a score or period change is a discrete event a
+    few times an hour per fixture, and one request covers every fixture at once.
+    Polling it at book speed would burn rate limit re-reading an unchanged score."""
+
     max_tracked_markets: int = Field(default=100, gt=0)
     """Ceiling on markets subscribed at once.
 

@@ -16,11 +16,17 @@ Resolution happens in three tiers:
    Measured: tag ``678`` appears on both baseball and basketball leagues, so a
    tag-only mapping would route one to the other.
 3. **Payload shape**, which turns out to carry more than expected. The composite
-   ``a-b|c-d|BoN`` score is unique to esports, and *period vocabularies are
-   sport-specific*: only soccer uses ``1H``/``2H``/``HT``, only tennis uses
-   ``S1``/``TB1``, only gridiron uses ``Q1``. This tier is not a nicety -- the venue
-   list resolves soccer only over the network, so without it a registry that has not
-   called ``get_sports()`` cannot identify the sport the system most wants to trade.
+   ``a-b|c-d|BoN`` score is unique to esports, and period vocabularies are *mostly*
+   sport-specific: only tennis uses ``S1``/``TB1`` and only gridiron uses ``Q1``.
+   ``1H``/``2H``/``HT``/``FT`` is treated as soccer, which is where the tier is
+   weakest -- the published cricket vocabulary (``1H``, ``1A``, ``2H``, ``2A``,
+   ``SO``, ``FT``) overlaps it, so a cricket fixture reaching this tier resolves as
+   soccer. Observed live cricket sends ``period="Live"`` instead and so misses the
+   pattern entirely, but that is luck, not design: the tag tier is what actually
+   keeps the two apart, and this one is the fallback behind it. The tier still earns
+   its place -- the venue list resolves soccer only over the network, so without it a
+   registry that has not called ``get_sports()`` cannot identify the sport the system
+   most wants to trade.
 
 A league that survives all three is ``UNKNOWN`` and is not modelled. 183 of the
 venue's 465 leagues currently fall outside the reliable tags -- mostly hockey,
@@ -33,6 +39,7 @@ from __future__ import annotations
 import re
 from typing import Any, Final
 
+from deepflow.core.enums import MarketCategory
 from deepflow.core.logging import get_logger
 from deepflow.engines.sports.rules.base import MatchState, SportKind, SportRules
 from deepflow.engines.sports.rules.esports import EsportsRules
@@ -75,7 +82,11 @@ _COMPOSITE_SCORE = re.compile(r"^\s*\d+\s*-\s*\d+\s*\|")
 #: soccer only over the network: without this tier a registry that has not called
 #: ``get_sports()`` cannot identify the sport the system most wants to trade.
 _PERIOD_SIGNATURES: Final[tuple[tuple[re.Pattern[str], SportKind], ...]] = (
-    (re.compile(r"^(\d*H|HT|FT( .*)?)$", re.I), SportKind.SOCCER),
+    # ``VFT`` ("verified full time") and ``PEN`` appear here because the REST event
+    # index uses vocabulary the socket does not: a finished Ligue 1 fixture reads
+    # ``VFT`` where the socket sends ``FT``. Found by wiring the sweep, not by
+    # reading -- the rules were written against socket payloads only.
+    (re.compile(r"^(\d*H|HT|V?FT( .*)?|PEN)$", re.I), SportKind.SOCCER),
     (re.compile(r"^(S|TB)\d+$", re.I), SportKind.TENNIS),
     (re.compile(r"^Q\d+$", re.I), SportKind.AMERICAN_FOOTBALL),
     (re.compile(r"^End \d+$", re.I), SportKind.BASEBALL),
@@ -101,11 +112,57 @@ RULES: Final[dict[SportKind, SportRules]] = {
 #:
 #: * **Tennis** parses fine and is still unmodellable -- the set score is not sent,
 #:   so a games count cannot be placed in the match (see :mod:`.tennis`).
-#: * **Cricket** markets exist and are tradeable, but cricket never appears on the
-#:   in-play feed at all, so there is no state to read.
+#: * **Cricket** markets exist and are tradeable, and live cricket state *is*
+#:   available -- through Gamma's event index, not this socket, which has no
+#:   cricket vocabulary. It stays out of this set only because no rules module
+#:   reads its ``period`` ("Live") or its score yet, which is ordinary unwritten
+#:   work rather than a data gap.
 MODELLABLE_SPORTS: Final = frozenset(
     {SportKind.SOCCER, SportKind.AMERICAN_FOOTBALL, SportKind.ESPORTS}
 )
+
+
+#: :class:`SportKind` -> the :class:`~deepflow.core.enums.MarketCategory` a market
+#: of that sport is classified as.
+#:
+#: This translation exists because the two vocabularies were built for different
+#: jobs and disagree on one word. **``MarketCategory.FOOTBALL`` means soccer.**
+#: ``SportKind.AMERICAN_FOOTBALL`` therefore maps to ``OTHER_SPORTS``, *not* to
+#: ``FOOTBALL`` -- mapping it by name would route every NFL and college football
+#: fixture into the soccer strategy's thresholds and its 90-minute clock.
+#:
+#: Without this map the two halves of the sports pipeline cannot meet: the
+#: classifier emits a ``MarketCategory`` and the rules emit a ``SportKind``, so a
+#: classified market had no way to select the module that can read its feed.
+CATEGORY_BY_SPORT: Final[dict[SportKind, MarketCategory]] = {
+    SportKind.SOCCER: MarketCategory.FOOTBALL,
+    SportKind.CRICKET: MarketCategory.CRICKET,
+    SportKind.TENNIS: MarketCategory.TENNIS,
+    SportKind.AMERICAN_FOOTBALL: MarketCategory.OTHER_SPORTS,
+    SportKind.ESPORTS: MarketCategory.OTHER_SPORTS,
+    SportKind.BASKETBALL: MarketCategory.OTHER_SPORTS,
+    SportKind.BASEBALL: MarketCategory.OTHER_SPORTS,
+    SportKind.HOCKEY: MarketCategory.OTHER_SPORTS,
+}
+
+#: The reverse direction, which is one-to-many: ``OTHER_SPORTS`` covers five
+#: sports that are read by three different rule modules, so a category alone never
+#: identifies how to parse a feed event. Resolve the sport from the event and use
+#: the category only to select thresholds.
+SPORTS_BY_CATEGORY: Final[dict[MarketCategory, frozenset[SportKind]]] = {
+    category: frozenset(kind for kind, mapped in CATEGORY_BY_SPORT.items() if mapped is category)
+    for category in set(CATEGORY_BY_SPORT.values())
+}
+
+
+def category_for(kind: SportKind) -> MarketCategory | None:
+    """The market category a sport's fixtures are classified under.
+
+    ``None`` for :attr:`SportKind.UNKNOWN`, which is the honest answer: an
+    unresolved sport has no category, and defaulting it to ``OTHER_SPORTS`` would
+    let an unidentified league inherit a real strategy's thresholds.
+    """
+    return CATEGORY_BY_SPORT.get(kind)
 
 
 class SportRegistry:

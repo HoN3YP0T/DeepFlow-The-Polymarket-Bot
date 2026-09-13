@@ -31,6 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from deepflow.adapters.persistence.engine import build_engine, build_session_factory
 from deepflow.adapters.persistence.repositories import SqlUnitOfWork
 from deepflow.adapters.polymarket.discovery import SdkMarketDiscovery
+from deepflow.adapters.polymarket.games import GameLink, GammaGameLinks
 from deepflow.adapters.polymarket.sdk_client import PolymarketSession
 from deepflow.adapters.polymarket.streams import PolymarketStreams
 from deepflow.config.settings import Settings
@@ -39,6 +40,7 @@ from deepflow.core.domain import Market, MarketSnapshot
 from deepflow.core.enums import DataQuality, RunMode
 from deepflow.core.logging import get_logger
 from deepflow.core.types import ClobTokenId
+from deepflow.engines.sports.rules import SportRegistry, category_for
 from deepflow.pipeline.features import FeatureEngine
 
 log = get_logger(__name__)
@@ -47,7 +49,7 @@ log = get_logger(__name__)
 #: startup rather than left implicit: "the bot is running" must not be mistaken
 #: for "the bot is trading".
 NOT_YET_WIRED = (
-    "sports stream",
+    "sports socket (in-play state comes from the REST sweep instead)",
     "crypto price stream",
     "user stream",
     "smart-money poll",
@@ -68,7 +70,7 @@ class Orchestrator:
     Task inventory:
     * discovery sweep        -- slow poll, classify and validate
     * market stream          -- book/price updates for monitored tokens
-    * sports stream          -- live game state
+    * live-game sweep        -- in-play fixtures, their state and their markets
     * crypto price stream    -- reference spot for BTC markets
     * user stream            -- own fills (LIVE/SHADOW only)
     * smart-money poll       -- Data API wallet activity
@@ -86,7 +88,10 @@ class Orchestrator:
     _sessions: async_sessionmaker[AsyncSession] | None = None
     _streams: PolymarketStreams | None = None
     _features: FeatureEngine | None = None
+    _games: GammaGameLinks | None = None
+    _sports: SportRegistry | None = None
     _tracked: tuple[Market, ...] = ()
+    _in_play: tuple[GameLink, ...] = ()
     _snapshots_written: int = 0
 
     async def start(self) -> None:
@@ -125,6 +130,14 @@ class Orchestrator:
         self._sessions = build_session_factory(self._engine)
         self._streams = PolymarketStreams(self._venue, self.settings)
         self._features = FeatureEngine(self.settings.thresholds, SystemClock())
+        self._games = GammaGameLinks(self._venue)
+
+        # The registry resolves a league code to its sport, and its first tier is
+        # the venue's own league list. Loading it once at startup is what lets a
+        # league the venue added later resolve without a release; a failure here
+        # narrows coverage to the explicit map rather than stopping the process.
+        self._sports = SportRegistry()
+        await self._sports.load_from_venue(self._venue.public)
 
         # Discovery runs once synchronously so the stream has a token set to open
         # with. Starting the stream first would mean subscribing to nothing and
@@ -132,6 +145,7 @@ class Orchestrator:
         await self._sweep_once()
 
         self._spawn(self._discovery_loop(), name="discovery")
+        self._spawn(self._live_game_loop(), name="live-games")
         self._spawn(self._stream_loop(), name="market-stream")
         self._spawn(self._health_loop(), name="health")
 
@@ -246,6 +260,57 @@ class Orchestrator:
             # the database being down must not take the market data with it.
             log.warning("snapshot.persist_failed", exc_info=True)
 
+    async def _live_game_loop(self) -> None:
+        """Sweep in-play fixtures and read each one with its own sport's rules.
+
+        This is the seam that was missing: the join
+        (:mod:`deepflow.adapters.polymarket.games`) and the per-sport rules
+        (:mod:`deepflow.engines.sports.rules`) were both written, tested and
+        verified against the live venue, and neither was reachable from the running
+        process -- so the pipeline had a probability layer it could not feed.
+
+        A REST sweep rather than the socket, deliberately. The socket reports only
+        what *changes* after connecting, so a process that has just started knows
+        nothing about a game already at half time; one request returns every
+        in-play fixture with its current state. The socket remains the lower-latency
+        option once a fixture is known, which is why it stays on
+        :data:`NOT_YET_WIRED` rather than being called done.
+        """
+        while not self._stopping.is_set():
+            try:
+                await self._sweep_live_games()
+            except Exception:
+                # Same reasoning as the discovery sweep: a failed metadata read
+                # must not take down the price feed alongside it.
+                log.warning("live_games.sweep_failed", exc_info=True)
+            await asyncio.sleep(self.settings.live_game_interval_seconds)
+
+    async def _sweep_live_games(self) -> None:
+        assert self._games is not None and self._sports is not None
+        links = await self._games.in_play()
+        self._in_play = links
+
+        modellable = 0
+        unresolved: list[str] = []
+        for link in links:
+            kind = self._sports.sport_for(link)
+            state = self._sports.parse(link)
+            if state is not None and state.is_modellable:
+                modellable += 1
+            if category_for(kind) is None:
+                # An unresolved league is recorded by name rather than defaulted:
+                # letting it inherit OTHER_SPORTS would hand an unidentified sport
+                # a real strategy's thresholds.
+                unresolved.append(link.league_abbreviation)
+
+        log.info(
+            "live_games.swept",
+            fixtures=len(links),
+            modellable=modellable,
+            tradeable_markets=sum(len(link.tradeable_markets) for link in links),
+            unresolved_leagues=sorted(set(unresolved)),
+        )
+
     async def _health_loop(self) -> None:
         """Emit a periodic health line.
 
@@ -265,5 +330,6 @@ class Orchestrator:
                 dropped=self._streams.dropped_events,
                 last_event_at=str(self._streams.last_event_at),
                 tracked_markets=len(self._tracked),
+                in_play_fixtures=len(self._in_play),
                 snapshots_written=self._snapshots_written,
             )

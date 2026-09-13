@@ -34,9 +34,7 @@ class JournalKind(StrEnum):
 class JournalRecorder:
     """Writes the decision log."""
 
-    def __init__(
-        self, *, repository: JournalRepository, clock: Clock, mode: RunMode
-    ) -> None:
+    def __init__(self, *, repository: JournalRepository, clock: Clock, mode: RunMode) -> None:
         self._repository = repository
         self._clock = clock
         self._mode = mode

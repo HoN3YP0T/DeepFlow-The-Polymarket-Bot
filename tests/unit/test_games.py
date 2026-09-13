@@ -239,3 +239,81 @@ def test_non_sports_events_are_skipped_not_grouped() -> None:
         schedule = None
 
     assert links_from_events([_NotASportsEvent()]) == {}
+
+
+# --- The seam: a GameLink must be readable by the sport rules -----------------
+#
+# These exist because both halves were written, tested and verified separately
+# and then connected to nothing. A test per half passes while the pipeline has a
+# probability layer it cannot feed, so the join is what needs asserting.
+
+
+def test_league_abbreviation_comes_from_the_slug(payloads: dict[str, Any]) -> None:
+    """The registry resolves on a league code, and the slug already carries it."""
+    links = links_from_events(_events(payloads["live_events"]))
+    codes = {link.league_abbreviation for link in links.values()}
+    assert codes == {"cfb", "lol", "crint"}
+
+
+def test_sport_registry_reads_a_game_link_directly(payloads: dict[str, Any]) -> None:
+    """A ``GameLink`` quacks like a feed event, so no second translation layer.
+
+    Resolution here is offline: the venue league list is not loaded, so this also
+    pins that the payload-shape tier works on REST-sourced fixtures and not only on
+    socket payloads.
+    """
+    from deepflow.engines.sports.rules import SportKind, SportRegistry
+
+    registry = SportRegistry()
+    by_code = {
+        link.league_abbreviation: registry.sport_for(link)
+        for link in links_from_events(_events(payloads["live_events"])).values()
+    }
+
+    assert by_code["lol"] is SportKind.ESPORTS
+    assert by_code["cfb"] is SportKind.AMERICAN_FOOTBALL
+
+
+def test_captured_fixtures_parse_into_match_state(payloads: dict[str, Any]) -> None:
+    from deepflow.engines.sports.rules import SportRegistry
+
+    registry = SportRegistry()
+    parsed = {
+        link.league_abbreviation: registry.parse(link)
+        for link in links_from_events(_events(payloads["live_events"])).values()
+    }
+
+    # Esports: maps won, not rounds -- the composite score's middle field.
+    esports = parsed["lol"]
+    assert esports is not None
+    assert (esports.home_score, esports.away_score) == (1, 1)
+
+    # Gridiron: Q4 with a countdown clock inside the quarter.
+    gridiron = parsed["cfb"]
+    assert gridiron is not None
+    assert gridiron.period_index == 4
+
+
+def test_soccer_fixture_parses_from_the_rest_sweep(payloads: dict[str, Any]) -> None:
+    """Offline soccer resolution, on a REST fixture rather than a socket payload."""
+    from deepflow.engines.sports.rules import SportKind, SportRegistry
+
+    registry = SportRegistry()
+    link = next(iter(links_from_events(_events(payloads["one_fixture_many_events"])).values()))
+    assert registry.sport_for(link) is SportKind.SOCCER
+
+
+def test_category_mapping_does_not_route_gridiron_into_soccer() -> None:
+    """``MarketCategory.FOOTBALL`` means soccer, and the map must respect that.
+
+    Mapping ``AMERICAN_FOOTBALL`` by name would hand every NFL and college
+    football fixture the soccer strategy's thresholds and its 90-minute clock.
+    """
+    from deepflow.core.enums import MarketCategory
+    from deepflow.engines.sports.rules import SportKind, category_for
+
+    assert category_for(SportKind.SOCCER) is MarketCategory.FOOTBALL
+    assert category_for(SportKind.AMERICAN_FOOTBALL) is MarketCategory.OTHER_SPORTS
+    assert category_for(SportKind.CRICKET) is MarketCategory.CRICKET
+    # An unresolved sport has no category, rather than defaulting into a real one.
+    assert category_for(SportKind.UNKNOWN) is None

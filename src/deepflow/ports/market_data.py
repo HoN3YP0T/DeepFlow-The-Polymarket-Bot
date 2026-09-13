@@ -33,9 +33,7 @@ class MarketDataPort(Protocol):
 
     async def get_order_book(self, token_id: ClobTokenId) -> OrderBook: ...
 
-    async def get_order_books(
-        self, token_ids: Sequence[ClobTokenId]
-    ) -> Sequence[OrderBook]: ...
+    async def get_order_books(self, token_ids: Sequence[ClobTokenId]) -> Sequence[OrderBook]: ...
 
     async def get_midpoint(self, token_id: ClobTokenId) -> object: ...
 
@@ -61,9 +59,7 @@ class MarketStreamPort(Protocol):
         """Live game-state events for sports markets."""
         ...
 
-    def subscribe_crypto_prices(
-        self, symbols: Sequence[str]
-    ) -> AsyncIterator[object]:
+    def subscribe_crypto_prices(self, symbols: Sequence[str]) -> AsyncIterator[object]:
         """Reference spot feed. Backs the BTC 5-minute strike distance."""
         ...
 

@@ -58,6 +58,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Final
 
+from pydantic import ValidationError
+
 from deepflow.adapters.polymarket import mapping
 from deepflow.adapters.polymarket.sdk_client import PolymarketSession
 from deepflow.core.domain import Market
@@ -116,6 +118,20 @@ class GameLink:
     elapsed: str | None = None
     game_status: str | None = None
     start_time: datetime | None = None
+
+    @property
+    def league_abbreviation(self) -> str:
+        """The league code, taken from the slug's first segment.
+
+        Slugs are ``{league}-{home}-{away}-{date}`` (``fl1-str-asm-2026-09-12``,
+        ``cfb-nmxst-hawaii-2026-09-13``), so the league code the sport registry
+        resolves on is already here. Exposing it under the name the registry reads
+        lets a :class:`GameLink` be parsed by
+        :class:`deepflow.engines.sports.rules.SportRegistry` directly, rather than
+        needing a second translation layer between the REST sweep and the rules
+        that were written against the socket payload.
+        """
+        return self.slug.split("-", 1)[0]
 
     @property
     def is_in_play(self) -> bool:
@@ -254,7 +270,14 @@ def _markets_of(event: Any) -> tuple[Market, ...]:
     for sdk_market in getattr(event, "markets", None) or ():
         try:
             market = mapping.to_market(sdk_market)
-        except Exception:
+        except (AttributeError, TypeError, ValueError, ValidationError):
+            # Narrow on purpose, and still broad: mapping reads roughly thirty
+            # fields off a payload the venue can change under us, so the failures
+            # worth surviving are a missing attribute, a None where a value was
+            # expected, and a domain validator rejecting the result. Anything else
+            # is a bug in us and should not be swallowed into a log line -- one
+            # unmappable market must not cost the whole fixture, but a broken
+            # invariant must not be downgraded to a warning either.
             log.warning("games.market_unmappable", event_id=str(event_id), exc_info=True)
             continue
         if not market.outcomes:

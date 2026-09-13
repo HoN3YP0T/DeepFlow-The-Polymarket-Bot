@@ -32,9 +32,7 @@ class RedisCache:
     async def close(self) -> None:
         raise NotImplementedError("RedisCache.close")
 
-    def lock(
-        self, key: str, *, lease_seconds: float = 10.0
-    ) -> AbstractAsyncContextManager[None]:
+    def lock(self, key: str, *, lease_seconds: float = 10.0) -> AbstractAsyncContextManager[None]:
         """Distributed lock.
 
         ``lease_seconds`` is the lock's own expiry, not a wait timeout: if the

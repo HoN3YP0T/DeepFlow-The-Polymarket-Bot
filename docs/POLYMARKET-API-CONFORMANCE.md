@@ -91,6 +91,14 @@ resolving uncertain submissions.
 
 ## 5. Cricket and badminton have no data source
 
+> **Partly superseded by §49 (2026-09-13).** The cricket half is wrong. This
+> finding is about the *socket*, which indeed has no cricket vocabulary — but
+> Gamma's event index carries live cricket state, and a fixture was observed at
+> `score="74-100"`, `period="Live"` with open markets. What cricket lacks is a
+> rules module, not a data source. The badminton half stands, downgraded from
+> "no source" to "none observed yet". Everything below about the socket's payload
+> is still accurate, except its field list and casing — see §50.
+
 The venue's sports feed covers **NFL, NHL, MLB, NBA, CBB, CFB, Soccer, Esports,
 Tennis**. There is no cricket and no badminton — yet the scaffold ships
 `CricketEngine`, `BadmintonEngine`, `CricketState`, `BadmintonState` and their
@@ -563,6 +571,13 @@ be joined to the sports stream, and cricket is absent from the stream's status
 vocabulary. The markets are there; the in-play feed is not. Since the 0.85–0.98 band
 this system targets is an in-play phenomenon, the engines stay disabled — but the
 markets classify correctly and get recorded rejections rather than being misrouted.
+
+> **Superseded in turn by §49 (2026-09-13).** The `game_id=None` observation holds
+> and is the reason the socket join cannot reach cricket. The conclusion drawn from
+> it does not: live cricket state arrives through Gamma's event index, which needs
+> no game id — a fixture was observed at `score="74-100"`, `period="Live"`. Two
+> corrections deep on the same finding, both from testing one source and concluding
+> about the venue.
 
 ## 35. Open markets can have an `end_date` in the past
 

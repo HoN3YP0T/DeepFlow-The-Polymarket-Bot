@@ -38,9 +38,7 @@ class PositionManager:
         """
         raise NotImplementedError("PositionManager.reevaluate_all")
 
-    async def mark_to_market(
-        self, position: Position, snapshot: MarketSnapshot
-    ) -> Decimal:
+    async def mark_to_market(self, position: Position, snapshot: MarketSnapshot) -> Decimal:
         """Unrealized P&L at the realistic exit price."""
         raise NotImplementedError("PositionManager.mark_to_market")
 

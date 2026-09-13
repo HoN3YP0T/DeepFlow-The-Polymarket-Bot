@@ -5,9 +5,7 @@ from __future__ import annotations
 import pytest
 
 from deepflow.adapters.polymarket.sports_feed import (
-    SUPPORTED_LEAGUES,
     UNSOURCED_CATEGORIES,
-    League,
     SportsFeedEvent,
 )
 from deepflow.core.enums import MarketCategory
@@ -60,46 +58,17 @@ def test_possession_is_absent_outside_nfl_and_cfb() -> None:
     assert _event().turn is None
 
 
-def test_league_enum_is_families_not_league_codes() -> None:
-    """The enum holds status-vocabulary *families*, not the codes the feed sends.
+def test_only_badminton_has_no_live_state_source_anywhere() -> None:
+    """Cricket came out of this set on 2026-09-13, and must not go back in.
 
-    The overlap is what makes this trap subtle: NFL, NBA, CFB and friends happen to
-    be both a family and a league code, so a naive match appears to work. Every
-    soccer, tennis and esports code the feed actually sends is absent -- and those
-    are 189 of the venue's 304 known leagues.
+    The socket has no cricket vocabulary, which is what put it here. But a live
+    international fixture was observed through Gamma's event index with a score
+    and a period, so "no venue-native source" was the wrong conclusion --
+    ``CricketEngine`` was disabled on it. Badminton stays only because no such
+    observation exists for it yet.
     """
-    families = {league.value.lower() for league in League}
-    real_codes = {"lal", "nor", "cze1", "wta", "grand slam", "cs2", "lol", "dota2"}
-    assert not real_codes & families
-
-    # The misleading half, asserted so the overlap is on the record.
-    assert {"nfl", "cfb", "nba"} <= families
-
-
-def test_documented_league_coverage() -> None:
-    expected = {
-        League.NFL,
-        League.NHL,
-        League.MLB,
-        League.NBA,
-        League.CBB,
-        League.CFB,
-        League.SOCCER,
-        League.ESPORTS,
-        League.TENNIS,
-    }
-    assert frozenset(expected) == SUPPORTED_LEAGUES
-
-
-def test_cricket_and_badminton_have_no_venue_feed() -> None:
-    """Pinned deliberately: both engines exist in this codebase, and neither has
-    a venue-native state source. If Polymarket adds them, this test is the place
-    the change gets noticed."""
-    unsourced = {MarketCategory.CRICKET, MarketCategory.BADMINTON}
-    assert frozenset(unsourced) == UNSOURCED_CATEGORIES
-    league_names = {league.value.lower() for league in League}
-    assert "cricket" not in league_names
-    assert "badminton" not in league_names
+    assert frozenset({MarketCategory.BADMINTON}) == UNSOURCED_CATEGORIES
+    assert MarketCategory.CRICKET not in UNSOURCED_CATEGORIES
 
 
 def test_unknown_fields_do_not_break_parsing() -> None:

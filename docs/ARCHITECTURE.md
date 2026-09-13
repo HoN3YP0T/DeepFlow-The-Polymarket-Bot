@@ -37,6 +37,27 @@ import it. The fee formula is an input to expected value, and hiding it behind a
 port would have implied it is a substitutable modelling choice rather than
 arithmetic the venue fixes. See ADR-0003.
 
+## Where live game state comes from
+
+Two sources, and they are not interchangeable:
+
+- **`adapters/polymarket/games.py`** — Gamma's event index over REST.
+  `list_events(live=True)` returns every in-play fixture with its score, period and
+  open markets in one request, and `list_events(game_ids=...)` is the exact join
+  from a game id to its markets. This is the cold-start path: it reports current
+  state rather than changes, so a process that has just started knows about a game
+  already at half time.
+- **`adapters/polymarket/streams.py`** — the sports socket. Lower latency, but it
+  reports only what *changes* after connecting and covers fewer sports. Not yet
+  subscribed by the orchestrator.
+
+`engines/sports/rules/` interprets either one: a `GameLink` exposes
+`league_abbreviation`, `score`, `period` and `elapsed` under the same names as a
+socket payload, so `SportRegistry` reads both without a translation layer.
+`CATEGORY_BY_SPORT` in that package is what connects a resolved `SportKind` to the
+`MarketCategory` the classifier emits — the two vocabularies disagree about the
+word "football", and mapping them by name routes gridiron into the soccer model.
+
 ## Market lifecycle
 
 ```

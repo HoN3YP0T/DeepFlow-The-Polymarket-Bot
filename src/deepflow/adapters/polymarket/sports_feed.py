@@ -47,182 +47,35 @@ Two consequences the engines must respect:
    socket join. ``CricketEngine`` was disabled on the strength of the stronger
    claim, which was wrong.
 
-The right response is a settings-level one, not a silent one: see
-``SUPPORTED_LEAGUES`` and ``VENUE_NATIVE_CATEGORIES`` below, which the engine
-registry uses to refuse to enable an engine whose inputs cannot be sourced.
+Resolving a league code to its sport is
+:class:`deepflow.engines.sports.rules.SportRegistry`, and the per-sport status and
+period vocabularies live in that package with the code that reads them. This
+module carries the wire model only -- an earlier version also held a ``League``
+enum, a per-family ``STATUS_VALUES`` table and a ``PERIOD_MEANINGS`` glossary,
+all of which were unreferenced, and the last of which was also wrong (it listed
+``1Q``-``4Q``; the feed sends ``Q1``-``Q4``).
 """
 
 from __future__ import annotations
 
 from datetime import datetime
-from enum import StrEnum
 from typing import Final
 
 from pydantic import BaseModel, ConfigDict
 
 from deepflow.core.enums import MarketCategory
 
-
-class League(StrEnum):
-    """Sport *families* the documentation groups its status vocabularies under.
-
-    **These are not the values the feed sends.** The docs group status values by
-    family (NFL, Soccer, Tennis, ...), but ``league_abbreviation`` on the wire is a
-    league code: ``lal``, ``cfb``, ``wta``, ``grand slam``, ``cs2``, ``nor``,
-    ``cze1``. Matching an event against this enum matches nothing.
-
-    Kept only because :data:`STATUS_VALUES` below is keyed by family. Resolving a
-    league to its sport is :class:`deepflow.engines.sports.rules.SportRegistry`,
-    which knows 304 leagues and falls back to the payload's own shape.
-    """
-
-    NFL = "NFL"
-    NHL = "NHL"
-    MLB = "MLB"
-    NBA = "NBA"
-    CBB = "CBB"
-    CFB = "CFB"
-    SOCCER = "Soccer"
-    ESPORTS = "Esports"
-    TENNIS = "Tennis"
-
-
-SUPPORTED_LEAGUES: Final = frozenset(League)
-"""Documented status-vocabulary families -- **not** a list of league codes. See
-:class:`League`."""
-
-#: Status vocabularies are **case-sensitive and vary by sport**. Tennis and
-#: esports use lowercase; the North American leagues use PascalCase. Comparing
-#: with a single normalised casing is how a live game reads as scheduled.
-STATUS_VALUES: Final[dict[League, frozenset[str]]] = {
-    League.NFL: frozenset(
-        {
-            "Scheduled",
-            "InProgress",
-            "Final",
-            "F/OT",
-            "Suspended",
-            "Postponed",
-            "Delayed",
-            "Canceled",
-            "Forfeit",
-            "NotNecessary",
-        }
-    ),
-    League.NHL: frozenset(
-        {
-            "Scheduled",
-            "InProgress",
-            "Final",
-            "F/OT",
-            "F/SO",
-            "Suspended",
-            "Postponed",
-            "Delayed",
-            "Canceled",
-            "Forfeit",
-            "NotNecessary",
-        }
-    ),
-    League.MLB: frozenset(
-        {
-            "Scheduled",
-            "InProgress",
-            "Final",
-            "Suspended",
-            "Delayed",
-            "Postponed",
-            "Canceled",
-            "Forfeit",
-            "NotNecessary",
-        }
-    ),
-    League.NBA: frozenset(
-        {
-            "Scheduled",
-            "InProgress",
-            "Final",
-            "F/OT",
-            "Suspended",
-            "Postponed",
-            "Delayed",
-            "Canceled",
-            "Forfeit",
-            "NotNecessary",
-        }
-    ),
-    League.CBB: frozenset(
-        {
-            "Scheduled",
-            "InProgress",
-            "Final",
-            "F/OT",
-            "Suspended",
-            "Postponed",
-            "Delayed",
-            "Canceled",
-            "Forfeit",
-            "NotNecessary",
-        }
-    ),
-    League.CFB: frozenset(
-        {
-            "Scheduled",
-            "InProgress",
-            "Final",
-            "F/OT",
-            "Suspended",
-            "Postponed",
-            "Delayed",
-            "Canceled",
-            "Forfeit",
-        }
-    ),
-    League.SOCCER: frozenset(
-        {
-            "Scheduled",
-            "InProgress",
-            "Break",
-            "Suspended",
-            "PenaltyShootout",
-            "Final",
-            "Awarded",
-            "Postponed",
-            "Canceled",
-        }
-    ),
-    League.ESPORTS: frozenset({"not_started", "running", "finished", "postponed", "canceled"}),
-    League.TENNIS: frozenset(
-        {"scheduled", "inprogress", "suspended", "finished", "postponed", "cancelled"}
-    ),
-}
-
-#: ``period`` is free-form text whose meaning depends on the sport. Halves and
-#: quarters are self-describing; ``End 1`` is an MLB inning and ``2/3`` is a map
-#: number in a best-of-three, neither of which parses as a clock.
-PERIOD_MEANINGS: Final[dict[str, str]] = {
-    "1H": "first half",
-    "2H": "second half",
-    "HT": "halftime",
-    "1Q": "first quarter",
-    "2Q": "second quarter",
-    "3Q": "third quarter",
-    "4Q": "fourth quarter",
-    "FT": "full time in regulation",
-    "FT OT": "full time after overtime",
-    "FT NR": "full time, no result",
-}
-
-#: Categories for which live state is obtainable from the venue's own feed.
-#: Anything outside this set requires a third-party provider before its engine
-#: can be enabled -- which is a procurement decision, not a code TODO.
-VENUE_NATIVE_CATEGORIES: Final = frozenset(
-    {MarketCategory.FOOTBALL, MarketCategory.TENNIS, MarketCategory.OTHER_SPORTS}
-)
-
-#: Categories whose engines exist in this codebase but have no venue-native
-#: state feed. Kept explicit so ``registry`` can refuse them loudly.
-UNSOURCED_CATEGORIES: Final = frozenset({MarketCategory.CRICKET, MarketCategory.BADMINTON})
+#: Categories with no observed live-state source anywhere on the venue -- not the
+#: socket, and not Gamma's event index either.
+#:
+#: Cricket was in this set until 2026-09-13 and should not be added back on the
+#: strength of the socket alone: the socket has no cricket vocabulary, but a live
+#: international fixture was observed through
+#: :meth:`deepflow.adapters.polymarket.games.GammaGameLinks.in_play` carrying
+#: ``score="74-100"`` and ``period="Live"``. Badminton stays because no such
+#: observation exists for it yet -- absence of evidence, and recorded as that
+#: rather than as a proven gap.
+UNSOURCED_CATEGORIES: Final = frozenset({MarketCategory.BADMINTON})
 
 
 class SportsFeedEvent(BaseModel):

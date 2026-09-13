@@ -62,19 +62,24 @@ class StrategyThresholds(BaseModel):
 class SportsThresholds(BaseModel):
     """Section 7 candidate zones. Ranges, not buy conditions.
 
-    Data-availability caveat, which the bands cannot express: Polymarket's own
-    sports feed covers NFL, NHL, MLB, NBA, CBB, CFB, Soccer, Esports and Tennis,
-    and carries only score / period / elapsed / status (plus possession for NFL
-    and CFB). So:
+    Data-availability caveat, which the bands cannot express. Two sources carry
+    live state and they do not cover the same sports: the socket
+    (:mod:`deepflow.adapters.polymarket.sports_feed`) covers NFL, NHL, MLB, NBA,
+    CBB, CFB, Soccer, Esports and Tennis, and Gamma's event index
+    (:mod:`deepflow.adapters.polymarket.games`) covers whatever is in play,
+    cricket included. Both carry only score / period / elapsed / status (plus
+    possession for NFL and CFB). So:
 
     * ``football`` and ``tennis`` have a venue-native state feed, but a
       score-and-clock one -- no xG, shots, cards, or server. The richer
       ``FootballState`` / ``TennisState`` fields need a third-party provider.
-    * ``cricket`` and ``badminton`` have **no** venue-native feed at all. Their
-      engines stay disabled until an external state source is wired in;
-      enabling them without one yields a permanent abstention at best.
-
-    See :mod:`deepflow.adapters.polymarket.sports_feed`.
+    * ``cricket`` has live state through the event index -- a fixture was observed
+      at ``score="74-100"``, ``period="Live"``. What it lacks is a rules module to
+      read that state, which is unwritten work rather than a procurement gap. This
+      docstring claimed the opposite until 2026-09-13, and ``CricketEngine`` was
+      disabled on it.
+    * ``badminton`` has no observed live state on either source. Recorded as not
+      yet seen rather than as proven absent.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -85,14 +90,14 @@ class SportsThresholds(BaseModel):
     cricket: StrategyThresholds = StrategyThresholds(
         candidate_band=ProbabilityBand(low=Decimal("0.80"), high=Decimal("0.98"))
     )
-    """Requires an external state feed. No venue-native source."""
+    """Live state exists via the event index; the rules module to read it does not."""
     tennis: StrategyThresholds = StrategyThresholds(
         candidate_band=ProbabilityBand(low=Decimal("0.85"), high=Decimal("0.98"))
     )
     badminton: StrategyThresholds = StrategyThresholds(
         candidate_band=ProbabilityBand(low=Decimal("0.85"), high=Decimal("0.98"))
     )
-    """Requires an external state feed. No venue-native source."""
+    """No live state observed on either venue source. Not proven absent."""
 
 
 class LateGameThresholds(BaseModel):

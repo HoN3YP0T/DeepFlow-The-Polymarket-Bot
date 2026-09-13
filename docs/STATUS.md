@@ -1,7 +1,12 @@
 # Status and handover
 
-**As of:** 2026-09-12 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· 14 commits · **395 tests green** · **99 stubs remain** · 45 findings recorded
+**As of:** 2026-09-13 · **Branch:** `claude/adoring-hypatia-pxi7up`
+· 18 commits · **409 tests passing, 0 skipped** · **99 stubs remain** · 52 findings recorded
+
+An earlier version of this line read "395 tests green" while 30 of those were
+integration tests **skipped** for want of a database — a skipped test reporting as
+green is how an unverified persistence layer passes review. `make db-local` starts
+the local Postgres they need; the number above is with them actually running.
 
 Phase 1 complete · Phase 2 complete · Phase 3 partially done · Phases 4–8 not started
 
@@ -61,17 +66,27 @@ Verification scripts, all runnable without credentials: `scripts/verify_slice.py
 | `discovery.py` (pipeline) — lifecycle, journalled rejections, idempotent sweeps | 300 markets: 161 monitored, 139 rejected, **0 unresolved** |
 | `SqlJournalRepository` — decision log | real PostgreSQL |
 
-### Phase 3 — probability (2 of 6 items)
+### Phase 3 — probability (3 of 6 items)
 
 | Item | State |
 |---|---|
 | 10 · `FeatureEngine.compute` + `MicrostructureEngine` | **done** — banded depth, robustness check, slippage |
 | 11 · `TennisEngine` | **dropped** — feed cannot support it (§41) |
 | — · Per-sport rule modules (added, not in the original plan) | **done** — soccer, gridiron, tennis, esports; 22/22 leagues resolved |
-| 12 · `FootballEngine` | **not started** — blocked, see §5 below |
-| 13 · `CricketEngine`, `BadmintonEngine` | **blocked** — no in-play feed |
+| — · Market↔live-game join (added) | **done and wired** — `games.py`, the `live-games` orchestrator task, `verify_game_join.py` (§46–48) |
+| 12 · `FootballEngine` | **not started** — no longer blocked; the join it needed exists |
+| 13 · `CricketEngine` | **not started** — needs a `rules/cricket.py` first (§49). `BadmintonEngine` still has no observed state source |
 | 14 · `Btc5mEngine` | **not started** — no short-dated crypto markets found open |
 | 15 · Calibration fitting | **not started** |
+
+**Both Phase 3 deliverables were islands until 2026-09-13.** `games.py` and
+`engines/sports/rules/` were each written, tested and verified against the live
+venue, and neither was reachable from the running process — so the pipeline had a
+probability layer it could not feed, while every individual test passed. They are
+now joined by `CATEGORY_BY_SPORT` (the `SportKind`↔`MarketCategory` translation that
+was missing entirely) and driven by the orchestrator's `live-games` task. Wiring
+them immediately surfaced a gap no unit test could: the REST index reports soccer
+full time as `VFT`, which the socket-derived rules did not recognise.
 
 ---
 
@@ -113,13 +128,18 @@ ever trade, and a regex validator is near its limit.
 market whose rules change, nothing removes a market that closes, and a market that
 goes stale stays monitored. No `MONITORED → CANDIDATE` step exists.
 
-**`orchestrator.py`** — reconciliation is skipped (nothing can have ordered yet), and
-the sports feed is not subscribed even though the rules to read it now exist. Health
-is a log line, not a breaker.
+**`orchestrator.py`** — reconciliation is skipped (nothing can have ordered yet) and
+health is a log line, not a breaker. The sports **socket** is still not subscribed;
+in-play state now comes from the `live-games` REST sweep instead, which is the
+cold-start-correct source (§48) and is wired.
 
-**`sports_feed.py`** — the `League` enum is the documentation's status-vocabulary
-families, not wire values. Corrected with a docstring and a test rather than removed,
-because `STATUS_VALUES` is keyed by it.
+**`sports_feed.py`** — the `League` enum, `SUPPORTED_LEAGUES`, `STATUS_VALUES` and
+`PERIOD_MEANINGS` are **deleted** as of 2026-09-13. Nothing in `src/` referenced any
+of them, and the justification recorded here — keep `League` because `STATUS_VALUES`
+needs it — was circular, since `STATUS_VALUES` was referenced by nothing at all.
+`PERIOD_MEANINGS` was also wrong: it listed `1Q`–`4Q` where the feed sends `Q1`–`Q4`.
+The module docstring additionally claimed an engine registry used these to refuse
+unsourced engines; no registry did.
 
 **`engines/base.py`** — `_calibrate` is the identity function. Every probability the
 system produces will be uncalibrated until item 15, and in the 0.85–0.98 band a model
