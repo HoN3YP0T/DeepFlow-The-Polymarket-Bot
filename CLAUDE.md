@@ -14,7 +14,7 @@ mistakes are not made a fourth time.
 | Question | File |
 | --- | --- |
 | What is done, what is left, what broke and was fixed | `docs/STATUS.md` — **start here** |
-| What the venue actually does (66 findings, 4 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
+| What the venue actually does (68 findings, 4 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
 | The venue's full surface + the method for not misreading it | `docs/POLYMARKET-SURFACE-AUDIT.md` |
 | Build order, per-phase state | `docs/ROADMAP.md` |
 | Module map, dependency rule, data flow | `docs/ARCHITECTURE.md` |
@@ -30,12 +30,13 @@ the reason — §5, §34, §45 and §53 are all corrections and the trail matter
 make check              # lint + typecheck + tests. Run before every commit.
 make db-local           # local postgres (no docker). Without it 30 integration tests SKIP.
 make verify             # 5 scripts against the live venue. No credentials needed.
+make verify-account     # read-only credentialed checks (needs .env). Places no orders.
 make audit-surface      # raw venue JSON vs what our code can see. See Traps.
 make capture-fixtures   # refresh the payload corpus; exits non-zero if it would test less
 make run                # discover, stream, persist (PAPER)
 ```
 
-`make check` does **not** run `verify` or `audit-surface` — they need the network and
+`make check` does **not** run `verify`, `verify-account` or `audit-surface` — they need the network and
 their result depends on what is trading right now.
 
 ---
@@ -98,6 +99,16 @@ the venue lacks anything, run `make audit-surface` and paste what it returned.
   boundary is stale.
 - **Crypto up/down settles on a Chainlink TWAP** (30 s lookback at 5 min, 60 s at
   15 min and 4 h), not spot (§63). Modelling spot prices a different instrument.
+
+- **mypy cannot see the SDK.** `polymarket.*` is under `ignore_missing_imports`, so
+  every SDK symbol is `Any` and `Any.ANYTHING` type-checks. `AssetType.COLLATERAL`
+  (a `Literal` alias, not an enum) and `polymarket.models.clob.enums` (no such module)
+  both passed lint, mypy and 604 tests while being dead on the first call (§67). Before
+  trusting any SDK attribute, read the installed model in `.venv/.../polymarket/models/`
+  or import and call it. `scripts/verify_account.py` exists partly as that check.
+- **Position size is `current_size`**, not `size`. Reading the wrong name yields zero
+  shares, and the zero-filter then drops the position, so a funded account reconciles
+  as **flat** (§68). Both sites now share `mapping.position_shares`.
 
 ### Testing traps
 

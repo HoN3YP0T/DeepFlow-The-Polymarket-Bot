@@ -1,5 +1,5 @@
 .PHONY: install test test-integration lint fmt typecheck check verify capture-fixtures \
-	audit-surface db-local up down migrate run api clean
+	audit-surface verify-account db-local up down migrate run api clean
 
 install:
 	python -m venv .venv
@@ -38,6 +38,12 @@ verify:
 
 ## Diff raw venue JSON against what the SDK and our domain model can see. Read this
 ## before recording that the venue lacks a field -- three findings were wrong that way.
+# Read-only, and needs credentials in .env -- which is why it is not part of `verify`
+# (that runs unauthenticated) and not part of `check` (that needs no network).
+# It places no orders.
+verify-account:
+	.venv/bin/python scripts/verify_account.py
+
 audit-surface:
 	.venv/bin/python scripts/audit_venue_surface.py --verbose
 

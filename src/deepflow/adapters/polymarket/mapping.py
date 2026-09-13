@@ -260,6 +260,33 @@ def to_order_record(sdk_order: Any, *, client_key: ClientOrderKey | None = None)
     )
 
 
+#: Shares held, as the venue names the field.
+#:
+#: ``polymarket.models.data.portfolio.Position`` calls it **``current_size``**. It has
+#: no ``size``, ``shares`` or ``quantity``, and reading one of those silently yields
+#: zero -- which then reads as a flat account holding inventory (finding 68).
+#: ``total_size`` is a different quantity and is deliberately not a fallback.
+POSITION_SIZE_FIELD: Final = "current_size"
+
+#: Token id, as the venue names it on a *position*.
+#:
+#: ``asset_id`` on the model, aliased from ``token_id`` on the wire -- not ``asset``,
+#: which is what the Data API's raw portfolio payload uses. Both are checked because
+#: this mapper is fed from both shapes.
+POSITION_TOKEN_FIELDS: Final = ("asset_id", "asset")
+
+
+def position_shares(sdk_position: Any) -> Decimal:
+    """Shares held. Shared so the mapper and the zero-filter cannot disagree.
+
+    They did disagree, and that is the whole reason this is a function: two call
+    sites each guessed at a field name the model does not have, so every position
+    mapped to zero shares *and* every position was then filtered out for being zero.
+    A single reader makes the next rename one failure instead of two silent ones.
+    """
+    return Decimal(str(getattr(sdk_position, POSITION_SIZE_FIELD, 0) or 0))
+
+
 def to_position(sdk_position: Any) -> Position:
     """Normalize a venue position.
 
@@ -267,11 +294,21 @@ def to_position(sdk_position: Any) -> Position:
     read as a probability -- a contract bought at 0.95 embeds a 95% implied view. It
     is *not* the model probability that justified the trade; that lives in the
     journal, and the venue has no idea it existed.
+
+    ``opened_at`` cannot be filled from the venue: the position model carries
+    ``end_date`` and ``last_event_at`` but **no open time**, and last activity is not
+    an open time. ``_EPOCH`` is an explicit "the venue did not say" sentinel rather
+    than a plausible default, and the local journal is the authority for this field.
+    Reconciliation therefore must not diff ``opened_at`` between the two sides.
     """
-    shares = Decimal(str(getattr(sdk_position, "size", 0) or 0))
+    shares = position_shares(sdk_position)
     entry = Decimal(str(getattr(sdk_position, "avg_price", 0) or 0))
     condition_id = getattr(sdk_position, "condition_id", "") or ""
-    token_id = getattr(sdk_position, "asset", None) or getattr(sdk_position, "asset_id", "") or ""
+    token_id = ""
+    for field in POSITION_TOKEN_FIELDS:
+        token_id = getattr(sdk_position, field, "") or ""
+        if token_id:
+            break
 
     return Position(
         position_id=PositionId(f"{condition_id}:{token_id}"),
@@ -280,7 +317,7 @@ def to_position(sdk_position: Any) -> Position:
         shares=shares,
         average_entry_price=entry,
         entry_probability=entry,
-        opened_at=getattr(sdk_position, "created_at", None) or _EPOCH,
+        opened_at=_EPOCH,
         realized_pnl=Decimal(str(getattr(sdk_position, "realized_pnl", 0) or 0)),
     )
 

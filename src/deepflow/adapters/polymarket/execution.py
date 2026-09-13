@@ -47,8 +47,6 @@ from collections.abc import Sequence
 from decimal import Decimal
 from typing import Any, Final
 
-from polymarket.models.clob.enums import AssetType
-
 from deepflow.adapters.polymarket import mapping, venue
 from deepflow.adapters.polymarket.sdk_client import PolymarketSession
 from deepflow.config.settings import Settings
@@ -64,6 +62,15 @@ from deepflow.core.logging import get_logger
 from deepflow.core.types import OrderId
 
 log = get_logger(__name__)
+
+#: The venue's asset-type discriminator for collateral.
+#:
+#: A plain string on purpose. ``polymarket.models.clob.AssetType`` is a
+#: ``Literal["COLLATERAL", "CONDITIONAL", "CONDITIONAL-V2"]`` type alias, **not** an
+#: enum, so ``AssetType.COLLATERAL`` raises ``AttributeError`` at call time -- and
+#: mypy cannot see it, because ``polymarket.*`` is under ``ignore_missing_imports``
+#: (finding 67). The SDK sends this value through to the query string unchanged.
+COLLATERAL: Final = "COLLATERAL"
 
 #: pUSD has 6 decimals. The venue reports integer units and this is the divisor, kept
 #: named so a raw integer is never mistaken for a dollar figure.
@@ -115,14 +122,6 @@ def _matches_intent(order: object, intent: OrderIntent) -> bool:
     if price is None or size is None:
         return False
     return Decimal(str(price)) == intent.limit_price and Decimal(str(size)) == intent.size_shares
-
-
-def _position_shares(position: object) -> Decimal:
-    for attribute in ("size", "shares", "quantity"):
-        value = getattr(position, attribute, None)
-        if value is not None:
-            return Decimal(str(value))
-    return Decimal(0)
 
 
 class PolymarketExecution:
@@ -267,7 +266,7 @@ class PolymarketExecution:
     async def get_collateral_balance(self) -> Decimal:
         """Deployable collateral, as the venue reports it.
 
-        Queried with ``AssetType.COLLATERAL`` and the wallet's own signature type.
+        Queried with the ``COLLATERAL`` asset type and the wallet's own signature type.
         The signature type matters even for a read: the balance is looked up for the
         account the signature type implies, so a wallet configured as ``eoa`` when it
         is a deposit wallet reads a *different account's* balance -- most likely
@@ -280,7 +279,7 @@ class PolymarketExecution:
         """
         client = self._secure("get_collateral_balance")
         try:
-            result = await client.get_balance_allowance(asset_type=AssetType.COLLATERAL)
+            result = await client.get_balance_allowance(asset_type=COLLATERAL)
         except Exception as exc:
             raise self._translate(exc, "get_collateral_balance") from exc
         return _to_collateral(getattr(result, "balance", 0))
@@ -296,7 +295,7 @@ class PolymarketExecution:
         """
         client = self._secure("get_allowances")
         try:
-            result = await client.get_balance_allowance(asset_type=AssetType.COLLATERAL)
+            result = await client.get_balance_allowance(asset_type=COLLATERAL)
         except Exception as exc:
             raise self._translate(exc, "get_allowances") from exc
         return {
@@ -316,7 +315,7 @@ class PolymarketExecution:
             return tuple(
                 mapping.to_position(position)
                 for position in page.items
-                if _position_shares(position) != 0
+                if mapping.position_shares(position) != 0
             )
         except Exception as exc:
             raise self._translate(exc, "list_positions") from exc

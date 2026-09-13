@@ -1236,6 +1236,64 @@ Two consequences worth stating, because they are now load-bearing:
    lookup appears as inventory, not as a working order. This is why only
    `UncertainOutcome.ABSENT` permits a re-intend.
 
+## 67. `AssetType` is a `Literal` alias, not an enum — and mypy cannot see the difference
+
+`polymarket.models.clob.AssetType` is
+
+```python
+AssetType = Literal["COLLATERAL", "CONDITIONAL", "CONDITIONAL-V2"]
+```
+
+so `AssetType.COLLATERAL` raises `AttributeError` at call time. Both collateral
+reads in the execution adapter were written that way and both were dead on the
+first call. The SDK passes the value straight through to the query string, so the
+correct argument is the plain string; the adapter now names it as
+`COLLATERAL: Final = "COLLATERAL"`.
+
+The part worth keeping is **why it survived lint, mypy and 604 tests**:
+`pyproject.toml` sets `ignore_missing_imports` for `polymarket.*`, which makes every
+SDK symbol `Any`, and `Any.ANYTHING` type-checks. The import path was also wrong
+(`polymarket.models.clob.enums` does not exist) and that too was invisible for the
+same reason. Nothing that consults only the type checker can catch this class of
+error — it needs an actual import and an actual call.
+
+Which is what `scripts/verify_account.py` is for: it importing the adapter is what
+found both bugs. Recorded alongside §50 and §60 as another instance of the standing
+lesson in the other direction — **a typed symbol that satisfies mypy is not a symbol
+that exists at runtime.**
+
+## 68. Position size is `current_size`, and reading the wrong name reports a flat account
+
+`polymarket.models.data.portfolio.Position` (what `list_positions` yields) has:
+
+| Field | Note |
+| --- | --- |
+| `current_size` | shares held — **not** `size`, `shares` or `quantity` |
+| `asset_id` | token id, aliased from `token_id` on the wire |
+| `avg_price`, `realized_pnl`, `condition_id` | as expected |
+| `total_size` | a *different* quantity; not a fallback for `current_size` |
+| `end_date`, `last_event_at` | there is **no open time** on the model |
+
+Two independent call sites each guessed at a name the model does not have —
+`mapping.to_position` read `size`, and the adapter's zero-filter read
+`size`/`shares`/`quantity`. The two bugs compounded in the worst available direction:
+every position mapped to **zero shares**, and every zero-share position was then
+**dropped by the filter**, so `list_positions` returned an empty tuple for an account
+holding inventory.
+
+A reconciler that reports flat while the account holds positions is the precise
+failure the LIVE interlock exists to prevent acting on, and it would have passed
+every gate — nothing downstream can tell "flat" from "read wrongly". Both sites now
+go through one reader, `mapping.position_shares`, so the next rename is one failure
+rather than two silent ones.
+
+`opened_at` has no venue source at all. It is set to an explicit epoch sentinel with
+the local journal as the authority, and reconciliation must not diff that field
+between the two sides; last activity is not an open time.
+
+Found the same way as §67 — by importing the adapter from a script and reading the
+installed model, not by type-checking it.
+
 ---
 
 ## Confirmed correct
