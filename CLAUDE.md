@@ -14,7 +14,7 @@ mistakes are not made a fourth time.
 | Question | File |
 | --- | --- |
 | What is done, what is left, what broke and was fixed | `docs/STATUS.md` — **start here** |
-| What the venue actually does (75 findings, 4 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
+| What the venue actually does (78 findings, 4 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
 | The venue's full surface + the method for not misreading it | `docs/POLYMARKET-SURFACE-AUDIT.md` |
 | Build order, per-phase state | `docs/ROADMAP.md` |
 | Module map, dependency rule, data flow | `docs/ARCHITECTURE.md` |
@@ -32,6 +32,7 @@ make db-local           # local postgres (no docker). Without it 30 integration 
 make redis-local        # local redis (no docker), persistence off.
 make verify             # 5 scripts against the live venue. No credentials needed.
 make verify-account     # read-only credentialed checks (needs .env). Places no orders.
+make verify-btc         # the BTC model against the live TWAP feed. Collects 7 minutes.
 make audit-surface      # raw venue JSON vs what our code can see. See Traps.
 make capture-fixtures   # refresh the payload corpus; exits non-zero if it would test less
 make run                # discover, stream, persist (PAPER)
@@ -119,6 +120,15 @@ the venue lacks anything, run `make audit-surface` and paste what it returned.
   boundary is stale.
 - **Crypto up/down settles on a Chainlink TWAP** (30 s lookback at 5 min, 60 s at
   15 min and 4 h), not spot (§63). Modelling spot prices a different instrument.
+- **No up/down market publishes its strike.** It is the reference price at the window's
+  opening *instant*, stated only in prose, so pricing one requires having watched it open
+  (§77). The window comes from the slug's trailing epoch; equality resolves **Up**.
+- **The TWAP feed republishes unchanged values at 1 Hz** (~1.15x duplicates measured), and
+  a TWAP is smoothed. Both bias a naive realized-vol estimate *down*, and sigma is a
+  denominator — so the error makes probabilities more extreme (§76).
+- **A 7-minute vol sample is not a forecast.** BTC measured 4% and 8% annualised on two
+  consecutive samples; trusting either pushes 0.8 to 0.99. Floored at 20%, which is the
+  conservative direction (§78).
 
 - **A wrong import path poisons everything downstream of it.** mypy *does* check the
   SDK (it ships `py.typed`) and would have caught `AssetType.COLLATERAL` — but the
@@ -180,23 +190,28 @@ exchange rules, imports nothing, and any layer may import it (ADR-0003).
   implemented — that has happened twice (`is_modellable`, `sports_feed`).
 - **Dead code gets deleted, not justified.** Five constants were once kept alive by a
   circular argument.
-- **Stubs raise `NotImplementedError`**, never return a plausible default. 48 remain
+- **Stubs raise `NotImplementedError`**, never return a plausible default. 44 remain
   and the count is a tracked figure in `docs/STATUS.md`.
 
 ## Current shape of the work
 
-Phases 1, 2, 4 and 5 complete; Phase 3 is 3 of 6; Phase 6 is 3 of 4 (cross-market
+Phases 1, 2, 4 and 5 complete; Phase 3 is 4 of 6; Phase 6 is 3 of 4 (cross-market
 deferred); Phases 7–8 not started.
 
-**The pipeline is finished at both ends and hollow in the middle.** Discovery,
-classification, streaming, the live-game join, EV, the 17-check gate, risk, exposure
-and the journal all work. **No probability model is written**, so the decision layer
-runs on injected estimates: the system can explain in full why it would not trade and
-cannot yet explain why it would.
+**The pipeline now runs end to end for one instrument.** Discovery, classification,
+streaming, the live-game join, EV, the 17-check gate, risk, exposure, exits, positions,
+smart money and the journal all work, and **`Btc5mEngine` is written and verified against
+the live Chainlink TWAP** — the first model here that produces a number rather than
+consuming an injected one.
 
-Next most useful piece of work is a model — `Btc5mEngine` is the more tractable
-(fully specified settlement, a fresh market every 5 minutes across 8 assets, so it
-can be verified continuously); `FootballEngine` is more valuable and slower to check.
+It also abstains most of the time, and that is the venue's doing rather than the
+implementation's: no up/down market publishes its strike (§77), so a process that was not
+already subscribed when the window opened cannot price it. Every other category still runs
+on injected estimates.
+
+Next most useful piece of work is `FootballEngine` — more valuable than the BTC model and
+slower to verify, with the join, live fixtures and score/period/clock all already in place.
+Then calibration, which needs recorded in-play history only our own recorder can collect.
 
 ## Working style the owner has asked for
 

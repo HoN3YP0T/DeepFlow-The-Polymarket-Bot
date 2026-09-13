@@ -45,21 +45,41 @@ import asyncio
 import contextlib
 import random
 from collections.abc import AsyncIterator, Sequence
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Final, Literal
 
 from deepflow.adapters.polymarket.book_state import BookState
 from deepflow.adapters.polymarket.sdk_client import PolymarketSession
 from deepflow.adapters.polymarket.sports_feed import SportsFeedEvent
 from deepflow.config.settings import Settings
 from deepflow.core.clock import Clock, SystemClock
-from deepflow.core.domain import MarketSnapshot, Microstructure
+from deepflow.core.domain import MarketSnapshot, Microstructure, ReferencePrice
 from deepflow.core.enums import DataQuality
+from deepflow.core.errors import ConfigurationError
 from deepflow.core.logging import get_logger
 from deepflow.core.types import ClobTokenId, ConditionId
 
 log = get_logger(__name__)
+
+#: Source tag for the Chainlink TWAP series.
+#:
+#: Must match ``Btc5mEngine.REQUIRED_SOURCE``: the engine refuses to price against any
+#: other series, because a market settling on a TWAP priced off spot is wrong by the basis
+#: between them and that basis is the whole edge at a five-minute horizon (§63).
+TWAP_SOURCE: Final = "chainlink_twap"
+
+#: The averaging windows the venue publishes. 30 for 5-minute markets, 60 for the
+#: 15-minute and 4-hour variants (§63); the SDK rejects anything else, and typing it here
+#: makes that a compile-time constraint rather than a runtime surprise.
+TwapWindow = Literal[30, 60]
+
+#: Spot topics, by the source name callers use. Two exist; there is no third.
+SpotTopic = Literal["prices.crypto.binance", "prices.crypto.chainlink"]
+SPOT_TOPICS: Final[dict[str, SpotTopic]] = {
+    "binance": "prices.crypto.binance",
+    "chainlink": "prices.crypto.chainlink",
+}
 
 #: Per-feed queue depth. Deep enough to ride out a GC pause or a slow database
 #: write, shallow enough that a wedged consumer is noticed in seconds rather than
@@ -70,6 +90,55 @@ QUEUE_MAXSIZE = 1000
 _MARKET_TYPES = frozenset(
     {"book", "price_change", "tick_size_change", "best_bid_ask", "last_trade_price"}
 )
+
+
+def _to_twap_reference(event: Any) -> ReferencePrice | None:
+    """One Chainlink TWAP event as a :class:`ReferencePrice`.
+
+    ``value`` arrives as ``full_accuracy_value`` in Chainlink's 18-decimal fixed point and
+    the SDK has already scaled it; ``timestamp`` is epoch **milliseconds** on the payload,
+    unlike the event envelope's parsed datetime. Read from the payload because the
+    envelope's timestamp is when the message was published, and what the model needs is
+    the instant the average refers to.
+    """
+    payload = getattr(event, "payload", None)
+    if payload is None:
+        return None
+    try:
+        return ReferencePrice(
+            symbol=str(payload.symbol),
+            value=Decimal(str(payload.value)),
+            source=TWAP_SOURCE,
+            window_seconds=int(payload.window_seconds),
+            observed_at=datetime.fromtimestamp(int(payload.timestamp) / 1000, UTC),
+        )
+    except (AttributeError, TypeError, ValueError, ArithmeticError) as exc:
+        log.warning("streams.twap_unparsed", error=f"{type(exc).__name__}: {exc}")
+        return None
+
+
+def _to_spot_reference(event: Any, *, source: str) -> ReferencePrice | None:
+    """One spot price event as a :class:`ReferencePrice`, tagged with its own source.
+
+    ``window_seconds`` stays ``None``: a spot tick is not a TWAP with a zero-length
+    window, it is a different quantity, and the engine's source check depends on the two
+    never being conflated.
+    """
+    payload = getattr(event, "payload", None)
+    if payload is None:
+        return None
+    try:
+        stamp = int(getattr(payload, "timestamp", 0))
+        return ReferencePrice(
+            symbol=str(payload.symbol),
+            value=Decimal(str(payload.value)),
+            source=source,
+            window_seconds=None,
+            observed_at=datetime.fromtimestamp(stamp / 1000, UTC),
+        )
+    except (AttributeError, TypeError, ValueError, ArithmeticError) as exc:
+        log.warning("streams.spot_price_unparsed", error=f"{type(exc).__name__}: {exc}")
+        return None
 
 
 class PolymarketStreams:
@@ -384,25 +453,74 @@ class PolymarketStreams:
             finally:
                 self._sports_queue.task_done()
 
-    def subscribe_crypto_prices(
-        self, symbols: Sequence[str], *, source: str = "binance"
-    ) -> AsyncIterator[object]:
-        """Reference prices for crypto markets.
+    async def subscribe_crypto_twap(
+        self, symbols: Sequence[str], *, window_seconds: TwapWindow = 30
+    ) -> AsyncIterator[ReferencePrice]:
+        """Chainlink-computed TWAP prices -- what crypto up/down markets settle on.
 
-        ``source`` selects the topic and therefore the symbol format, and the
-        choice is not cosmetic: a market settling against a Chainlink TWAP priced
-        off Binance spot is mispriced by the basis between them, and at the short
-        horizons this system trades that basis is the whole edge. Which feed a
-        market settles against is read from its resolution criteria; a mismatch is
-        an abstention, not an approximation.
+        Windows of 30 or 60 seconds only; the SDK rejects anything else. 5-minute markets
+        use 30 and the 15-minute and 4-hour variants use 60 (§63).
+
+        Symbols are lowercase slash-delimited pairs (``btc/usd``), **not** Binance's
+        ``btcusdt``. Passed through unchanged so a wrong format fails loudly at the venue
+        rather than silently subscribing to nothing.
+
+        Its own subscription rather than a topic on the market pump: it is per-symbol and
+        continuous, independent of which markets are being tracked, and the reference
+        series must survive a market-set change that reopens the book socket. A gap in it
+        is what makes the model abstain, so keeping it out of that churn is the point.
         """
-        raise NotImplementedError("PolymarketStreams.subscribe_crypto_prices")
+        from polymarket.streams import CryptoPricesChainlinkTwapSpec
 
-    def subscribe_crypto_twap(
-        self, symbols: Sequence[str], *, window_seconds: int = 30
-    ) -> AsyncIterator[object]:
-        """Chainlink-computed TWAP prices. Windows of 30 or 60 seconds only."""
-        raise NotImplementedError("PolymarketStreams.subscribe_crypto_twap")
+        handle = await self._session.public.subscribe(
+            CryptoPricesChainlinkTwapSpec(
+                window_seconds=window_seconds, symbols=[s.lower() for s in symbols]
+            )
+        )
+        try:
+            async for event in handle:
+                price = _to_twap_reference(event)
+                if price is not None:
+                    self._last_event_at = self._clock.now()
+                    yield price
+        finally:
+            await handle.close()
+
+    async def subscribe_crypto_prices(
+        self, symbols: Sequence[str], *, source: str = "binance"
+    ) -> AsyncIterator[ReferencePrice]:
+        """Spot reference prices, for monitoring and for measuring the basis.
+
+        **Not** what an up/down market settles against, and deliberately tagged with its
+        own source so it cannot be mistaken for one: a market settling on a Chainlink TWAP
+        priced off Binance spot is mispriced by the basis between them, and at these
+        horizons that basis is the whole edge. ``Btc5mEngine`` refuses a series whose
+        source is not the TWAP for exactly this reason.
+
+        ``source`` selects the topic and therefore the symbol format -- ``btcusdt`` for
+        Binance, ``btc/usd`` for Chainlink -- and the two are not interchangeable. Only
+        ``binance`` and ``chainlink`` exist as spot topics; anything else is refused here
+        rather than sent, since the SDK's own error names a topic string the caller never
+        supplied.
+        """
+        from polymarket.streams import CryptoPricesSpec
+
+        topic = SPOT_TOPICS.get(source)
+        if topic is None:
+            raise ConfigurationError(
+                f"unknown crypto price source {source!r}: expected one of {sorted(SPOT_TOPICS)}"
+            )
+        handle = await self._session.public.subscribe(
+            CryptoPricesSpec(topic=topic, symbols=[s.lower() for s in symbols])
+        )
+        try:
+            async for event in handle:
+                price = _to_spot_reference(event, source=source)
+                if price is not None:
+                    self._last_event_at = self._clock.now()
+                    yield price
+        finally:
+            await handle.close()
 
     def subscribe_user(self) -> AsyncIterator[object]:
         """Own order/trade updates. Requires the secure client.

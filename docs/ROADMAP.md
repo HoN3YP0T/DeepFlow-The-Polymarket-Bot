@@ -9,7 +9,7 @@ ordering is a dependency order — nothing here is optional scaffolding.
 | --- | --- | --- |
 | 1 · Data spine | ✅ complete | verified live end to end by `verify_phase1.py` |
 | 2 · Classification and validation | ✅ complete | 300 live markets, 0 unresolved |
-| 3 · Probability | 3 of 6 | microstructure, per-sport rules and the live-game join done; **no model written** |
+| 3 · Probability | 4 of 6 | `Btc5mEngine` done and verified live — the first model that produces a number |
 | 4 · EV and safety | ✅ complete | decides in full, on injected probabilities |
 | 5 · Execution | ✅ complete | reads verified live; **every write unverified** — no order has been submitted |
 | 6 · Positions and intelligence | 3 of 4 | exits, positions, smart money, events; cross-market deferred |

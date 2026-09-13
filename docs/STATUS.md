@@ -1,7 +1,7 @@
 # Status and handover
 
 **As of:** 2026-09-13 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· 31 commits · **757 tests passing, 0 skipped** · **48 stubs remain** · 75 findings recorded
+· 31 commits · **780 tests passing, 0 skipped** · **44 stubs remain** · 78 findings recorded
 · 109 source files, ~12,500 lines
 
 **Phase 1** complete · **Phase 2** complete · **Phase 3** 3 of 6 · **Phase 4** complete
@@ -251,11 +251,11 @@ is right 0.93 of the time turns a positive edge negative.
 
 ## 5. What is left
 
-**48 stubs**, by area:
+**44 stubs**, by area:
 
 | Area | Stubs | Notable |
 | --- | --- | --- |
-| `adapters/polymarket` | 3 | `streams.py` (3); `execution.py`, `relayer.py` and `data_api.py` complete |
+| `adapters/polymarket` | 1 | `streams.py` (`subscribe_user`); the crypto price and TWAP streams now implemented |
 | `api/routers` + `api` | 24 | Whole dashboard surface: auth, health, overview, positions, risk, strategies, trades, whales, journal, WebSocket |
 | `engines/sports` | 8 | Four engine bodies (football, tennis, cricket, badminton) |
 | `execution` | 0 | complete — `OrderManager`, `ExecutionEngine`, `Reconciler` all implemented |
@@ -264,13 +264,25 @@ is right 0.93 of the time turns a positive edge negative.
 | `modes` | 2 | `backtest` (2); `paper` complete |
 | `adapters/persistence` | 3 | `SqlPositionRepository` |
 | `adapters/cache` | 3 | `RedisCache` |
-| `engines/crypto` | 2 | `Btc5mEngine`; geopolitics and politics complete |
+| `engines/crypto` | 0 | complete — `Btc5mEngine` implemented and verified live |
 
-**Phase 3 — probability (3 remaining).** `FootballEngine` (unblocked: the join, live
-fixtures, score/period/clock); `Btc5mEngine` (unblocked: markets exist every 5
-minutes across 8 assets, resolution is a Chainlink TWAP with a 30 s lookback);
-calibration fitting (needs recorded in-play history, which only our own recorder can
-collect).
+**Phase 3 — probability (2 remaining).** `Btc5mEngine` is **done and verified against the
+live feed** — the first model in this system that produces a number. Left: `FootballEngine`
+(unblocked: the join, live fixtures, score/period/clock) and calibration fitting (needs
+recorded in-play history, which only our own recorder can collect).
+
+**What the BTC model does, and what it refuses to do.** `P = Phi(ln(S/K) / (sigma *
+sqrt(T_eff)))`, where `K` is the Chainlink TWAP at the window's opening instant, `S` the
+latest TWAP, and `T_eff = T - 2w/3` because settlement is the *average* over the final 30
+seconds rather than the endpoint. Verified live: spot $8.71 below the strike at T=120s
+priced 0.376, which matches `Phi(-0.3162)` by hand.
+
+It abstains on: an unobserved strike (the venue publishes none, §77 — so the process must
+have been watching when the window opened, and usually was not), a stale reference tick
+however fresh the book is, a spot series where a TWAP is required, a market not naming the
+Chainlink stream, an unknown asset, a time to expiry inside the 30-second averaging window
+or outside the configured band, and an unmeasurable volatility. Three of those came out of
+the live run rather than the design (§76-78).
 
 **Phase 5 — execution: complete (6 of 6), with the writes unverified.** `OrderManager`,
 `ExecutionEngine`, `Reconciler`, `PaperExecutor` / `ShadowExecutor`, breaker
@@ -393,7 +405,7 @@ is the point of having built it first.
 
 ---
 
-Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (75 findings).
+Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (78 findings).
 Venue surface map and the method for not misreading it:
 `docs/POLYMARKET-SURFACE-AUDIT.md` — 9 hosts, 223 operations, plus
 `make audit-surface`.

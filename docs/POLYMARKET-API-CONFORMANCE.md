@@ -1499,6 +1499,82 @@ The general lesson, which the paging findings (§65) only half-covered: **a trun
 is a sample, and a default sort order decides what kind of sample it is.** Neither the
 SDK signature nor the docs state this ordering; it took dumping the values to see it.
 
+## 76. The Chainlink TWAP feed republishes unchanged values every second
+
+`prices.crypto.chainlink.twap` ticks at **1 Hz**, but Chainlink only moves the average
+every two seconds or so, and the intervening ticks carry the previous value **verbatim**.
+Measured over two 7-minute samples of `btc/usd`:
+
+| Sample | Raw ticks | Distinct values | Ratio |
+| --- | --- | --- | --- |
+| 1 | 409 | 345 | 1.19x |
+| 2 | 410 | 355 | 1.15x |
+
+Why it matters beyond tidiness: a realized-volatility estimate taken over raw ticks
+inserts a **zero return** for every duplicate, which drags the variance down by roughly
+the duplicate ratio. Sigma is the denominator of this engine's z-score, so an
+underestimate makes every probability *more extreme* — the one direction that turns a
+marginal trade into a confident one. `TwapReference.observe` therefore drops a tick whose
+value equals the previous one, keeping the timestamps of real changes.
+
+A second, larger effect from the same cause: **a TWAP is a smoothed series**, so its
+one-second change measures the averaging rather than the market. Volatility is estimated
+at lags of at least twice the averaging window, where the correction is second-order —
+`Var(A(t+D) - A(t)) = sigma^2 (D - w/3)` for `D >= w`, which at `D = 2w` is 9% below the
+naive `sigma^2 D`.
+
+## 77. Up/down markets publish no strike — it is an instant you had to be watching
+
+Dumping **every** field of a live `btc-updown-5m` market and its event: there is no
+opening price, no strike, no barrier. The payout condition is stated only in prose:
+
+> This market will resolve to "Up" if the Bitcoin price at the end of the time range
+> specified in the title is **greater than or equal to** the price at the beginning of
+> that range.
+
+Three consequences, each load-bearing for `Btc5mEngine`:
+
+1. **The strike is the reference price at the window's opening instant**, and nothing
+   serves it. A process that was not subscribed when the window opened cannot price the
+   market, and no later price substitutes — the strike is one instant's value, and
+   swapping in another turns a comparison into a guess. This is why the engine abstains
+   far more often than it prices, and it is a venue constraint rather than a limitation of
+   the implementation.
+2. **The window comes from the slug.** `btc-updown-5m-1766162100` decodes to
+   2025-12-19 16:35:00Z, matching its own title of "11:35AM-11:40AM ET", and the `5m`
+   gives the length. The title is a localised human string and `start_date` is the listing
+   time roughly 24 hours earlier (§54), so the slug is the only machine-readable route.
+3. **Equality resolves Up.** A perfectly flat window pays Up, not nothing. No mass for a
+   continuous distribution, but it fixes the sign of the boundary.
+
+Also confirmed on these markets: `resolution.source` is
+`https://data.chain.link/streams/btc-usd`, tick size **0.01** (so the 0.90-0.98 band holds
+just nine prices), minimum order size 5, and `fee_type` `crypto_fees_v2`.
+
+## 78. Short-window realized volatility understates the next two minutes, badly
+
+Measured on `btc/usd`, two consecutive 7-minute samples:
+
+| Sample | Measured sigma | Annualised |
+| --- | --- | --- |
+| 1 | 6.7e-6 /s | **4%** |
+| 2 | 1.5e-5 /s | **8%** |
+
+Both are true statements about those seven minutes — BTC moved about $10 and $29 on
+$77,000 — and both are badly wrong as a forecast for the next two. BTC does not trade at
+4% annualised vol; it traded that way for seven minutes.
+
+The error direction is what makes this dangerous. Sigma is the denominator of the
+z-score, so **halving it pushes a 0.8 probability to roughly 0.99**: an engine that trusts
+a lull produces exactly the confident, near-certain probabilities this system is built to
+be suspicious of, in a band (0.90-0.98) where a single loss costs many wins.
+
+Handled with a floor at 20% annualised rather than an abstention, because a floor is
+conservative in the only direction that matters: a larger sigma pulls every probability
+toward 0.5 and makes nothing look more certain than it is. Recorded because the temptation
+is to treat a measured number as authoritative simply because it was measured — the sample
+was real, and the inference from it was not.
+
 ---
 
 ## Confirmed correct

@@ -404,6 +404,33 @@ class MarketSnapshot(Frozen):
 # ===========================================================================
 # Probability, edge, expected value
 # ===========================================================================
+class ReferencePrice(Frozen):
+    """One observation of the price a market settles against.
+
+    Not a market price and not interchangeable with one. Crypto up/down markets settle on
+    a **Chainlink TWAP**, and the symbol format, the averaging window and the source are
+    all part of the observation's identity: a value from Binance spot is a different
+    number about a different thing, and at these horizons the basis between them is the
+    whole edge (§63).
+    """
+
+    symbol: str
+    """As the source names it. Chainlink uses ``btc/usd``; Binance uses ``btcusdt``. Kept
+    verbatim rather than normalised, so a feed mismatch is visible instead of silently
+    reconciled."""
+
+    value: Decimal = Field(gt=0)
+    source: str
+    """``chainlink_twap`` / ``binance``. Compared against the market's own stated
+    resolution source before an estimate is made."""
+
+    window_seconds: int | None = None
+    """Averaging window, when the value is a TWAP. ``None`` means a spot tick -- a
+    different quantity, not a TWAP with a zero-length window."""
+
+    observed_at: datetime
+
+
 class BaseRate(Frozen):
     """A prior on an outcome, from something other than the order book.
 
