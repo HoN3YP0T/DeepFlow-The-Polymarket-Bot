@@ -42,6 +42,7 @@ from typing import Any, Final
 from deepflow.core.enums import MarketCategory
 from deepflow.core.logging import get_logger
 from deepflow.engines.sports.rules.base import MatchState, SportKind, SportRules
+from deepflow.engines.sports.rules.cricket import CricketRules
 from deepflow.engines.sports.rules.esports import EsportsRules
 from deepflow.engines.sports.rules.gridiron import GridironRules
 from deepflow.engines.sports.rules.soccer import SoccerRules
@@ -88,6 +89,12 @@ _PERIOD_SIGNATURES: Final[tuple[tuple[re.Pattern[str], SportKind], ...]] = (
     # reading -- the rules were written against socket payloads only.
     (re.compile(r"^(\d*H|HT|V?FT( .*)?|PEN)$", re.I), SportKind.SOCCER),
     (re.compile(r"^(S|TB)\d+$", re.I), SportKind.TENNIS),
+    # Cricket's innings phases. ``1H``/``2H`` are deliberately absent: they collide
+    # with soccer's halves, which is the collision noted above, and the ``A``
+    # (away-batting) forms plus ``SO`` are unambiguous. A cricket fixture in a
+    # home-batting innings therefore reaches this tier and resolves as soccer --
+    # which is why the tag tier exists and this one is the fallback behind it.
+    (re.compile(r"^(\dA|SO)$", re.I), SportKind.CRICKET),
     (re.compile(r"^Q\d+$", re.I), SportKind.AMERICAN_FOOTBALL),
     (re.compile(r"^End \d+$", re.I), SportKind.BASEBALL),
 )
@@ -95,6 +102,7 @@ _PERIOD_SIGNATURES: Final[tuple[tuple[re.Pattern[str], SportKind], ...]] = (
 #: Sports with a rule set. Everything else parses to nothing and is not modelled.
 RULES: Final[dict[SportKind, SportRules]] = {
     SportKind.SOCCER: SoccerRules(),
+    SportKind.CRICKET: CricketRules(),
     SportKind.AMERICAN_FOOTBALL: GridironRules(),
     SportKind.TENNIS: TennisRules(),
     SportKind.ESPORTS: EsportsRules(),
@@ -112,11 +120,11 @@ RULES: Final[dict[SportKind, SportRules]] = {
 #:
 #: * **Tennis** parses fine and is still unmodellable -- the set score is not sent,
 #:   so a games count cannot be placed in the match (see :mod:`.tennis`).
-#: * **Cricket** markets exist and are tradeable, and live cricket state *is*
-#:   available -- through Gamma's event index, not this socket, which has no
-#:   cricket vocabulary. It stays out of this set only because no rules module
-#:   reads its ``period`` ("Live") or its score yet, which is ordinary unwritten
-#:   work rather than a data gap.
+#: * **Cricket** parses (see :mod:`.cricket`) and is still unmodellable, for the same
+#:   shape of reason as tennis: the feed sends runs and the innings phase, never
+#:   wickets or balls remaining, so a chase cannot be placed. 100 needed with two
+#:   overs and one wicket is nearly lost; 100 needed with ten overs and eight wickets
+#:   is comfortable, and the feed says the same thing in both cases.
 MODELLABLE_SPORTS: Final = frozenset(
     {SportKind.SOCCER, SportKind.AMERICAN_FOOTBALL, SportKind.ESPORTS}
 )

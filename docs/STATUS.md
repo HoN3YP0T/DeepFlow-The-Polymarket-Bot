@@ -1,7 +1,7 @@
 # Status and handover
 
 **As of:** 2026-09-13 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· 19 commits · **416 tests passing, 0 skipped** · **99 stubs remain** · 55 findings recorded
+· 20 commits · **418 tests passing, 0 skipped** · **99 stubs remain** · 57 findings recorded
 
 An earlier version of this line read "395 tests green" while 30 of those were
 integration tests **skipped** for want of a database — a skipped test reporting as
@@ -75,7 +75,7 @@ Verification scripts, all runnable without credentials: `scripts/verify_slice.py
 | — · Per-sport rule modules (added, not in the original plan) | **done** — soccer, gridiron, tennis, esports; 22/22 leagues resolved |
 | — · Market↔live-game join (added) | **done and wired** — `games.py`, the `live-games` orchestrator task, `verify_game_join.py` (§46–48) |
 | 12 · `FootballEngine` | **not started** — no longer blocked; the join it needed exists |
-| 13 · `CricketEngine` | **not started** — needs a `rules/cricket.py` first (§49). `BadmintonEngine` still has no observed state source |
+| 13 · `CricketEngine` | **resolved as a structural abstention** — `rules/cricket.py` parses cricket; no model, because runs without wickets or balls cannot place a chase (§57). `BadmintonEngine` still has no observed state source |
 | 14 · `Btc5mEngine` | **not started** — no short-dated crypto markets found open |
 | 15 · Calibration fitting | **not started** |
 
@@ -201,10 +201,21 @@ Why three probes all missed it:
    expressed against `start_date` excludes nearly every live fixture. That is the
    whole of the "0 of 600 markets" figure previously reported here.
 
-**Also retracted: cricket has no live state.** An international cricket fixture was
-observed live with `score="74-100"`, `period="Live"` and open markets. It carries no
-`game_id`, so it is reachable through the `live=True` sweep and not through a socket
-join. `CricketEngine` was disabled on the stronger, wrong claim.
+**Also retracted: cricket has no live state — and then twice more.** An international
+fixture was observed live with `score="74-100"`, `period="Live"` and open markets.
+Cricket has now been mis-described three times, each correction smaller than the last:
+"no data source" (§5) → "no in-play feed" (§34) → "no `game_id`" (§49/§56). The id
+exists; it is a *string* in `eventMetadata.gameId` (`"1000169067LIVE2026"`), and the
+SDK types the numeric field `int | None`, so reading only that field concludes the
+sport is unidentifiable.
+
+What is actually and durably true is narrower: cricket gives **runs and the innings
+phase, and never wickets, overs or balls remaining** — neither spec mentions them
+(§57). A side needing 100 with two overs and one wicket is nearly beaten; needing 100
+with ten overs and eight wickets it is comfortable, and the feed says the same thing
+in both cases. So `rules/cricket.py` parses cricket and declares those two gaps
+blocking, exactly as tennis does with the set score. Cricket resolves, parses, and
+abstains with a named reason — which is what it should have done from the start.
 
 **Also retracted: a sports data feed must be bought.** One request —
 `list_events(live=True, closed=False)` — returns every in-play fixture with score,

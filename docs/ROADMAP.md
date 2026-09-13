@@ -87,11 +87,14 @@ can ever trade — see `docs/POLYMARKET-API-CONFORMANCE.md` §36-38.
 12. `FootballEngine` — the venue feed supplies score, period and clock only, so
     build the score-and-clock model first and treat xG/shots/cards as a later
     upgrade gated on a third-party feed
-13. `CricketEngine` — **unblocked, unwritten**: live cricket state does exist, via
-    Gamma's event index rather than the socket (§49, superseding §5). It needs a
-    `rules/cricket.py` to read `period="Live"` and its score before the model is
-    worth writing. `BadmintonEngine` stays blocked — no live state observed on
-    either source, which is "not seen yet" rather than proven absent
+13. ~~`CricketEngine`~~ **resolved as a structural abstention** — `rules/cricket.py`
+    is written and parses cricket faithfully; the model is not, and should not be.
+    The feed gives runs and the innings phase and never wickets or balls remaining,
+    so a chase cannot be placed from it (§57). Cricket now behaves like tennis: it
+    resolves, parses, and abstains with the missing state named, instead of being
+    absent on a claim that was wrong three times (§5 → §34 → §49 → §56).
+    `BadmintonEngine` stays blocked — no live state observed on either source, which
+    is "not seen yet" rather than proven absent
 14. `Btc5mEngine` — **unblocked, unwritten.** The markets exist: one per asset every
     five minutes across eight assets, plus a 15-minute variant, so the cadence
     question is answered as *both* (§53). Classification now reaches `BTC_5M` via the

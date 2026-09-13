@@ -973,6 +973,80 @@ crypto market was ever being promoted far enough to notice.
 
 ---
 
+## 56. Cricket's fixture id is a string, in `eventMetadata` — the third cricket correction
+
+Cricket has now been wrong three times in this document, each time smaller:
+
+| Finding | Claim | Verdict |
+| --- | --- | --- |
+| §5 | "no data source" | wrong — markets listed, accepting orders |
+| §34 | "markets exist, no in-play feed" | wrong — live state observed via Gamma |
+| §49 | "live state, but no `game_id`, so unjoinable" | **wrong in its reason** |
+
+The typed field really is empty: `event.sports.game_id` is `None` on every cricket
+fixture. But the venue does publish an id — in `eventMetadata.gameId`, as a string:
+
+```
+crint-ind-afg-2026-09-13   eventMetadata.gameId = "1000169067LIVE2026"
+crint-jpn2-mys2-2026-09-12 eventMetadata.gameId = "id2705330274512646"
+```
+
+Not even a consistent shape between the two, so nothing would parse them as
+integers. The SDK models the numeric field as `int | None`, so reading only that
+field concludes the sport has no identity at all.
+
+`games.provider_game_id()` now reads both, preferring the numeric one (the socket
+only ever sends integers, so that field stays typed for the join) and falling back to
+the metadata string. Cricket fixtures therefore fold on their real id instead of on
+an event-id placeholder.
+
+The general lesson is the one from §45 and §54 again: a field being absent in a typed
+model is not the venue lacking the data.
+
+---
+
+## 57. Cricket gives runs and the innings phase — not wickets, overs or balls
+
+What the feed actually carries for cricket, confirmed across live and finished
+fixtures:
+
+```
+live      score="74-100"    period="Live"
+finished  score="151-150"   period="FT"      elapsed=None
+```
+
+Published `period` vocabulary is `1H`, `1A`, `2H`, `2A`, `SO`, `FT` — innings by
+batting side, super over, full time. **Neither the sports AsyncAPI spec nor the Gamma
+OpenAPI spec mentions wickets, overs, balls or innings counts anywhere**, and cricket
+has no `elapsed` because it has no clock.
+
+Runs alone cannot place a chase. A side needing 100 with two overs and one wicket is
+nearly beaten; needing 100 with ten overs and eight wickets it is comfortable. The
+feed emits the same `score` in both cases. That is structurally identical to tennis's
+missing set score (§41) and just as disqualifying: wickets and balls remaining are
+both first-order terms, and no assumption substitutes for either.
+
+So `rules/cricket.py` parses cricket faithfully and declares
+`blocking_gaps=("wickets_fallen", "balls_remaining")`, making `is_modellable` `False`
+with a named reason. That is a better outcome than the engine being absent on a claim
+that was wrong three times — the abstention is now structural and explained.
+
+Two market-type notes from the same fixture:
+
+- **`cricket_toss_winner` prices at exactly 0.5 / 0.5.** A coin toss carries no
+  information to model, so after the taker fee it is negative-EV by construction. It
+  is already outside `TRADEABLE_SPORTS_MARKET_TYPES`; named in `rules/cricket.py` so
+  nobody later mistakes the symmetry for an opportunity.
+- **`cricket_completed_match`** ("will the match be completed?", 0.5055) is an
+  abandonment market. It needs weather and ground data, not game state, so no venue
+  source prices it either.
+
+Also: cricket's event `endDate` is not the match end. `crint-ind-afg-2026-09-13`
+starts 13:30 on the 13th and carries `endDate` a week out, so any expiry arithmetic
+must use `eventStartTime` — the same distinction as §54.
+
+---
+
 ## Confirmed correct
 
 Worth recording, since these were guesses that happened to be right:

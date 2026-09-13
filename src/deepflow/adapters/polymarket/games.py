@@ -39,11 +39,14 @@ Two traps live in here, both observed rather than reasoned about:
   reported ``live=True`` with ``period="SUS"`` and a ``start_time`` three days
   in the future. Trading that as an in-play market means pricing a game that is
   not being played. :meth:`GameLink.is_in_play` is the guard.
-* **Not every fixture has a game id.** A live international cricket match
-  carried ``score`` and ``period`` but no ``game_id`` at all. It is reachable
-  through the ``live=True`` sweep and unreachable through a socket join, because
-  the socket keys on the id it does not have. Such fixtures are kept, keyed by
-  their event id, rather than dropped for lacking a field.
+* **Not every fixture has a numeric game id.** Cricket keeps its id somewhere else
+  and in another type: ``eventMetadata.gameId`` is the *string*
+  ``'1000169067LIVE2026'``, while the top-level numeric ``gameId`` the SDK models as
+  ``int | None`` is absent. Reading only the typed field says cricket has no id at
+  all, which is how it came to be recorded as unjoinable. :func:`provider_game_id`
+  reads both, and :attr:`GameLink.provider_game_id` carries the string form; the
+  numeric :attr:`GameLink.game_id` stays typed for the socket join, which only ever
+  sends integers. A fixture with neither is still kept, keyed by its event id.
 * **One fixture is many events.** That Ligue 1 game had nine: moneyline,
   halftime result, second half result, exact score, first to score, spreads and
   three first/second-half families. Each carries the same in-play state, so a
@@ -102,15 +105,26 @@ class GameLink:
     """
 
     fixture_key: str
-    """Identity for folding. The ``game_id`` when the venue gives one, otherwise
-    the first event's id -- see the module docstring on cricket."""
+    """Identity for folding: the provider game id when there is one, otherwise the
+    first event's id -- see the module docstring on cricket."""
 
     game_id: int | None
+    """The numeric id the sports socket sends. ``None`` on fixtures whose id is not
+    numeric, which is not the same as having no id -- see :attr:`provider_game_id`."""
+
     event_ids: tuple[EventId, ...]
     slug: str
     title: str
     league_tags: tuple[str, ...]
     markets: tuple[Market, ...]
+
+    provider_game_id: str | None = None
+    """The venue's id in whatever form it publishes it, numeric or not.
+
+    Set from ``eventMetadata.gameId`` when the typed field is empty. Carried because
+    it is the only identifier some fixtures have, and losing it means losing the
+    ability to recognise the same fixture across two sweeps."""
+
     live: bool = False
     ended: bool = False
     score: str | None = None
@@ -172,16 +186,38 @@ def _league_tags(event: Any) -> tuple[str, ...]:
     )
 
 
+def provider_game_id(event: Any) -> str | None:
+    """The venue's fixture id in whatever form it publishes it.
+
+    Two places, two types. Soccer and esports put a numeric id on the sports block,
+    which the SDK models as ``int | None``. Cricket puts a string --
+    ``'1000169067LIVE2026'`` -- in ``eventMetadata.gameId`` and leaves the typed
+    field empty, so reading only the typed field concludes the fixture has no id.
+
+    ``None`` when neither carries one.
+    """
+    numeric = getattr(_sports(event), "game_id", None)
+    if numeric is not None:
+        return str(numeric)
+
+    metadata = getattr(event, "metadata", None) or {}
+    if isinstance(metadata, dict):
+        raw = metadata.get("gameId")
+        if raw not in (None, ""):
+            return str(raw)
+    return None
+
+
 def _fixture_key(event: Any) -> str:
     """Fold key for one event.
 
-    Prefers the fixture's ``game_id`` so sibling market families collapse into
-    one link. Falls back to the event's own id for fixtures the venue publishes
-    without a game id, which keeps them tradeable through the ``live=True`` sweep
+    Prefers the venue's fixture id in either form, so sibling market families
+    collapse into one link. Falls back to the event's own id for fixtures with no
+    published id at all, which keeps them tradeable through the ``live=True`` sweep
     at the cost of not being joinable from the socket.
     """
-    game_id = getattr(_sports(event), "game_id", None)
-    return str(game_id) if game_id is not None else f"event:{event.id}"
+    published = provider_game_id(event)
+    return published if published is not None else f"event:{event.id}"
 
 
 def _merge(existing: GameLink | None, event: Any, markets: tuple[Market, ...]) -> GameLink:
@@ -201,6 +237,7 @@ def _merge(existing: GameLink | None, event: Any, markets: tuple[Market, ...]) -
         return GameLink(
             fixture_key=_fixture_key(event),
             game_id=int(game_id) if game_id is not None else None,
+            provider_game_id=provider_game_id(event),
             event_ids=(event_id,),
             slug=str(event.slug),
             title=str(event.title),
@@ -218,6 +255,7 @@ def _merge(existing: GameLink | None, event: Any, markets: tuple[Market, ...]) -
     return GameLink(
         fixture_key=existing.fixture_key,
         game_id=existing.game_id,
+        provider_game_id=existing.provider_game_id or provider_game_id(event),
         event_ids=(*existing.event_ids, event_id),
         # The shortest slug is the fixture itself; the others suffix a market
         # family onto it (``...-halftime-result``), so the fixture's own slug is
