@@ -154,7 +154,8 @@ core/         domain models (frozen pydantic), enums, errors, types, clock  — 
 ports/        Protocols for every external dependency
 adapters/     polymarket/ (SDK, venue rules, streams, games, mapping), persistence/, cache/
 pipeline/     discovery, classifier, resolution, features, orchestrator
-engines/      ev, microstructure, sports/{rules,models}, crypto, politics, geopolitics
+engines/      ev, microstructure, sports/{rules,models}, crypto, politics, geopolitics,
+              event_driven (shared prior+events machinery), smart_money
 risk/         safety_gate (17 checks), limits (RiskEngine), exposure, sizing
 execution/    order manager, reconciliation, engine  ← complete; venue writes unverified
 positions/    manager, exit engine                    ← Phase 6, stubs
@@ -179,12 +180,13 @@ exchange rules, imports nothing, and any layer may import it (ADR-0003).
   implemented — that has happened twice (`is_modellable`, `sports_feed`).
 - **Dead code gets deleted, not justified.** Five constants were once kept alive by a
   circular argument.
-- **Stubs raise `NotImplementedError`**, never return a plausible default. 66 remain
+- **Stubs raise `NotImplementedError`**, never return a plausible default. 48 remain
   and the count is a tracked figure in `docs/STATUS.md`.
 
 ## Current shape of the work
 
-Phases 1, 2, 4 and 5 complete; Phase 3 is 3 of 6; Phases 6–8 not started.
+Phases 1, 2, 4 and 5 complete; Phase 3 is 3 of 6; Phase 6 is 3 of 4 (cross-market
+deferred); Phases 7–8 not started.
 
 **The pipeline is finished at both ends and hollow in the middle.** Discovery,
 classification, streaming, the live-game join, EV, the 17-check gate, risk, exposure

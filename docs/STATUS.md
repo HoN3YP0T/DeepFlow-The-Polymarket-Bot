@@ -1,7 +1,7 @@
 # Status and handover
 
 **As of:** 2026-09-13 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· 31 commits · **720 tests passing, 0 skipped** · **52 stubs remain** · 75 findings recorded
+· 31 commits · **757 tests passing, 0 skipped** · **48 stubs remain** · 75 findings recorded
 · 109 source files, ~12,500 lines
 
 **Phase 1** complete · **Phase 2** complete · **Phase 3** 3 of 6 · **Phase 4** complete
@@ -251,7 +251,7 @@ is right 0.93 of the time turns a positive edge negative.
 
 ## 5. What is left
 
-**52 stubs**, by area:
+**48 stubs**, by area:
 
 | Area | Stubs | Notable |
 | --- | --- | --- |
@@ -264,7 +264,7 @@ is right 0.93 of the time turns a positive edge negative.
 | `modes` | 2 | `backtest` (2); `paper` complete |
 | `adapters/persistence` | 3 | `SqlPositionRepository` |
 | `adapters/cache` | 3 | `RedisCache` |
-| `engines/geopolitics` + `crypto` + `politics` | 6 | `EventPipeline` (2), `Btc5mEngine` (2), the engine bodies |
+| `engines/crypto` | 2 | `Btc5mEngine`; geopolitics and politics complete |
 
 **Phase 3 — probability (3 remaining).** `FootballEngine` (unblocked: the join, live
 fixtures, score/period/clock); `Btc5mEngine` (unblocked: markets exist every 5
@@ -289,11 +289,30 @@ happy path**, and the reconciler must land before the execution adapter — a pr
 that can trade but cannot establish what it already owns is the one configuration
 this design refuses.
 
-**Phase 6 — positions and intelligence (2 of 4).** Done: `ExitEngine` and
-`PositionManager` (item 27), `SmartMoneyEngine` and `DataApiWalletIntel` (item 28, the
-wallet reads verified live). Left: the event pipeline with the geopolitical and political
-engines (item 29) and `CrossMarketEngine` (item 30, which stays disabled until
-backtested).
+**Phase 6 — positions and intelligence (3 of 4).** Done: `ExitEngine` and
+`PositionManager` (item 27); `SmartMoneyEngine` and `DataApiWalletIntel` (item 28, wallet
+reads verified live); `EventPipeline`, `GeopoliticalEngine` and `PoliticalEngine` (item
+29). Left: `CrossMarketEngine` (item 30), deferred at the owner's request and due to stay
+disabled until backtested.
+
+**Two honest gaps in item 29, both deliberate and neither hidden:**
+
+1. **No source feeds the event pipeline.** There is no news ingestion anywhere in this
+   system — Gamma serves market metadata, the RTDS carries prices, comments and sports,
+   and none of them carry wire copy. So nothing calls `EventPipeline.ingest` in
+   production. The pipeline is written and tested so that adding a feed is wiring rather
+   than design.
+2. **Nothing constructs a `BaseRate`.** Political and geopolitical markets have no
+   continuously observable state, so an engine's only candidates for a number are an
+   external prior or the market price — and the price is circular, forbidden by
+   `BaseProbabilityEngine`'s first contract. With no prior, **both engines always
+   abstain.** That is the correct behaviour for an engine holding no evidence, not a
+   stub: the abstention paths are implemented, tested and journalled, and a prior arrives
+   from polling data or a scheduled timetable when one is wired.
+
+Neither engine is registered with `EngineRegistry`, because the registry still has no
+consumer — that arrives with a Phase 3 model. A test pins that the two can be registered
+together without a category collision, which is the real risk.
 
 **Phase 6 — original scope (0 of 4).** `PositionManager`; `ExitEngine`;
 `SmartMoneyEngine`; `DataApiWalletIntel`; `EventPipeline`; `PoliticalEngine`;

@@ -404,6 +404,32 @@ class MarketSnapshot(Frozen):
 # ===========================================================================
 # Probability, edge, expected value
 # ===========================================================================
+class BaseRate(Frozen):
+    """A prior on an outcome, from something other than the order book.
+
+    The reason this type exists: political and geopolitical markets have **no
+    continuously observable state**. A football match has a score and a clock; "will X
+    resign by June" has neither, and its true probability sits still between
+    announcements. So an engine has only two possible sources of a number -- the market
+    price, which is circular, or a prior supplied from outside.
+
+    That prior must be *sourced*, which is why ``source`` is required and free-form: a
+    polling average, a scheduled timetable, a historical base rate for events of this
+    class. An unsourced prior is a guess wearing a probability's clothes, and the journal
+    needs to record which it was.
+
+    Deliberately not derivable from anything inside this system. Nothing constructs one
+    today, and the engines therefore abstain -- see ``docs/STATUS.md``.
+    """
+
+    probability: Decimal = Field(ge=0, le=1)
+    uncertainty: Decimal = Field(ge=0, le=1)
+    """1-sigma band. Wide by construction for this class of market: a prior that claims
+    precision it cannot have is worse than no prior, because sizing believes it."""
+    source: str
+    as_of: datetime
+
+
 class ProbabilityEstimate(Frozen):
     """A single engine's view of an outcome. Section 16."""
 

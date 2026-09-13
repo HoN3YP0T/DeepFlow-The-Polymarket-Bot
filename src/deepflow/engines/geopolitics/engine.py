@@ -2,20 +2,21 @@
 
 from __future__ import annotations
 
-from deepflow.config.thresholds import GeopoliticsThresholds
-from deepflow.core.domain import Market, MarketSnapshot, ProbabilityEstimate
 from deepflow.core.enums import MarketCategory
-from deepflow.core.types import ClobTokenId
-from deepflow.engines.base import BaseProbabilityEngine
-from deepflow.engines.geopolitics.events import EventPipeline
+from deepflow.engines.event_driven import EventDrivenEngine
 
 
-class GeopoliticalEngine(BaseProbabilityEngine):
+class GeopoliticalEngine(EventDrivenEngine):
     """Probability for conflict, ceasefire and diplomatic markets.
 
-    Conflict categories are classified dynamically. The brief lists current
-    theatres as examples; hardcoding them would leave the system blind to the
-    next one, which is precisely when these markets are most mispriced.
+    Conflict categories are classified dynamically. The brief lists current theatres as
+    examples; hardcoding them would leave the system blind to the next one, which is
+    precisely when these markets are most mispriced.
+
+    Carries the full :data:`~deepflow.engines.event_driven.MAX_EVENT_SHIFT`: a conflict
+    market's situation genuinely unfolds, so an event short of resolution still moves the
+    true probability. The reasoning itself lives in
+    :class:`~deepflow.engines.event_driven.EventDrivenEngine`.
     """
 
     name = "geopolitical"
@@ -27,20 +28,3 @@ class GeopoliticalEngine(BaseProbabilityEngine):
             MarketCategory.MILITARY_DIPLOMATIC,
         }
     )
-
-    def __init__(self, pipeline: EventPipeline, thresholds: GeopoliticsThresholds) -> None:
-        self._pipeline = pipeline
-        self._thresholds = thresholds
-
-    async def estimate(
-        self,
-        *,
-        market: Market,
-        snapshot: MarketSnapshot,
-        token_id: ClobTokenId,
-    ) -> ProbabilityEstimate | None:
-        """TODO(skeleton): base rate from the market's own history and time to
-        deadline, updated by actionable events mapped to this market. Abstain
-        when no actionable event is held -- with no unpriced evidence, the
-        market price is the better estimate and there is no edge to take."""
-        raise NotImplementedError("GeopoliticalEngine.estimate")

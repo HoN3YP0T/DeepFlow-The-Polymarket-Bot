@@ -12,7 +12,7 @@ ordering is a dependency order — nothing here is optional scaffolding.
 | 3 · Probability | 3 of 6 | microstructure, per-sport rules and the live-game join done; **no model written** |
 | 4 · EV and safety | ✅ complete | decides in full, on injected probabilities |
 | 5 · Execution | ✅ complete | reads verified live; **every write unverified** — no order has been submitted |
-| 6 · Positions and intelligence | not started | |
+| 6 · Positions and intelligence | 3 of 4 | exits, positions, smart money, events; cross-market deferred |
 | 7 · Dashboard | not started | 24 API stubs; frontend is scaffolding |
 | 8 · Validation before live | not started | |
 
@@ -252,10 +252,33 @@ liquid market would exercise submit, the response mapping, the heartbeat and a c
 one pass. Until then the writes are code, not behaviour.
 
 ## Phase 6 — Positions and intelligence
-27. `PositionManager`, `ExitEngine` — noise band before exit triggers
-28. `SmartMoneyEngine` — detection, then scoring
-29. `EventPipeline`, `GeopoliticalEngine`, `PoliticalEngine`
-30. `CrossMarketEngine` (stays disabled until backtested)
+27. ~~`PositionManager`, `ExitEngine`~~ **done** — a volatility-scaled noise band before
+    any price-derived exit, because at 0.85-0.98 the spread is a large fraction of the
+    edge and exiting on a wobble realizes a loss repeatedly. A verified state change
+    bypasses the band entirely and is the only input that may trigger an emergency exit.
+    Three bugs found in the writing: EMERGENCY_EXIT was unreachable because nothing
+    populated `state_change_detected` (the same failure as `games.py`); a negative-EV
+    position scored below the partial threshold and *held*, so negative EV is now its own
+    exit condition rather than a contribution to a score; and a HOLD reason claimed a
+    move was outside the band when an EV bypass was what got it there
+28. ~~`SmartMoneyEngine`~~ **done** — detection and scoring kept apart, because a wallet
+    is noticed for being large and counted for being right. Verifying the adapter live
+    found §75: closed positions come back sorted by realized PnL **descending**, so one
+    page of a prolific wallet is its 100 best trades — a wallet down 964 USDC showed 100
+    of 100 winners. Every wallet with 100+ resolved positions would have scored a perfect
+    hit rate. Now sorted by timestamp; that wallet reads 85 of 100 and is the scorer's
+    calibration case, since many small wins against a few large losses is exactly the
+    profile a high-probability strategy must not copy
+29. ~~`EventPipeline`, `GeopoliticalEngine`, `PoliticalEngine`~~ **done, and abstaining
+    by design** — corroboration counted across a six-hour window on distinct
+    *publishers*, since two stories from one newsroom are one witness; reliability taken
+    as the best source rather than a sum or an average; markets matched on parsed
+    resolution criteria with a required entity overlap and an outright exclusion on
+    non-qualifying clauses. Both engines need a **sourced** `BaseRate` and nothing
+    constructs one, and no feed calls `ingest`, so in production they always abstain —
+    the correct answer for an engine with no evidence. See `docs/STATUS.md`
+30. `CrossMarketEngine` — **deferred** at the owner's request; stays disabled until
+    backtested
 
 ## Phase 7 — Dashboard
 31. Auth, then the read-only panels
