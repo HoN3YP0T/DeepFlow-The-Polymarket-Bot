@@ -368,7 +368,33 @@ class SqlJournalRepository:
         self._clock = clock or SystemClock()
 
     async def record_signal(self, signal: Signal) -> None:
-        raise NotImplementedError("SqlJournalRepository.record_signal")
+        """Record a signal's existence, independently of what was decided about it.
+
+        Routed through :meth:`record_decision` rather than given its own table. A
+        signal and the decision on it belong in one ordered stream: querying "what
+        did the system see, and what did it do about it" across two tables means
+        reconstructing an interleaving that was never stored, and the interleaving is
+        the part a post-mortem actually needs.
+
+        ``reason`` carries the signal's own rationale, which is why the *model*
+        produced it -- distinct from the gate's reason for allowing or refusing it.
+        """
+        await self.record_decision(
+            {
+                "kind": "SIGNAL",
+                "reason": signal.rationale or "signal generated",
+                "signal_id": str(signal.signal_id),
+                "condition_id": str(signal.condition_id),
+                "token_id": str(signal.token_id),
+                "action": str(signal.action),
+                "category": str(signal.category),
+                "target_price": signal.target_price,
+                "generated_at": signal.generated_at,
+                "calibrated_probability": signal.probability.calibrated_probability,
+                "engine": signal.probability.engine,
+                "net_ev": signal.ev.net_ev,
+            }
+        )
 
     async def record_decision(self, entry: dict[str, Any]) -> None:
         """Append one decision row.

@@ -145,10 +145,23 @@ to check `sets_won_by_each_player` against.
     itself), and an unknown market is its own group rather than pooled or exempt.
     Exposure is cost basis, never mark value: marking to market frees capacity as a
     position moves in our favour, concentrating the book exactly when it feels safest
-20. `JournalRecorder`
+20. ~~`JournalRecorder`~~ **done** — entries, rejections, holds and exits, each with
+    the full gate result set rather than only the failures, cost terms individually,
+    both probabilities, and `run_mode` on every row. A write failure is logged and
+    never raised: the journal is a record, not a safety mechanism, so losing a row
+    costs analysis while a propagating insert error could abandon an exit halfway.
+    `SqlJournalRepository.record_signal` implemented alongside, routed through the
+    same stream so signals and decisions stay interleaved
 
 **Done when:** the system produces signals and rejections with full reasoning,
-and still sends nothing.
+and still sends nothing. ✅ **Complete 2026-09-13.** EV, 17 gate checks, risk,
+exposure and the journal are implemented and tested; nothing in the process can
+place an order, and LIVE mode still refuses to start.
+
+**What Phase 4 does not do.** It decides, and nothing produces a probability for it
+to decide on -- the sports and crypto models are Phase 3 items 12-15. Every path here
+is tested against injected probabilities, which is the honest scope: the arithmetic
+and the refusals are verifiable today, the models are not.
 
 ## Phase 5 — Execution
 21. `OrderManager` — uncertain-outcome handling first, before the happy path

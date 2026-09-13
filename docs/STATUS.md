@@ -1,14 +1,14 @@
 # Status and handover
 
 **As of:** 2026-09-13 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· 25 commits · **495 tests passing, 0 skipped** · **92 stubs remain** · 65 findings recorded
+· 26 commits · **507 tests passing, 0 skipped** · **87 stubs remain** · 65 findings recorded
 
 An earlier version of this line read "395 tests green" while 30 of those were
 integration tests **skipped** for want of a database — a skipped test reporting as
 green is how an unverified persistence layer passes review. `make db-local` starts
 the local Postgres they need; the number above is with them actually running.
 
-Phase 1 complete · Phase 2 complete · Phase 3 partially done · Phases 4–8 not started
+Phase 1 complete · Phase 2 complete · Phase 3 partially done · **Phase 4 complete** · Phases 5–8 not started
 
 ---
 
@@ -149,6 +149,12 @@ that says 0.97 and is right 0.93 of the time turns a positive edge negative.
 declared plus two from findings 63-64), `GateContext` populated, `default_gate()`
 registering all of them. The load-bearing property is fail-closed — an empty context
 fails every check that reads an input, asserted directly.
+
+**Phase 4 is complete but has no model to decide on.** EV, the gate, risk, exposure
+and the journal are implemented and tested against *injected* probabilities. That is
+the honest scope: the arithmetic and every refusal path are verifiable today; the
+models that would feed them are Phase 3 items 12–15. The system can now explain in
+full why it would not trade — and cannot yet explain why it would.
 
 ---
 
