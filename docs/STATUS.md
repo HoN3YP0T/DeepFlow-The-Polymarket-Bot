@@ -326,9 +326,28 @@ Neither engine is registered with `EngineRegistry`, because the registry still h
 consumer — that arrives with a Phase 3 model. A test pins that the two can be registered
 together without a category collision, which is the real risk.
 
-**Phase 6 — original scope (0 of 4).** `PositionManager`; `ExitEngine`;
-`SmartMoneyEngine`; `DataApiWalletIntel`; `EventPipeline`; `PoliticalEngine`;
-`GeopoliticalEngine`; `CrossMarketEngine`.
+**The largest remaining gap is not a stub: nothing is wired into the orchestrator.**
+
+`Orchestrator` runs four loops — `discovery`, `stream`, `live-game`, `health`. Grepping it
+for `Btc5mEngine`, `EngineRegistry`, `PositionManager`, `ExitEngine`, `SmartMoneyEngine`,
+`EventPipeline`, `OrderManager`, `Reconciler`, `PolymarketExecution` or
+`subscribe_crypto_twap` returns **nothing**. Phases 4, 5 and 6 and the BTC model are all
+built, tested and reachable from no running code path.
+
+This is the `games.py` failure at a much larger scale, and it is deliberately recorded here
+because the stub count hides it completely: every one of those modules is at zero stubs.
+Two consequences worth naming:
+
+* **`Btc5mEngine` cannot fire until the TWAP feed runs in-process continuously.** The
+  strike is the reference price at the window's opening instant and the venue publishes
+  none (§77), so a process that subscribes on demand has already missed it. The wiring is
+  not a convenience — it is the difference between a model that abstains always and one
+  that prices.
+* **`EngineRegistry` is never instantiated**, so even a finished engine has no route to
+  the decision layer.
+
+Wiring is cheap relative to what it unlocks and belongs before `FootballEngine`: a second
+model that nothing consumes adds no more capability than the first one did.
 
 **Phase 7 — dashboard (0 of 4).** 24 API stubs; the Next.js frontend is scaffolding.
 
