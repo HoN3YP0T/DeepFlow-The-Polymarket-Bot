@@ -41,6 +41,7 @@ from deepflow.risk.safety_gate import (
     DEFAULT_CHECKS,
     CheckId,
     GateContext,
+    check_data_fresh,
     default_gate,
 )
 
@@ -370,3 +371,48 @@ def test_all_failures_are_reported_not_just_the_first() -> None:
     )
     assert len(decision.blocking_failures) >= 4
     assert decision.reason.count(";") >= 3
+
+
+def test_degraded_data_cannot_open_a_new_entry() -> None:
+    """**The invariant that was written twice and enforced nowhere.**
+
+    "Only FRESH data may open new risk" is stated on
+    :attr:`MarketSnapshot.entries_allowed` and in ``FeatureEngine.assess_snapshot``'s
+    docstring. Until 2026-09-14 ``entries_allowed`` had no callers anywhere in the
+    codebase and this check tested only for INCONSISTENT and STALE, so DEGRADED passed.
+
+    DEGRADED is not a stale price, it is a possibly-wrong one: the stream marked a gap
+    after a reconnect or a dropped update, so the folded book may be missing a level
+    change that has already happened. In the 0.85-0.98 band one missed level is most of
+    the edge.
+    """
+    degraded = _approving_context(
+        snapshot=MarketSnapshot(
+            condition_id=CID,
+            books=(_book(),),
+            captured_at=NOW,
+            quality=DataQuality.DEGRADED,
+        )
+    )
+    result = check_data_fresh(degraded)
+    assert not result.passed
+    assert "DEGRADED" in result.detail
+
+
+def test_the_freshness_check_reads_the_domain_rule_rather_than_restating_it() -> None:
+    """One definition of "may this open risk", so the check cannot drift from it."""
+    fresh = MarketSnapshot(
+        condition_id=CID, books=(_book(),), captured_at=NOW, quality=DataQuality.FRESH
+    )
+    assert fresh.entries_allowed
+    for quality in (DataQuality.DEGRADED, DataQuality.STALE, DataQuality.INCONSISTENT):
+        snapshot = MarketSnapshot(
+            condition_id=CID, books=(_book(),), captured_at=NOW, quality=quality
+        )
+        assert not snapshot.entries_allowed
+        assert not check_data_fresh(_approving_context(snapshot=snapshot)).passed
+
+
+def test_fresh_data_still_passes() -> None:
+    """The check has to be able to succeed, or it is not a gate but a wall."""
+    assert check_data_fresh(_approving_context()).passed

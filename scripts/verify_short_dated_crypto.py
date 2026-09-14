@@ -8,8 +8,11 @@ about a day before the five minutes they settle on, so that subtraction returns
 ~86,200s for a 300s contest and every one of them read as a long-horizon forecast.
 
 Three things checked here, in order: the markets exist and are accepting orders; the
-contest window measures 300s rather than a day; and the classifier reaches `BTC_5M`
+contest window measures minutes rather than a day; and the classifier reaches `BTC_5M`
 rather than plain `CRYPTO`.
+
+The window check is "sub-hourly", not "exactly 300s". The venue runs this cadence at
+5m, 15m and 4h, and which of them a sweep returns depends on the minute it runs.
 """
 
 from __future__ import annotations
@@ -23,7 +26,7 @@ from deepflow.adapters.polymarket.sdk_client import PolymarketSession
 from deepflow.config.settings import Settings
 from deepflow.core.enums import MarketCategory
 from deepflow.core.errors import PolymarketApiError
-from deepflow.pipeline.classifier import MarketClassifier
+from deepflow.pipeline.classifier import SHORT_DATED_CRYPTO_SECONDS, MarketClassifier
 
 #: The venue's own cadence family. Searching the title rather than guessing slugs,
 #: because the slug carries a unix timestamp that changes every five minutes.
@@ -83,7 +86,20 @@ async def main() -> int:
                     else:
                         ask = next((b.best_ask for b in books if b.best_ask is not None), None)
 
-                ok = verdict.category is MarketCategory.BTC_5M and window == 300.0
+                # Sub-hourly, not exactly 300s. The venue runs this cadence at 5m, 15m
+                # and 4h (§53), and the classifier promotes anything under an hour --
+                # ``SHORT_DATED_CRYPTO_SECONDS`` -- because the distinguishing feature is
+                # the horizon, not the exact window.
+                #
+                # This assertion read ``window == 300.0`` until 2026-09-14, and a sweep
+                # that happened to return only 15-minute markets reported 8 of 8 misread
+                # against entirely correct behaviour. A verification that cries wolf is
+                # worse than none: it trains you to skim past the run that matters.
+                ok = (
+                    verdict.category is MarketCategory.BTC_5M
+                    and window is not None
+                    and 0 < window <= SHORT_DATED_CRYPTO_SECONDS
+                )
                 failures += 0 if ok else 1
                 print(
                     f"  {'ok  ' if ok else 'FAIL'} {str(event.slug)[:28]:30s} "

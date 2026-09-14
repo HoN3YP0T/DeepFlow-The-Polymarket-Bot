@@ -193,26 +193,42 @@ class SqlSnapshotRepository:
         that genuinely emptied -- and the two mean opposite things when reading a
         history back for a backtest.
         """
-        rows = []
-        for book in snapshot.books:
-            if book.best_bid is None and book.best_ask is None:
-                continue
-            rows.append(
-                {
-                    "condition_id": str(snapshot.condition_id),
-                    "token_id": str(book.token_id),
-                    "best_bid": book.best_bid,
-                    "best_ask": book.best_ask,
-                    "mid": book.mid,
-                    "spread": book.spread,
-                    "liquidity": snapshot.liquidity,
-                    "volume_24h": snapshot.volume_24h,
-                    "book_imbalance": snapshot.microstructure.book_imbalance,
-                    "flow_imbalance": snapshot.microstructure.flow_imbalance,
-                    "data_quality": snapshot.quality.value,
-                    "captured_at": book.captured_at,
-                }
-            )
+        return await self.record_many((snapshot,))
+
+    async def record_many(self, snapshots: Sequence[MarketSnapshot]) -> int:
+        """Append every priced book across ``snapshots`` in one statement.
+
+        The batched form exists because the per-snapshot one could not keep up. A
+        session round trip per book update, at the rate a live feed moves 300-odd
+        tokens, made the stream consumer slower than the pump: the queue overflowed,
+        every overflow marked every book gapped, and **97% of 2.7 million recorded
+        snapshots came out DEGRADED** -- which, once the entry gate began enforcing the
+        FRESH-only rule, means the system could not open a position at all.
+
+        Measured either way over ~90 seconds on 194 tracked markets: 529,756 events
+        dropped with the per-snapshot write, **zero** with it disabled. The write was
+        the whole of it, so the fix is to stop doing one per event rather than to widen
+        the queue behind it.
+        """
+        rows = [
+            {
+                "condition_id": str(snapshot.condition_id),
+                "token_id": str(book.token_id),
+                "best_bid": book.best_bid,
+                "best_ask": book.best_ask,
+                "mid": book.mid,
+                "spread": book.spread,
+                "liquidity": snapshot.liquidity,
+                "volume_24h": snapshot.volume_24h,
+                "book_imbalance": snapshot.microstructure.book_imbalance,
+                "flow_imbalance": snapshot.microstructure.flow_imbalance,
+                "data_quality": snapshot.quality.value,
+                "captured_at": book.captured_at,
+            }
+            for snapshot in snapshots
+            for book in snapshot.books
+            if book.best_bid is not None or book.best_ask is not None
+        ]
 
         if not rows:
             return 0

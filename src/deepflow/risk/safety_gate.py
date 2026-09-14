@@ -296,6 +296,24 @@ def check_data_fresh(ctx: GateContext) -> CheckResult:
     ``INCONSISTENT`` is separated from merely old because no amount of waiting
     fixes it: it means our folded book disagrees with the venue's own reported
     touch, so the book must be re-anchored rather than aged out.
+
+    **``DEGRADED`` is refused here, and it was not until 2026-09-14.** The rule that
+    only ``FRESH`` data may open new risk was written in two places --
+    :attr:`MarketSnapshot.entries_allowed` and ``FeatureEngine.assess_snapshot``'s
+    docstring -- and enforced in neither: ``entries_allowed`` had no callers anywhere in
+    the codebase, and this check tested for ``INCONSISTENT`` and ``STALE`` and let
+    ``DEGRADED`` through. A gate that passes because the check was never written is the
+    same failure as one that passes for want of an input, and harder to notice.
+
+    What ``DEGRADED`` means here is a **gap**: the stream marked the book after a
+    reconnect or after dropping an update, so the folded state may be missing a level
+    change that already happened. That is not a stale price, it is a possibly-wrong one,
+    and the difference matters most in exactly the 0.85-0.98 band this system trades,
+    where one missed level is most of the edge.
+
+    This gate governs **entries**. Managing an existing position on degraded data is
+    still the right call -- refusing to look at an open trade is worse than looking at
+    it through an imperfect book -- and the exit path does not run through here.
     """
     snapshot = ctx.snapshot
     if snapshot is None:
@@ -304,6 +322,13 @@ def check_data_fresh(ctx: GateContext) -> CheckResult:
         return _fail(CheckId.DATA_FRESH, "book inconsistent: folded state disagrees with venue")
     if snapshot.quality is DataQuality.STALE:
         return _fail(CheckId.DATA_FRESH, "quality=STALE")
+    if not snapshot.entries_allowed:
+        # Reads the domain's own rule rather than restating it, so the invariant has
+        # exactly one definition and this check cannot drift away from it.
+        return _fail(
+            CheckId.DATA_FRESH,
+            f"quality={snapshot.quality.value}: book has a gap, entries need FRESH",
+        )
 
     if ctx.now is not None and ctx.max_data_age_seconds is not None:
         age = (ctx.now - snapshot.captured_at).total_seconds()

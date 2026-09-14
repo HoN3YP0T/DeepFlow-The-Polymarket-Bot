@@ -33,6 +33,7 @@ is the one part of this build that cannot be caught up on later.
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 from collections.abc import Coroutine, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -171,6 +172,44 @@ EVENT_CATEGORIES = frozenset(
 #: at 4 minutes out and at 1 minute out are different estimators) while cutting the
 #: within-market correlation that inflates the sample. The fitter's ``MIN_MARKETS``
 #: guards the same error from the other end.
+#: How often the buffered snapshot writer drains to the database.
+#:
+#: One second. Long enough that a batch is thousands of rows rather than dozens --
+#: which is the entire point, since the cost being avoided is the round trip, not the
+#: insert -- and short enough that a crash loses about a second of history.
+SNAPSHOT_FLUSH_SECONDS = 1.0
+
+#: Fewest seconds between two persisted snapshots of the same market.
+#:
+#: A live book updates tens of times a second and a stored history does not need that:
+#: entries run against a 3-10 second age budget, so anything finer is resolution nobody
+#: reads. Writing it anyway is what broke the feed -- 2.7 million rows in a few hours,
+#: a write per event, a consumer slower than the pump, and every overflow marking every
+#: book gapped (§91).
+#:
+#: One second per market collapses that by more than an order of magnitude while leaving
+#: the series finer than anything downstream consults. The same sampling idea as
+#: ``PREDICTION_SAMPLE_SECONDS``, for a different reason: that one is about statistical
+#: independence, this one is about throughput.
+SNAPSHOT_SAMPLE_SECONDS = 1.0
+
+#: Most rows one flush may write.
+#:
+#: Bounded so a flush is bounded work. Without a cap the first slow write leaves a
+#: bigger buffer for the next one, which is slower again -- a death spiral that was
+#: observed before this cap existed: the writer completed one batch of 4,056 rows and
+#: never finished another while the buffer grew past 44,000.
+SNAPSHOT_MAX_BATCH_ROWS = 5_000
+
+#: Rows held before the oldest are dropped.
+#:
+#: Sized for several seconds of a busy feed, so an ordinary flush never touches the
+#: bound and a database stall degrades gracefully instead of growing without limit.
+#: Dropping the oldest is deliberate: the newest snapshot is the one a restarting
+#: process would most want, and unbounded buffering trades a data problem for a
+#: memory one.
+SNAPSHOT_BUFFER_ROWS = 50_000
+
 PREDICTION_SAMPLE_SECONDS = 60.0
 
 REFERENCE_RETRY_SECONDS = 2.0
@@ -280,6 +319,12 @@ class Orchestrator:
     _last_prediction: dict[ClobTokenId, datetime] = field(default_factory=dict)
     _in_play: tuple[GameLink, ...] = ()
     _snapshots_written: int = 0
+    _snapshot_buffer: deque[MarketSnapshot] = field(
+        default_factory=lambda: deque(maxlen=SNAPSHOT_BUFFER_ROWS)
+    )
+    _snapshot_batches_lost: int = 0
+    _snapshots_evicted: int = 0
+    _last_snapshot_persist: dict[ConditionId, datetime] = field(default_factory=dict)
 
     async def start(self) -> None:
         """Reconcile, then bring up the task set.
@@ -416,6 +461,7 @@ class Orchestrator:
         self._spawn(self._live_game_loop(), name="live-games")
         self._spawn(self._stream_loop(), name="market-stream")
         self._spawn(self._health_loop(), name="health")
+        self._spawn(self._snapshot_writer(), name="snapshot-writer")
 
         # Settlement is what makes calibration possible: a prediction nobody scored is
         # half a sample, and until this loop existed the system stored only that half
@@ -433,6 +479,12 @@ class Orchestrator:
         if self._tasks:
             await asyncio.gather(*self._tasks, return_exceptions=True)
         self._tasks.clear()
+
+        # Drain what the writer task was holding when it was cancelled. Skipping this
+        # would silently discard up to a flush interval of history on every clean stop,
+        # which is the kind of loss that only shows up as a gap in a backtest months
+        # later.
+        await self._flush_snapshots()
 
         # Streams before the venue session: the subscription is held by the
         # client, so disposing the client first leaves the pump reading a closed
@@ -548,7 +600,7 @@ class Orchestrator:
                 # state is wrong, which no amount of waiting fixes.
                 log.warning("stream.inconsistent_snapshot", condition_id=str(snapshot.condition_id))
             if self.settings.persist_snapshots:
-                await self._persist(snapshot)
+                self._buffer_snapshot(snapshot)
             try:
                 await self._consider(snapshot)
             except Exception:
@@ -557,24 +609,77 @@ class Orchestrator:
                 # a bug in sizing or the gate is no reason to stop gathering it.
                 log.warning("signal.consider_failed", exc_info=True)
 
-    async def _persist(self, snapshot: MarketSnapshot) -> None:
-        assert self._sessions is not None
+    def _buffer_snapshot(self, snapshot: MarketSnapshot) -> None:
+        """Queue a snapshot for the writer, at most one per market per second.
+
+        Two decisions, both forced by measurement rather than taste.
+
+        **Buffered, never written inline.** A session round trip per book update made
+        this loop slower than the pump. The cost was not just lost history: each queue
+        overflow marks *every* book gapped, so the feed degraded its own data and the
+        entry gate then refused all of it -- 97% of 2.7 million rows came out DEGRADED
+        (§91).
+
+        **Sampled, not complete.** Even batched, a row per book update is more history
+        than anything downstream reads: entries run against a 3-10 second age budget.
+        Dropping to one row per market per second is the difference between a write
+        volume the database can absorb and one it cannot.
+        """
+        now = self._clock.now()
+        last = self._last_snapshot_persist.get(snapshot.condition_id)
+        if last is not None and (now - last).total_seconds() < SNAPSHOT_SAMPLE_SECONDS:
+            return
+        self._last_snapshot_persist[snapshot.condition_id] = now
+        if len(self._snapshot_buffer) == self._snapshot_buffer.maxlen:
+            # A deque at maxlen evicts silently. Counting it here is what stops this
+            # becoming the next invisible loss -- the queue overflow it replaced went
+            # unnoticed until it had cost 2.7 million degraded rows.
+            self._snapshots_evicted += 1
+        self._snapshot_buffer.append(snapshot)
+
+    async def _snapshot_writer(self) -> None:
+        """Drain the snapshot buffer to the database on a fixed cadence.
+
+        Separated from the stream consumer so that database latency can never slow the
+        fold. That coupling is what produced §91: with the write inline, 529,756 events
+        were dropped in 90 seconds against **zero** with persistence disabled, and every
+        drop marked every book gapped.
+
+        A full buffer drops the **oldest** rows rather than blocking. Snapshot history
+        is valuable and recoverable-by-waiting; the live fold is neither, so when the
+        two compete the history loses. The count is reported on the health line so that
+        "we are dropping history" cannot become invisible the way the queue overflow
+        was.
+        """
+        while not self._stopping.is_set():
+            await asyncio.sleep(SNAPSHOT_FLUSH_SECONDS)
+            await self._flush_snapshots()
+
+    async def _flush_snapshots(self) -> None:
+        """Write at most one capped batch.
+
+        Capped rather than "everything currently buffered": an unbounded flush makes
+        each write slower than the last, which was observed as a writer that completed
+        one batch and never finished another while the buffer grew past 44,000 rows.
+        """
+        if not self._snapshot_buffer or self._sessions is None:
+            return
+
+        batch: list[MarketSnapshot] = []
+        while self._snapshot_buffer and len(batch) < SNAPSHOT_MAX_BATCH_ROWS:
+            batch.append(self._snapshot_buffer.popleft())
         try:
             async with self._sessions() as session:
                 uow = SqlUnitOfWork(session)
-                self._snapshots_written += await uow.snapshots.record(snapshot)
+                self._snapshots_written += await uow.snapshots.record_many(batch)
                 await uow.commit()
         except Exception:
-            # Losing a snapshot row costs history, not correctness. Killing the
-            # pump over it would cost the feed, so this is logged and skipped --
-            # the database being down must not take the market data with it.
-            #
-            # It does trip the database breaker, though. A snapshot is history, but a
+            # Losing a batch costs history, not correctness -- the same reasoning as
+            # the single-row path it replaced, and the same breaker trip, because a
             # database that cannot be written to means positions, orders and the
-            # journal are all diverging from reality, and the system can no longer
-            # establish what it owns. Losing the row is survivable; trading on top of
-            # it is not.
-            log.warning("snapshot.persist_failed", exc_info=True)
+            # journal are all diverging from reality.
+            self._snapshot_batches_lost += 1
+            log.warning("snapshot.persist_failed", rows=len(batch), exc_info=True)
             if self._supervisor is not None:
                 self._supervisor.record_database_failure("snapshot persist failed")
 
@@ -1119,6 +1224,12 @@ class Orchestrator:
                 tracked_markets=len(self._tracked),
                 in_play_fixtures=len(self._in_play),
                 snapshots_written=self._snapshots_written,
+                # Next to the written count on purpose: a dropped batch is history
+                # that is gone, and the queue overflow it replaced was invisible
+                # until it had cost 2.7 million degraded rows.
+                snapshot_batches_lost=self._snapshot_batches_lost,
+                snapshots_evicted=self._snapshots_evicted,
+                snapshot_buffer=len(self._snapshot_buffer),
                 breakers_open=[str(reason) for reason in open_reasons],
                 entries_allowed=self._breakers.entries_allowed() if self._breakers else None,
                 # The three decision counters, together, because each alone misleads.

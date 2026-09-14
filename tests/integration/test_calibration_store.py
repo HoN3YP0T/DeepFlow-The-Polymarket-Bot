@@ -267,3 +267,59 @@ async def test_both_payout_extremes_survive_the_numeric_column(
     )
     await uow.commit()
     assert (await uow.predictions.list_samples())[0].realized == payout
+
+
+async def test_a_batch_writes_every_book_in_one_statement(uow: SqlUnitOfWork) -> None:
+    """The batched writer replaced a session round trip per book update (§91).
+
+    Correctness before throughput: a batch must write exactly what the single-row calls
+    would have, or the fix quietly changes the history it existed to preserve.
+    """
+    from deepflow.core.domain import BookLevel, MarketSnapshot, OrderBook
+
+    def _snapshot(condition_id: str, bid: str, ask: str) -> MarketSnapshot:
+        return MarketSnapshot(
+            condition_id=condition_id,  # type: ignore[arg-type]
+            books=(
+                OrderBook(
+                    token_id=YES,  # type: ignore[arg-type]
+                    bids=(BookLevel(price=Decimal(bid), size=Decimal(100)),),
+                    asks=(BookLevel(price=Decimal(ask), size=Decimal(100)),),
+                    captured_at=NOW,
+                ),
+                OrderBook(
+                    token_id=NO,  # type: ignore[arg-type]
+                    bids=(BookLevel(price=Decimal("0.10"), size=Decimal(100)),),
+                    asks=(BookLevel(price=Decimal("0.11"), size=Decimal(100)),),
+                    captured_at=NOW,
+                ),
+            ),
+            captured_at=NOW,
+        )
+
+    written = await uow.snapshots.record_many(
+        [_snapshot("0xaa", "0.90", "0.91"), _snapshot("0xbb", "0.80", "0.81")]
+    )
+    await uow.commit()
+    # Two snapshots, two priced books each.
+    assert written == 4
+
+    latest = await uow.snapshots.latest(YES)  # type: ignore[arg-type]
+    assert latest is not None
+
+
+async def test_an_unpriced_book_is_still_skipped_in_a_batch(uow: SqlUnitOfWork) -> None:
+    """A row saying "observed, no price" reads later exactly like a market that
+    genuinely emptied, and the two mean opposite things in a backtest. The batched path
+    has to keep the single-row path's judgement, not just its speed."""
+    from deepflow.core.domain import MarketSnapshot, OrderBook
+
+    empty = MarketSnapshot(
+        condition_id="0xcc",  # type: ignore[arg-type]
+        books=(
+            OrderBook(token_id=YES, bids=(), asks=(), captured_at=NOW),  # type: ignore[arg-type]
+        ),
+        captured_at=NOW,
+    )
+    assert await uow.snapshots.record_many([empty]) == 0
+    assert await uow.snapshots.record_many([]) == 0

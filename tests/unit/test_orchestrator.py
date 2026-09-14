@@ -422,3 +422,70 @@ async def test_a_fixture_with_no_named_sides_is_not_stored() -> None:
 
     source = inspect.getsource(Orc._observe_fixture)
     assert "home_team" in source and "fixture_unnamed" in source
+
+
+async def test_snapshots_are_never_written_inline_with_the_fold() -> None:
+    """**§91.** A session round trip per book update made the stream consumer slower
+    than the pump, and the cost was not merely lost history: every queue overflow marks
+    *every* book gapped, so the feed degraded its own data and the entry gate then
+    refused all of it -- 97% of 2.7 million rows came out DEGRADED.
+
+    Measured over ~90 seconds on 194 tracked markets: 529,756 events dropped with the
+    inline write, zero without it.
+    """
+    import inspect
+
+    from deepflow.pipeline.orchestrator import Orchestrator as Orc
+
+    loop = inspect.getsource(Orc._stream_loop)
+    assert "_buffer_snapshot(" in loop
+    assert "await self._persist(" not in loop
+    assert not hasattr(Orc, "_persist"), "the inline persist path should be gone, not kept"
+
+
+async def test_the_snapshot_writer_is_a_task_of_its_own() -> None:
+    import inspect
+
+    from deepflow.pipeline.orchestrator import Orchestrator as Orc
+
+    assert 'name="snapshot-writer"' in inspect.getsource(Orc.start)
+
+
+async def test_a_flush_is_bounded_work() -> None:
+    """An unbounded flush leaves a bigger buffer for the next one, which is slower
+    again. Observed before the cap: the writer finished one batch of 4,056 rows and
+    never completed another while the buffer grew past 44,000."""
+    from deepflow.pipeline.orchestrator import SNAPSHOT_MAX_BATCH_ROWS
+
+    assert 0 < SNAPSHOT_MAX_BATCH_ROWS <= 10_000
+
+
+async def test_snapshots_are_sampled_per_market() -> None:
+    """A book updates tens of times a second; entries run against a 3-10 second age
+    budget. Everything finer is resolution nobody reads, at a write volume that broke
+    the feed."""
+    from deepflow.pipeline.orchestrator import SNAPSHOT_SAMPLE_SECONDS
+
+    assert SNAPSHOT_SAMPLE_SECONDS >= 1.0
+
+
+async def test_the_buffer_is_drained_on_shutdown() -> None:
+    """Otherwise every clean stop silently discards up to a flush interval of history,
+    which shows up only as a gap in a backtest months later."""
+    import inspect
+
+    from deepflow.pipeline.orchestrator import Orchestrator as Orc
+
+    assert "_flush_snapshots()" in inspect.getsource(Orc.stop)
+
+
+async def test_a_silent_eviction_is_counted() -> None:
+    """A deque at maxlen drops the oldest without saying so. The queue overflow this
+    replaced went unnoticed until it had cost 2.7 million degraded rows, so the
+    replacement reports its own losses."""
+    import inspect
+
+    from deepflow.pipeline.orchestrator import Orchestrator as Orc
+
+    assert "_snapshots_evicted" in inspect.getsource(Orc._buffer_snapshot)
+    assert "snapshots_evicted=" in inspect.getsource(Orc._health_loop)
