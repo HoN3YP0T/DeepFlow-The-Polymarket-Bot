@@ -371,3 +371,54 @@ async def test_a_prediction_failure_never_costs_the_decision() -> None:
     source = inspect.getsource(Orc._record_prediction)
     assert "_prediction_failures" in source
     assert "except Exception" in source
+
+
+async def test_the_football_engine_is_registered_and_fed() -> None:
+    """Built, tested and reachable from nothing is the failure this repo keeps
+    repeating -- `games.py`, the sports rules, and both event-driven engines. A model
+    that no market can reach is not a model."""
+    import inspect
+
+    from deepflow.pipeline.orchestrator import Orchestrator as Orc
+
+    source = inspect.getsource(Orc.start)
+    assert "FootballEngine(" in source
+    assert "MatchStateStore(" in source
+
+    # The store is useless unless the fixture sweep fills it.
+    sweep = inspect.getsource(Orc._sweep_live_games)
+    assert "_observe_fixture(" in sweep
+
+
+async def test_fixture_state_is_collected_per_sweep_not_per_snapshot() -> None:
+    """§81: classification and resolution run inline in the stream consumer dropped
+    1.3 million events in ten minutes while reporting itself healthy. Parsing a
+    fixture per book update is the same mistake with a different input."""
+    import inspect
+
+    from deepflow.pipeline.orchestrator import Orchestrator as Orc
+
+    assert "_observe_fixture(" not in inspect.getsource(Orc._consider)
+    assert "_observe_fixture(" in inspect.getsource(Orc._sweep_live_games)
+
+
+async def test_football_has_execution_limits() -> None:
+    """A category with an engine and no limits fails closed, which is safe and
+    completely silent (§87)."""
+    from deepflow.core.enums import MarketCategory
+    from deepflow.pipeline.orchestrator import Orchestrator as Orc
+
+    orchestrator = Orc(settings=Settings(_env_file=None))
+    assert orchestrator._limits_for(MarketCategory.FOOTBALL) is not None
+
+
+async def test_a_fixture_with_no_named_sides_is_not_stored() -> None:
+    """A soccer result market is a three-way group whose members are told apart only
+    by matching a team name, so state without names would let the engine get further
+    before abstaining and tell nobody why."""
+    import inspect
+
+    from deepflow.pipeline.orchestrator import Orchestrator as Orc
+
+    source = inspect.getsource(Orc._observe_fixture)
+    assert "home_team" in source and "fixture_unnamed" in source

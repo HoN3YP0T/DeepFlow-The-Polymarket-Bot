@@ -361,3 +361,63 @@ def test_category_mapping_does_not_route_gridiron_into_soccer() -> None:
     assert category_for(SportKind.CRICKET) is MarketCategory.CRICKET
     # An unresolved sport has no category, rather than defaulting into a real one.
     assert category_for(SportKind.UNKNOWN) is None
+
+
+def test_team_names_come_from_ordering_not_position(payloads: dict[str, Any]) -> None:
+    """**Position is wrong about 8% of the time, and silently.**
+
+    ``teams[0]`` is the home side in 12 of these 13 captured fixtures and the *away*
+    side in ``cfb-nmxst-hawaii-2026-09-13``. Home and away are the two complementary
+    markets of a result group, so reading position there prices the exact opposite
+    trade -- with every field name still looking correct.
+    """
+    links = links_from_events(_events(payloads["live_events"]))
+    inverted = next(link for link in links.values() if link.slug.startswith("cfb-nmxst"))
+
+    assert inverted.home_team == "Rainbow Warriors"  # teams[1] -- ordering says home
+    assert inverted.away_team == "Aggies"  # teams[0]
+
+
+def test_a_soccer_fixture_names_both_sides(payloads: dict[str, Any]) -> None:
+    """The football model cannot tell the three markets of a result group apart
+    without these, so an unnamed fixture is an unpriceable one."""
+    links = links_from_events(_events(payloads["one_fixture_many_events"]))
+    link = next(iter(links.values()))
+    assert link.home_team == "RC Strasbourg Alsace"
+    assert link.away_team == "AS Monaco FC"
+
+
+def test_the_moneyline_title_matches_the_team_name_exactly(payloads: dict[str, Any]) -> None:
+    """What licenses matching on ``group_item_title``.
+
+    Teams also carry an ``alias`` (``'Strasbourg'``), and the markets use the full
+    ``name``. If the venue ever switches, this test fails rather than the engine
+    quietly abstaining on every soccer market.
+    """
+    links = links_from_events(_events(payloads["one_fixture_many_events"]))
+    link = next(iter(links.values()))
+    # ``link.markets`` rather than ``tradeable_markets``: this captured fixture has
+    # finished (period VFT), so nothing in it is still accepting orders. The question
+    # here is the shape of the title, not whether the market is open.
+    titles = {market.group_item_title for market in link.markets if market.group_item_title}
+    assert link.home_team in titles
+
+
+def test_a_fixture_missing_an_ordering_names_neither_side() -> None:
+    """Assigning the second side by elimination is the positional guess again."""
+    from deepflow.adapters.polymarket.games import _team_names
+
+    class _Team:
+        def __init__(self, name: str, ordering: str | None) -> None:
+            self.name = name
+            self.ordering = ordering
+
+    class _Sports:
+        def __init__(self, teams: list[_Team]) -> None:
+            self.teams = teams
+
+    assert _team_names(_Sports([_Team("A", "home"), _Team("B", None)])) == (None, None)
+    assert _team_names(_Sports([_Team("A", "home")])) == (None, None)
+    assert _team_names(_Sports([])) == (None, None)
+    # Both sides named and ordered is the only usable shape.
+    assert _team_names(_Sports([_Team("A", "away"), _Team("B", "home")])) == ("B", "A")

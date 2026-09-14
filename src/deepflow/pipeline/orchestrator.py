@@ -79,7 +79,10 @@ from deepflow.engines.geopolitics.engine import GeopoliticalEngine
 from deepflow.engines.geopolitics.events import EventPipeline
 from deepflow.engines.politics.political import PoliticalEngine
 from deepflow.engines.registry import EngineRegistry
+from deepflow.engines.sports.football import FootballEngine
+from deepflow.engines.sports.live_state import MatchStateStore
 from deepflow.engines.sports.rules import SportRegistry, category_for
+from deepflow.engines.sports.rules.base import MatchState
 from deepflow.journal.recorder import JournalRecorder
 from deepflow.pipeline.classifier import MarketClassifier
 from deepflow.pipeline.features import FeatureEngine
@@ -270,6 +273,7 @@ class Orchestrator:
     _clock: SystemClock = field(default_factory=SystemClock)
     _tracked: tuple[Market, ...] = ()
     _settlement: SettlementRecorder | None = None
+    _match_states: MatchStateStore | None = None
     _predictions_written: int = 0
     _calibrated_engines: int = 0
     _prediction_failures: int = 0
@@ -378,6 +382,14 @@ class Orchestrator:
         # two pipelines would each see half the reports and neither would reach the
         # two-publisher bar.
         self._events = EventPipeline(self.settings.thresholds.geopolitics, clock=clock)
+        # Football reads live fixture state the sweep collects, the same shape as the
+        # crypto model reading the TWAP series: an engine is handed a market, a book and a
+        # token id, and none of those carry a score.
+        self._match_states = MatchStateStore(clock)
+        self._engines.register(
+            FootballEngine(self.settings.thresholds.sports.football, states=self._match_states)
+        )
+
         self._political = PoliticalEngine(self._events)
         self._geopolitical = GeopoliticalEngine(self._events, self.settings.thresholds.geopolitics)
         self._engines.register(self._political)
@@ -1029,6 +1041,7 @@ class Orchestrator:
             state = self._sports.parse(link)
             if state is not None and state.is_modellable:
                 modellable += 1
+                self._observe_fixture(link, state)
             if category_for(kind) is None:
                 # An unresolved league is recorded by name rather than defaulted:
                 # letting it inherit OTHER_SPORTS would hand an unidentified sport
@@ -1041,6 +1054,33 @@ class Orchestrator:
             modellable=modellable,
             tradeable_markets=sum(len(link.tradeable_markets) for link in links),
             unresolved_leagues=sorted(set(unresolved)),
+            # Zero here while fixtures are in play means the join is broken rather than
+            # that nothing is on -- the failure `games.py` sat in for two phases.
+            markets_with_state=self._match_states.tracked() if self._match_states else 0,
+        )
+
+    def _observe_fixture(self, link: GameLink, state: MatchState) -> None:
+        """Hand one fixture's state to every market built on it.
+
+        Done at **sweep** time, not per snapshot. Parsing a fixture per book update is
+        the §81 mistake: classification and resolution inline in the stream consumer
+        dropped 1.3 million events in ten minutes while reporting itself healthy.
+
+        A fixture with no named sides is skipped. A soccer result market is a three-way
+        group whose three members are distinguished only by ``group_item_title`` matching
+        a team name, so without the names the state is unusable and storing it would only
+        let the engine get further before abstaining.
+        """
+        if self._match_states is None:
+            return
+        if not link.home_team or not link.away_team:
+            log.info("live_games.fixture_unnamed", slug=link.slug)
+            return
+        self._match_states.observe(
+            tuple(market.condition_id for market in link.tradeable_markets),
+            state,
+            home_team=link.home_team,
+            away_team=link.away_team,
         )
 
     async def _health_loop(self) -> None:

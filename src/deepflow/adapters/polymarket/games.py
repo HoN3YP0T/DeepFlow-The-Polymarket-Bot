@@ -125,6 +125,20 @@ class GameLink:
     it is the only identifier some fixtures have, and losing it means losing the
     ability to recognise the same fixture across two sweeps."""
 
+    home_team: str | None = None
+    away_team: str | None = None
+    """The two sides, home first.
+
+    **Not from `sports.home_team_name` / `away_team_name`.** Those typed fields exist on
+    the SDK's event model and were `None` on every live event sampled. The names are in
+    `sports.teams`, an ordered list, and `sports.sport.ordering` reads `"home"` -- which is
+    what says the order means anything at all.
+
+    Load-bearing rather than decorative: a soccer result market is a *three-way group* of
+    separate Yes/No markets, and the only thing distinguishing "Will Coquimbo win?" from
+    "Will Huachipato win?" is `group_item_title` matching one of these names. Without them a
+    model can compute P(home win) perfectly and have no idea which market that is."""
+
     live: bool = False
     ended: bool = False
     score: str | None = None
@@ -220,6 +234,45 @@ def _fixture_key(event: Any) -> str:
     return published if published is not None else f"event:{event.id}"
 
 
+def _team_names(sports: Any) -> tuple[str | None, str | None]:
+    """The two sides as ``(home, away)``, read from each team's own ``ordering``.
+
+    Three things here were measured against captured payloads rather than assumed, and
+    the first one would have been wrong in production.
+
+    **Position does not mean home.** ``teams[0]`` is the home side in 12 of the 13
+    captured fixtures and the *away* side in one (``cfb-nmxst-hawaii-2026-09-13``), so
+    reading position gets it backwards about 8% of the time -- silently, and in the
+    way that matters most, since home and away are the two complementary markets of a
+    result group. Each team carries its own ``ordering`` field; that is authoritative
+    and it is what this reads.
+
+    **The typed name fields are empty.** ``sports.home_team_name`` and
+    ``away_team_name`` exist on the SDK model and were ``None`` on every event
+    sampled, live and captured alike. The names are in ``teams``.
+
+    **``name`` is the one the markets use.** Soccer teams also carry an ``alias``
+    (``'Strasbourg'`` beside ``'RC Strasbourg Alsace'``), and the moneyline markets'
+    ``group_item_title`` matched the full ``name`` on both captured soccer fixtures.
+    College football inverts the two -- ``name`` is the mascot, ``alias`` the school --
+    which is a reason to keep this per-sport rather than to guess between them.
+
+    ``(None, None)`` unless exactly one home and one away are named. A fixture with one
+    identifiable side is not half-usable: assigning the other by elimination is the
+    positional guess this docstring exists to prevent.
+    """
+    teams = getattr(sports, "teams", None) or ()
+    by_ordering: dict[str, str] = {}
+    for team in teams:
+        ordering = str(getattr(team, "ordering", "") or "").strip().lower()
+        name = str(getattr(team, "name", "") or "").strip()
+        if ordering in ("home", "away") and name and ordering not in by_ordering:
+            by_ordering[ordering] = name
+    if len(by_ordering) != 2:
+        return None, None
+    return by_ordering["home"], by_ordering["away"]
+
+
 def _merge(existing: GameLink | None, event: Any, markets: tuple[Market, ...]) -> GameLink:
     """Fold one event into the link for its fixture.
 
@@ -228,6 +281,7 @@ def _merge(existing: GameLink | None, event: Any, markets: tuple[Market, ...]) -
     sibling win would make the resulting state depend on page order.
     """
     sports = _sports(event)
+    teams = _team_names(sports)
     state = getattr(event, "state", None)
     schedule = getattr(event, "schedule", None)
     event_id = EventId(str(event.id))
@@ -250,6 +304,8 @@ def _merge(existing: GameLink | None, event: Any, markets: tuple[Market, ...]) -
             elapsed=getattr(sports, "elapsed", None) or None,
             game_status=getattr(sports, "game_status", None) or None,
             start_time=getattr(schedule, "start_time", None),
+            home_team=teams[0],
+            away_team=teams[1],
         )
 
     return GameLink(
@@ -271,6 +327,8 @@ def _merge(existing: GameLink | None, event: Any, markets: tuple[Market, ...]) -
         elapsed=existing.elapsed or (getattr(sports, "elapsed", None) or None),
         game_status=existing.game_status or (getattr(sports, "game_status", None) or None),
         start_time=existing.start_time or getattr(schedule, "start_time", None),
+        home_team=existing.home_team or teams[0],
+        away_team=existing.away_team or teams[1],
     )
 
 
