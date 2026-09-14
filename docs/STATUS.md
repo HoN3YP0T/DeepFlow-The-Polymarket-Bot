@@ -1,11 +1,11 @@
 # Status and handover
 
-**As of:** 2026-09-13 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· 31 commits · **780 tests passing, 0 skipped** · **44 stubs remain** · 88 findings recorded
-· 109 source files, ~12,500 lines
+**As of:** 2026-09-14 · **Branch:** `claude/adoring-hypatia-pxi7up`
+· **846 tests passing, 0 skipped** · **44 stubs remain** · 90 findings recorded
+· 115 source files
 
-**Phase 1** complete · **Phase 2** complete · **Phase 3** 3 of 6 · **Phase 4** complete
-· Phases 5–8 not started
+**Phases 1, 2, 4, 5** complete · **Phase 3** 5 of 6 (`FootballEngine` remains)
+· **Phase 6** 3 of 4 (cross-market deferred) · Phases 7–8 not started
 
 > An earlier version of this line read "395 tests green" while 30 of those were
 > integration tests **skipped** for want of a database — a skipped test reporting as
@@ -24,6 +24,8 @@
 | `live-games` | Resolve in-play fixtures, read each with its own sport's rules | 20 s |
 | `market-stream` | Fold the book stream, assess quality, persist snapshots | live socket |
 | `health` | Feed liveness and reconnects, fed to the breaker supervisor | 30 s |
+| `reference-feed` | Hold the Chainlink TWAP series the crypto model prices against | live socket |
+| `settlement` | Record how predicted-on markets actually resolved, for calibration | 300 s |
 
 ```
 orchestrator.starting   mode=PAPER not_yet_wired=['sports socket (…)', 'signal loop', …]
@@ -266,10 +268,55 @@ is right 0.93 of the time turns a positive edge negative.
 | `adapters/cache` | 3 | `RedisCache` |
 | `engines/crypto` | 0 | complete — `Btc5mEngine` implemented and verified live |
 
-**Phase 3 — probability (2 remaining).** `Btc5mEngine` is **done and verified against the
-live feed** — the first model in this system that produces a number. Left: `FootballEngine`
-(unblocked: the join, live fixtures, score/period/clock) and calibration fitting (needs
-recorded in-play history, which only our own recorder can collect).
+**Phase 3 — probability (1 remaining).** `Btc5mEngine` is **done and verified against the
+live feed** — the first model in this system that produces a number — and **calibration is
+done**. Left: `FootballEngine`.
+
+**Calibration was not unstarted work, it was unstartable.** `_calibrate` returned its input
+unchanged for the life of this repo, and the cause turned out not to be the fit: `signals`
+stored a model probability, and nothing in the schema had *ever* recorded how a market
+resolved. Half of every (prediction, outcome) pair was being discarded, so no amount of
+running would have produced a curve — and the Gate-to-live item "calibration curves within
+tolerance for every enabled engine" was unsatisfiable by any amount of paper trading.
+
+What exists now:
+
+| Piece | What it does |
+| --- | --- |
+| `predictions` table | Every estimate an engine makes, sampled at one row per token per minute |
+| `market_resolutions` table | Per-outcome payouts, one row per token, from `/v2/resolutions` |
+| `calibration_fits` table | Fitted curves; `active` decides which is live, and never self-sets |
+| `pipeline/settlement.py` | Polls for ended markets we predicted on and records their outcome |
+| `engines/calibration.py` | Isotonic fit (pool-adjacent-violators), Brier, ECE, reliability bins |
+| `scripts/fit_calibration.py` | `make calibrate`; reports by default, `--activate` to go live |
+| `scripts/verify_calibration.py` | `make verify-calibration`; the chain against live settled markets |
+
+**Verified live, end to end, 2026-09-14.** A 16-minute `make run` past the TWAP warm-up
+produced 20,430 estimates and **30 prediction rows** — the per-minute sampling working, with
+horizons spread across 84-266 s inside 5-minute windows, which is the within-market variation
+the sampling exists to keep. One settlement pass then resolved **8 of 8** queued markets and
+the join produced **30 scored (prediction, outcome) pairs**: the first this system has ever
+held. `make calibrate` correctly declined to fit them (30 samples from 8 markets against
+floors of 200 and 50).
+
+**Every engine still runs on identity, and that is correct rather than unfinished.** A curve
+is installed only when an operator marks a fit active, and no fit can exist until settled
+markets accumulate: the floors are 200 samples from **50 distinct markets**. Watch
+`predictions` climbing with `settled` following on the health line — `settled` pinned at zero
+while `predictions` rises is the one shape that means scoring is broken rather than waiting.
+
+**Three decisions worth knowing before touching it.**
+
+* **Isotonic, not Platt.** Platt fits a sigmoid, which assumes one smooth error shape across
+  the range. The errors expected here are band-specific — a barrier model with a
+  volatility input biased low is overconfident at the extremes and roughly right in the
+  middle — and a sigmoid cannot represent that without distorting the part it had right.
+* **Identity outside the fitted range.** Extrapolating invents a correction from no
+  evidence; clipping to the nearest fitted value turns missing data into a confident claim.
+  `supports()` tells the two regions apart.
+* **Markets are counted, not rows.** 500 estimates on three 5-minute windows is three coin
+  flips. The per-minute sampling and `MIN_MARKETS` guard the same error from both ends
+  (§90).
 
 **What the BTC model does, and what it refuses to do.** `P = Phi(ln(S/K) / (sigma *
 sqrt(T_eff)))`, where `K` is the Chainlink TWAP at the window's opening instant, `S` the
@@ -428,23 +475,34 @@ only, enforced nowhere*. Needs deciding before live.
 
 ## 8. Recommended next step
 
-**A probability model, before Phase 5.** Execution builds order submission for
-signals that do not exist; the decision layer is finished and idle for want of an
-input.
+**`FootballEngine`** — the last Phase 3 item, and more valuable than the BTC model.
 
-Of the two unblocked models, **`Btc5mEngine` is the more tractable**: a barrier
-problem against a known reference, with a fully specified settlement rule (Chainlink
-TWAP, 30 s lookback) and a fresh market every five minutes across eight assets, so it
-can be checked continuously rather than waiting for a fixture. `FootballEngine` is
-the more valuable and the slower to verify — soccer fixtures arrive a few per hour and
-the model needs a scoring-rate assumption the feed cannot supply.
+Two traps sit in front of it, both found while auditing the roadmap rather than while
+writing code:
 
-Either way the gate now refuses anything a model gets wrong in a nameable way, which
-is the point of having built it first.
+* **It is typed against a state model nothing constructs.** `FootballEngine.estimate` takes
+  `FootballState`, and `FootballState` is built nowhere in `src/` or `tests/` — the same is
+  true of `TennisState`, `CricketState` and `BadmintonState`. What the live-verified parser
+  produces is `MatchState`. There are two parallel state hierarchies and all four engines are
+  wired to the one with no producer. Retype onto `MatchState`, which already carries
+  `blocking_gaps` — the abstention machinery the engine's TODO asks for.
+* **Its docstring promises inputs the venue does not send.** Red cards, xG, shots and team
+  strength are all listed in `rules/soccer.py`'s own `UNAVAILABLE`. The honest model is
+  score, clock, and the assumed stoppage constants that module already defines, flagged
+  there as a primary uncertainty contributor rather than a free parameter. Fix the docstring
+  first: this is the `is_modellable` / `sports_feed` pattern for the third time.
+
+Then register it **and** check `_limits_for` covers its category — a category with an engine
+and no limits fails closed, which is safe and completely silent (§87).
+
+**The bar it has to clear.** At 0.95-1.00, across 91 settled markets, the crowd said 0.991
+and delivered 0.989 (§90). In the band this system targets there is very little room above
+that, which is an argument for the categories where a model can see state the crowd prices
+slowly — a live score — rather than for the ones where it cannot.
 
 ---
 
-Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (88 findings).
+Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (90 findings).
 Venue surface map and the method for not misreading it:
 `docs/POLYMARKET-SURFACE-AUDIT.md` — 9 hosts, 223 operations, plus
 `make audit-surface`.

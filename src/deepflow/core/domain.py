@@ -721,3 +721,97 @@ class ExitDecision(Frozen):
     """Portion of the position to close. Ignored for HOLD/ADD."""
     reason: str
     triggers: tuple[str, ...] = ()
+
+
+# ===========================================================================
+# Calibration: what a model said, and what actually happened
+# ===========================================================================
+class OutcomePayout(Frozen):
+    """What one outcome token paid, in USDC per share.
+
+    Binary markets pay 1 or 0, and that is what every sample here has measured. It
+    is kept as a ``Decimal`` rather than a bool because the venue reports a payout
+    and not a winner, and a market type this system does not trade yet -- a scalar,
+    or a negative-risk group mid-resolution -- can pay something in between. A bool
+    would force that case into a lie at the point of reading rather than surfacing
+    it at the point of use.
+    """
+
+    token_id: ClobTokenId
+    payout: Decimal = Field(ge=0, le=1)
+
+
+class MarketResolution(Frozen):
+    """How a market actually settled. The other half of every calibration sample.
+
+    Nothing in this system recorded this until calibration needed it, which is why
+    ``_calibrate`` was an identity function for so long: the fit was not unstarted
+    work, it was unstartable, because only half of each (prediction, outcome) pair
+    had ever been stored.
+
+    ``payouts`` carries one entry per outcome token. It is **not** positional: the
+    venue reports a positional pair and the translation to token ids happens once,
+    in the adapter, where the alignment could be proved (§89).
+    """
+
+    condition_id: ConditionId
+    payouts: tuple[OutcomePayout, ...]
+    resolved_at: datetime
+    status: str
+    """The venue's own lifecycle word, e.g. ``resolved``. Stored verbatim."""
+    was_disputed: bool = False
+    """A disputed resolution is still a resolution, and it is also a reason to look
+    twice at any sample drawn from it."""
+    source: str | None = None
+    """How the payout was obtained -- ``reported`` or ``derived``. ``None`` when the
+    venue did not say, which is not the same as either."""
+
+    def payout_for(self, token_id: ClobTokenId) -> Decimal | None:
+        """What this token paid, or ``None`` if this resolution does not cover it.
+
+        ``None`` rather than zero. A token absent from the payout set is one we
+        cannot score, and scoring it as a loss would teach the calibration curve
+        that every unmatched prediction was wrong.
+        """
+        for entry in self.payouts:
+            if entry.token_id == token_id:
+                return entry.payout
+        return None
+
+
+class Prediction(Frozen):
+    """One model output, recorded so it can be scored once the market settles.
+
+    Recorded for **every** estimate an engine produces, not only the ones that
+    became signals. Calibrating on the traded subset would fit the curve to the
+    tail where this system already believed it had an edge, which is exactly the
+    region where a biased sample is most convincing and most wrong.
+    """
+
+    engine: str
+    category: MarketCategory
+    condition_id: ConditionId
+    token_id: ClobTokenId
+    model_probability: Decimal = Field(ge=0, le=1)
+    calibrated_probability: Decimal = Field(ge=0, le=1)
+    uncertainty: Decimal = Field(ge=0, le=1)
+    predicted_at: datetime
+    horizon_seconds: int | None = None
+    """Seconds from the prediction to the market's end, where that is known.
+
+    Calibration is horizon-dependent -- a model five seconds from settlement is a
+    different estimator from the same model five minutes out -- so a fit that pools
+    every horizon hides the one it is worst at. Stored per sample so a fit can be
+    cut by horizon later; ``None`` means the end was not known, never "immediate"."""
+
+
+class CalibrationSample(Frozen):
+    """A prediction joined to what actually happened."""
+
+    predicted: Decimal = Field(ge=0, le=1)
+    realized: Decimal = Field(ge=0, le=1)
+    engine: str
+    condition_id: ConditionId
+    token_id: ClobTokenId
+    predicted_at: datetime
+    horizon_seconds: int | None = None

@@ -1,5 +1,6 @@
 .PHONY: install test test-integration lint fmt typecheck check verify capture-fixtures \
-	audit-surface verify-account verify-btc db-local redis-local up down migrate run api clean
+	audit-surface verify-account verify-btc verify-calibration calibrate \
+	db-local redis-local up down migrate run api clean
 
 install:
 	python -m venv .venv
@@ -40,6 +41,16 @@ verify:
 ## kept out of `verify` -- which should stay fast enough to run on every change.
 verify-btc:
 	.venv/bin/python scripts/verify_btc_5m.py
+
+# Read-only, and writes nothing to the database: anything in `predictions` becomes
+# evidence a future fit trains on, and a probe must not be able to teach the system.
+verify-calibration:
+	.venv/bin/python scripts/verify_calibration.py
+
+# Reports only. Add --activate to make the fitted curves live, which changes every
+# probability the affected engines produce from then on.
+calibrate:
+	.venv/bin/python scripts/fit_calibration.py
 
 ## Diff raw venue JSON against what the SDK and our domain model can see. Read this
 ## before recording that the venue lacks a field -- three findings were wrong that way.

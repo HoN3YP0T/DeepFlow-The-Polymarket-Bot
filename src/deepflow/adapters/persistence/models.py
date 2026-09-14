@@ -237,3 +237,90 @@ class AuditRow(Base):
     action: Mapped[str] = mapped_column(String(64), index=True)
     detail: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class PredictionRow(Base):
+    """Every probability an engine produced, kept so it can be scored later.
+
+    Time series, and a hypertable candidate for the same reason as
+    ``market_snapshots``: the composite primary key includes ``predicted_at``
+    because TimescaleDB refuses to convert a table whose unique indexes omit the
+    partitioning column, and discovering that later means migrating a populated
+    table.
+
+    Written for every estimate, including the ones no signal came of. Recording
+    only the traded subset would fit the calibration curve to the region where this
+    system already believed it had an edge.
+    """
+
+    __tablename__ = "predictions"
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    engine: Mapped[str] = mapped_column(String(32), index=True)
+    category: Mapped[str] = mapped_column(String(32), index=True)
+    condition_id: Mapped[str] = mapped_column(String(80), index=True)
+    token_id: Mapped[str] = mapped_column(String(80), index=True)
+    model_probability: Mapped[Decimal] = mapped_column(_PROB)
+    calibrated_probability: Mapped[Decimal] = mapped_column(_PROB)
+    uncertainty: Mapped[Decimal] = mapped_column(_PROB)
+    horizon_seconds: Mapped[int | None] = mapped_column(Integer)
+    """``None`` means the market's end was unknown, never "settles now"."""
+    predicted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), primary_key=True, index=True
+    )
+
+    __table_args__ = (
+        # The scoring join reads every prediction for a market that has just
+        # settled, so the index leads with the condition id.
+        Index("ix_prediction_condition_time", "condition_id", "predicted_at"),
+        Index("ix_prediction_engine_time", "engine", "predicted_at"),
+    )
+
+
+class MarketResolutionRow(Base):
+    """How a market settled: one row per outcome token, holding its payout.
+
+    Normalised away from ``predictions`` deliberately. A market resolves once and
+    thousands of predictions reference it, so writing the outcome onto each of them
+    would mean a mass update on settlement and the same fact stored thousands of
+    times -- with the usual consequence that some copies end up disagreeing.
+
+    ``payout`` is USDC per share, as the venue reports it, rather than a winner
+    flag: the venue reports a payout, and a market type this system does not trade
+    yet could pay something between 0 and 1.
+    """
+
+    __tablename__ = "market_resolutions"
+
+    condition_id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    token_id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    payout: Mapped[Decimal] = mapped_column(_PROB)
+    status: Mapped[str] = mapped_column(String(32), index=True)
+    was_disputed: Mapped[bool] = mapped_column(Boolean, default=False)
+    source: Mapped[str | None] = mapped_column(String(32))
+    resolved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class CalibrationFitRow(Base):
+    """A fitted curve, stored beside the evidence that produced it.
+
+    Kept in the database rather than in a file because a fit is only interpretable
+    next to the sample it came from, and because "which curve was live when this
+    trade was sized" is a question a post-mortem will ask. Superseded fits are not
+    deleted: ``active`` moves.
+    """
+
+    __tablename__ = "calibration_fits"
+
+    id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
+    engine: Mapped[str] = mapped_column(String(32), index=True)
+    knots: Mapped[dict[str, Any]] = mapped_column(JSON)
+    samples: Mapped[int] = mapped_column(Integer)
+    markets: Mapped[int] = mapped_column(Integer)
+    brier_before: Mapped[Decimal] = mapped_column(Numeric(12, 8))
+    brier_after: Mapped[Decimal] = mapped_column(Numeric(12, 8))
+    ece_before: Mapped[Decimal] = mapped_column(Numeric(12, 8))
+    ece_after: Mapped[Decimal] = mapped_column(Numeric(12, 8))
+    active: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    fitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)

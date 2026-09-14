@@ -27,19 +27,25 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from deepflow.adapters.persistence.models import (
+    CalibrationFitRow,
     JournalRow,
+    MarketResolutionRow,
     MarketRow,
     MarketSnapshotRow,
     OrderRow,
+    PredictionRow,
 )
 from deepflow.core.clock import Clock, SystemClock
 from deepflow.core.domain import (
+    CalibrationSample,
     Market,
+    MarketResolution,
     MarketSnapshot,
     OrderIntent,
     OrderRecord,
     Outcome,
     Position,
+    Prediction,
     Signal,
 )
 from deepflow.core.enums import (
@@ -354,6 +360,212 @@ class SqlPositionRepository:
         raise NotImplementedError("SqlPositionRepository.list_open")
 
 
+class SqlPredictionRepository:
+    """Every estimate an engine produced, and the join that scores them.
+
+    Append-only: a prediction is a record of what was believed at a moment, and an
+    upsert here would mean the most recent estimate quietly overwrote the earlier
+    ones on the same market -- destroying exactly the horizon variation a fit needs
+    to see.
+    """
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def record(self, prediction: Prediction) -> None:
+        await self._session.execute(
+            insert(PredictionRow).values(
+                engine=prediction.engine,
+                category=prediction.category.value,
+                condition_id=str(prediction.condition_id),
+                token_id=str(prediction.token_id),
+                model_probability=prediction.model_probability,
+                calibrated_probability=prediction.calibrated_probability,
+                uncertainty=prediction.uncertainty,
+                horizon_seconds=prediction.horizon_seconds,
+                predicted_at=prediction.predicted_at,
+            )
+        )
+
+    async def list_samples(
+        self, *, engine: str | None = None, limit: int = 100_000
+    ) -> Sequence[CalibrationSample]:
+        """Predictions joined to their market's settled payout.
+
+        An **inner** join, deliberately. A left join filled with zero for unsettled
+        markets would read as "predicted 0.9, outcome 0" -- teaching the curve that
+        every still-open position was a loss, and doing it most aggressively to the
+        engines whose markets run longest.
+
+        The join is on ``(condition_id, token_id)`` rather than condition alone: a
+        binary market resolves both its tokens, one to 1 and one to 0, and matching
+        on the market would score every prediction against whichever outcome row the
+        planner happened to return.
+        """
+        statement = (
+            select(PredictionRow, MarketResolutionRow.payout)
+            .join(
+                MarketResolutionRow,
+                (PredictionRow.condition_id == MarketResolutionRow.condition_id)
+                & (PredictionRow.token_id == MarketResolutionRow.token_id),
+            )
+            .order_by(PredictionRow.predicted_at.desc())
+            .limit(limit)
+        )
+        if engine is not None:
+            statement = statement.where(PredictionRow.engine == engine)
+
+        result = await self._session.execute(statement)
+        return tuple(
+            CalibrationSample(
+                predicted=row.model_probability,
+                realized=payout,
+                engine=row.engine,
+                condition_id=ConditionId(row.condition_id),
+                token_id=ClobTokenId(row.token_id),
+                predicted_at=row.predicted_at,
+                horizon_seconds=row.horizon_seconds,
+            )
+            for row, payout in result.all()
+        )
+
+
+class SqlResolutionRepository:
+    """How markets settled, one row per outcome token."""
+
+    def __init__(self, session: AsyncSession, clock: Clock | None = None) -> None:
+        self._session = session
+        self._clock = clock or SystemClock()
+
+    async def upsert(self, resolution: MarketResolution) -> None:
+        """Write one row per outcome.
+
+        Upserted rather than inserted once because a resolution can change: a
+        disputed market can be reproposed and settle the other way. Overwriting is
+        right -- the venue's current answer is the one that paid -- and it is also
+        why ``was_disputed`` is stored, since a sample drawn from a resolution that
+        moved deserves a second look.
+        """
+        now = self._clock.now()
+        for entry in resolution.payouts:
+            values = {
+                "condition_id": str(resolution.condition_id),
+                "token_id": str(entry.token_id),
+                "payout": entry.payout,
+                "status": resolution.status,
+                "was_disputed": resolution.was_disputed,
+                "source": resolution.source,
+                "resolved_at": resolution.resolved_at,
+                "recorded_at": now,
+            }
+            statement = insert(MarketResolutionRow).values(**values)
+            await self._session.execute(
+                statement.on_conflict_do_update(
+                    index_elements=[
+                        MarketResolutionRow.condition_id,
+                        MarketResolutionRow.token_id,
+                    ],
+                    set_={
+                        key: statement.excluded[key]
+                        for key in values
+                        if key not in ("condition_id", "token_id")
+                    },
+                )
+            )
+
+    async def unresolved_condition_ids(self, *, limit: int = 500) -> Sequence[ConditionId]:
+        """Markets worth asking the venue about.
+
+        Scoped to markets **we predicted on**: resolutions for anything else are not
+        wrong, just useless, and the venue's batch limit is 20 ids per request, so
+        sweeping every closed market on the venue would spend the whole budget on
+        rows no sample will ever reference.
+
+        Ordered oldest-ended first so a backlog drains in the order it accumulated
+        rather than re-asking about the same recent markets on every pass.
+        """
+        resolved = select(MarketResolutionRow.condition_id)
+        statement = (
+            select(PredictionRow.condition_id, MarketRow.end_date)
+            .join(MarketRow, MarketRow.condition_id == PredictionRow.condition_id)
+            .where(PredictionRow.condition_id.not_in(resolved))
+            .where(MarketRow.end_date.is_not(None))
+            .where(MarketRow.end_date < self._clock.now())
+            .group_by(PredictionRow.condition_id, MarketRow.end_date)
+            .order_by(MarketRow.end_date)
+            .limit(limit)
+        )
+        result = await self._session.execute(statement)
+        return tuple(ConditionId(row[0]) for row in result.all())
+
+
+class SqlCalibrationRepository:
+    """Fitted curves, stored beside the evidence that produced them.
+
+    In the database rather than a file because "which curve was live when this trade
+    was sized" is a question a post-mortem will ask, and a file on an operator's
+    laptop cannot answer it. Superseded fits are kept: ``active`` moves, nothing is
+    deleted, so a curve that made things worse can be compared against the one that
+    replaced it.
+    """
+
+    def __init__(self, session: AsyncSession, clock: Clock | None = None) -> None:
+        self._session = session
+        self._clock = clock or SystemClock()
+
+    async def save(
+        self,
+        *,
+        engine: str,
+        knots: dict[str, Any],
+        samples: int,
+        markets: int,
+        brier_before: Decimal,
+        brier_after: Decimal,
+        ece_before: Decimal,
+        ece_after: Decimal,
+        activate: bool = False,
+    ) -> None:
+        """Store a fit, optionally making it the live one for this engine.
+
+        Activation is explicit and never automatic. A fit that improves its own
+        training scores can still be the wrong thing to run -- fitted on one regime,
+        or with no support in the band actually traded -- and that judgement belongs
+        to whoever reads the report, not to the fitter that produced it.
+        """
+        if activate:
+            await self._session.execute(
+                update(CalibrationFitRow)
+                .where(CalibrationFitRow.engine == engine)
+                .values(active=False)
+            )
+        await self._session.execute(
+            insert(CalibrationFitRow).values(
+                engine=engine,
+                knots=knots,
+                samples=samples,
+                markets=markets,
+                brier_before=brier_before,
+                brier_after=brier_after,
+                ece_before=ece_before,
+                ece_after=ece_after,
+                active=activate,
+                fitted_at=self._clock.now(),
+            )
+        )
+
+    async def active_fits(self) -> dict[str, dict[str, Any]]:
+        """The live curve per engine, as stored.
+
+        Returns the raw payloads rather than calibrators so this module keeps its one
+        job -- rows in, rows out -- and the engines package stays free of persistence.
+        """
+        result = await self._session.execute(
+            select(CalibrationFitRow).where(CalibrationFitRow.active.is_(True))
+        )
+        return {row.engine: dict(row.knots) for row in result.scalars()}
+
+
 class SqlJournalRepository:
     """Append-only decision log.
 
@@ -459,6 +671,9 @@ class SqlUnitOfWork:
         self.orders = SqlOrderRepository(session, clock)
         self.positions = SqlPositionRepository(session)
         self.journal = SqlJournalRepository(session, clock)
+        self.predictions = SqlPredictionRepository(session)
+        self.resolutions = SqlResolutionRepository(session, clock)
+        self.calibration = SqlCalibrationRepository(session, clock)
 
     async def __aenter__(self) -> SqlUnitOfWork:
         return self

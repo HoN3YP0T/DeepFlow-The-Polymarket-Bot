@@ -14,7 +14,7 @@ mistakes are not made a fourth time.
 | Question | File |
 | --- | --- |
 | What is done, what is left, what broke and was fixed | `docs/STATUS.md` — **start here** |
-| What the venue actually does (88 findings, 5 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
+| What the venue actually does (90 findings, 5 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
 | The venue's full surface + the method for not misreading it | `docs/POLYMARKET-SURFACE-AUDIT.md` |
 | Build order, per-phase state | `docs/ROADMAP.md` |
 | Module map, dependency rule, data flow | `docs/ARCHITECTURE.md` |
@@ -33,13 +33,16 @@ make redis-local        # local redis (no docker), persistence off.
 make verify             # 5 scripts against the live venue. No credentials needed.
 make verify-account     # read-only credentialed checks (needs .env). Places no orders.
 make verify-btc         # the BTC model against the live TWAP feed. Collects 7 minutes.
+make verify-calibration # the settlement + fit chain against live settled markets. Read-only.
+make calibrate          # fit each engine's curve from recorded data. --activate to go live.
 make audit-surface      # raw venue JSON vs what our code can see. See Traps.
 make capture-fixtures   # refresh the payload corpus; exits non-zero if it would test less
 make run                # discover, stream, persist (PAPER)
 ```
 
-`make check` does **not** run `verify`, `verify-account` or `audit-surface` — they need the network and
-their result depends on what is trading right now.
+`make check` does **not** run `verify`, `verify-account`, `verify-calibration` or
+`audit-surface` — they need the network and their result depends on what is trading right
+now.
 
 ---
 
@@ -151,6 +154,18 @@ the venue lacks anything, run `make audit-surface` and paste what it returned.
   604 tests, ruff and mypy all passed while the call was dead (§67). Import from the
   module that actually exists and the type checker works. Verify a path by importing
   it, not by reading it.
+- **A settled market's outcome is at `/v2/resolutions`, and the obvious places are
+  wrong.** `outcomes.*.price` reads **0 on both sides** of a settled market, and
+  `market.resolution` is entirely `None` — so "price 1 means winner" finds no winner, and
+  read as a payout it scores every outcome as a loss (§89). The real source returns
+  per-outcome `payouts`, **20 condition ids per request**, empty list rejected.
+- **That payout pair is positional and `Market.outcomes` is not.** `payouts` comes from the
+  data service; `outcomes` is built from the SDK's named `yes`/`no` accessors on the Gamma
+  model. Proved equal, not assumed: 17 of 17, then 88 of 88 with 0 disagreements, against
+  what each token last traded at. Getting it wrong would invert every calibration sample and
+  produce a tidy curve that teaches each engine to be exactly wrong. `PolymarketResolutions`
+  skips a market whose payout count and outcome count disagree rather than zipping as far as
+  it goes.
 - **Position size is `current_size`**, not `size`. Reading the wrong name yields zero
   shares, and the zero-filter then drops the position, so a funded account reconciles
   as **flat** (§68). Both sites now share `mapping.position_shares`.
@@ -182,6 +197,17 @@ the venue lacks anything, run `make audit-surface` and paste what it returned.
 - **The crypto model needs ~12 minutes of warm-up** (6 vol samples at a 120 s lag, which is
   twice the 60 s averaging window), so a freshly started process abstains on everything and
   one restarted often can never trade these markets (§84, §85).
+- **A sample's provenance matters more than its size.** Calibrating the market against its
+  own outcomes using each token's last trade looked reasonable and produced a table where
+  every band from 0.05 to 0.75 realized **0.000**. The two sides' last-trade prices sum to a
+  median of 1.030 with 43% above 1.05 — they are not simultaneous, because a loser stops
+  trading once hopeless while the winner trades to the bell (§90). Two guards against the
+  same family of error in the real path: predictions are sampled **one row per token per
+  minute**, and the fitter counts **distinct markets**, never rows. 500 estimates on three
+  5-minute windows is three coin flips.
+- **The crowd is very well calibrated where this system trades.** At 0.95-1.00, across 91
+  settled markets, it said **0.991** and delivered **0.989** (§90). That is the number any
+  engine here has to beat, and there is almost no room above it.
 - **A market labelled Up/Down parsed as UNPARSEABLE**, so the gate refused 400 of 400
   decisions on `RESOLUTION_VALID` — `_YES_CLAUSE` wanted the literal token `yes` (§86). The
   `labelled_binary` shape reads the market's own outcome labels instead.
@@ -243,8 +269,8 @@ exchange rules, imports nothing, and any layer may import it (ADR-0003).
 
 ## Current shape of the work
 
-Phases 1, 2, 4 and 5 complete; Phase 3 is 4 of 6; Phase 6 is 3 of 4 (cross-market
-deferred); Phases 7–8 not started.
+Phases 1, 2, 4 and 5 complete; Phase 3 is 5 of 6 (`FootballEngine` is the last item);
+Phase 6 is 3 of 4 (cross-market deferred); Phases 7–8 not started.
 
 **The pipeline now runs end to end for one instrument.** Discovery, classification,
 streaming, the live-game join, EV, the 17-check gate, risk, exposure, exits, positions,
@@ -257,9 +283,22 @@ implementation's: no up/down market publishes its strike (§77), so a process th
 already subscribed when the window opened cannot price it. Every other category still runs
 on injected estimates.
 
+**Calibration is wired and every engine still runs on identity**, which is the correct state
+rather than an unfinished one: a curve is installed only when an operator marks a fit active,
+and no fit can exist until settled markets accumulate behind recorded predictions (200
+samples from 50 distinct markets). `_calibrate` was never merely unstarted — it was
+unstartable, because nothing in the schema had ever recorded how a market resolved, so half
+of every (prediction, outcome) pair was thrown away. `pipeline/settlement.py` and the
+`predictions` / `market_resolutions` / `calibration_fits` tables close that.
+
 Next most useful piece of work is `FootballEngine` — more valuable than the BTC model and
 slower to verify, with the join, live fixtures and score/period/clock all already in place.
-Then calibration, which needs recorded in-play history only our own recorder can collect.
+**Two traps ahead of writing it**, both found while auditing the roadmap: it is typed against
+`FootballState`, which *nothing anywhere constructs* — the live-verified parser produces
+`MatchState`, so the engine is wired to the dead half of a split state hierarchy. And its
+docstring promises red cards, xG and team strength, none of which the venue feed sends; the
+honest model is score, clock and the assumed stoppage constants `rules/soccer.py` already
+carries.
 
 ## Working style the owner has asked for
 

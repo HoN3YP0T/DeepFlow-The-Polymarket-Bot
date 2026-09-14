@@ -7,11 +7,14 @@ from decimal import Decimal
 from typing import Any, Protocol, runtime_checkable
 
 from deepflow.core.domain import (
+    CalibrationSample,
     Market,
+    MarketResolution,
     MarketSnapshot,
     OrderIntent,
     OrderRecord,
     Position,
+    Prediction,
     Signal,
 )
 from deepflow.core.types import ClientOrderKey, ClobTokenId, ConditionId, PositionId
@@ -101,6 +104,41 @@ class PositionRepository(Protocol):
 
 
 @runtime_checkable
+class PredictionRepository(Protocol):
+    """Every probability an engine produced, kept so it can be scored later.
+
+    Separate from :class:`JournalRepository` because the journal records what was
+    *decided* and this records what was *believed*. Most predictions never become a
+    decision, and those are the ones a calibration fit needs most: scoring only the
+    traded subset fits the curve to the region where the system already thought it
+    had an edge.
+    """
+
+    async def record(self, prediction: Prediction) -> None: ...
+
+    async def list_samples(
+        self, *, engine: str | None = None, limit: int = 100_000
+    ) -> Sequence[CalibrationSample]:
+        """Predictions joined to the outcomes of markets that have since settled.
+
+        Only scored pairs are returned. An unsettled market contributes nothing --
+        not a zero, which would teach the curve that every open position is a loss.
+        """
+        ...
+
+
+@runtime_checkable
+class ResolutionRepository(Protocol):
+    """How markets actually settled. The other half of every calibration sample."""
+
+    async def upsert(self, resolution: MarketResolution) -> None: ...
+
+    async def unresolved_condition_ids(self, *, limit: int = 500) -> Sequence[ConditionId]:
+        """Markets we have predicted on, that have ended, and have no outcome stored."""
+        ...
+
+
+@runtime_checkable
 class JournalRepository(Protocol):
     """Append-only decision log. Section 23.
 
@@ -126,6 +164,8 @@ class UnitOfWork(Protocol):
     orders: OrderRepository
     positions: PositionRepository
     journal: JournalRepository
+    predictions: PredictionRepository
+    resolutions: ResolutionRepository
 
     async def __aenter__(self) -> UnitOfWork: ...
     async def __aexit__(self, *exc: object) -> None: ...

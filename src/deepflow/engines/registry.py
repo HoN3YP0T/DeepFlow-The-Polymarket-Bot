@@ -49,3 +49,16 @@ class EngineRegistry:
     @property
     def registered_categories(self) -> frozenset[MarketCategory]:
         return frozenset(self._by_category)
+
+    @property
+    def engines(self) -> tuple[ProbabilityEnginePort, ...]:
+        """Each registered engine once, in registration order.
+
+        De-duplicated because one engine may claim several categories, and anything
+        applied per-engine -- installing a calibration curve, most obviously -- must
+        happen once rather than once per category it answers for.
+        """
+        seen: dict[int, ProbabilityEnginePort] = {}
+        for engine in self._by_category.values():
+            seen.setdefault(id(engine), engine)
+        return tuple(seen.values())

@@ -3,13 +3,13 @@
 The skeleton is step 0. Each step below is independently testable, and the
 ordering is a dependency order — nothing here is optional scaffolding.
 
-**As of 2026-09-13:**
+**As of 2026-09-14:**
 
 | Phase | State | Note |
 | --- | --- | --- |
 | 1 · Data spine | ✅ complete | verified live end to end by `verify_phase1.py` |
 | 2 · Classification and validation | ✅ complete | 300 live markets, 0 unresolved |
-| 3 · Probability | 4 of 6 | `Btc5mEngine` done and verified live — the first model that produces a number |
+| 3 · Probability | 5 of 6 | `Btc5mEngine` and calibration done; `FootballEngine` is the last item |
 | 4 · EV and safety | ✅ complete | decides in full, on injected probabilities |
 | 5 · Execution | ✅ complete | reads verified live; **every write unverified** — no order has been submitted |
 | 6 · Positions and intelligence | 3 of 4 | exits, positions, smart money, events; cross-market deferred |
@@ -111,20 +111,53 @@ can ever trade — see `docs/POLYMARKET-API-CONFORMANCE.md` §36-38.
     resolves, parses, and abstains with the missing state named, instead of being
     absent on a claim that was wrong three times (§5 → §34 → §49 → §56).
     `BadmintonEngine` stays blocked — no live state observed on either source, which
-    is "not seen yet" rather than proven absent
-14. `Btc5mEngine` — **unblocked, unwritten.** The markets exist: one per asset every
-    five minutes across eight assets, plus a 15-minute variant, so the cadence
-    question is answered as *both* (§53). Classification now reaches `BTC_5M` via the
-    venue's own `5M` tag and a correctly measured contest window (§54–55). What
-    remains is the model. The feed question is answered (§63): these markets resolve
-    on a **Chainlink TWAP**, with a 30-second lookback for 5-minute markets and 60
-    seconds for 15-minute and 4-hour ones, and both the price to beat and the
-    settlement price come from that feed — so pricing off Binance spot would be wrong
-    by the spot-to-TWAP basis at precisely the horizon where that basis is the edge
-15. Calibration fitting (`BaseProbabilityEngine._calibrate`)
+    is "not seen yet" rather than proven absent.
+
+    *(Caveat on "resolved as a structural abstention": it is true in `rules/`, where
+    `is_modellable` is False with the reason named. The engine classes themselves still
+    raise `NotImplementedError` and `TennisEngine`'s docstring still describes a model
+    that does not exist. They are unreachable — nothing registers them — so this costs
+    nothing today, but it is the `is_modellable` / `sports_feed` pattern a third time.)*
+14. ~~`Btc5mEngine`~~ **done and verified live** — the first model here that produces a
+    number rather than consuming an injected one. These markets resolve on a
+    **Chainlink TWAP** (§63), and the window is **60 s for every cadence** per each
+    market's own resolution text, which retracts the changelog's 30 s for 5-minute
+    markets (§85). So `T_eff = T - 2w/3`, the last 60 s of every window is unpriceable,
+    and warm-up is ~12 minutes. No up/down market publishes its strike — it is the
+    reference price at the window's opening instant, stated only in prose (§77) — so a
+    process not already subscribed when a window opened cannot price it, and abstains.
+
+    *(This entry previously read "unblocked, unwritten" and repeated the 30 s figure.
+    Both were left standing after the work landed and after §85 retracted the number.)*
+15. ~~Calibration fitting (`BaseProbabilityEngine._calibrate`)~~ **done** — and it was
+    not merely unstarted, it was **unstartable**. `signals` stored a model probability
+    and nothing in the schema had ever recorded how a market resolved, so only half of
+    each (prediction, outcome) pair existed and no amount of running would have produced
+    a curve. Three tables now close it: `predictions` (every estimate, not only the
+    traded ones — calibrating the traded subset fits the curve to the region the system
+    already believed in), `market_resolutions` (per-outcome payouts from `/v2/resolutions`,
+    which is the authoritative source; `outcomes.*.price` reads 0 on *both* sides of a
+    settled market and `market.resolution` is entirely `None` — §89), and
+    `calibration_fits`. Isotonic by pool-adjacent-violators rather than Platt, because
+    the errors expected here are band-specific and a sigmoid cannot represent that
+    without distorting the region it was right about. Two guards against the error that
+    would otherwise make this worthless: predictions are sampled at one row per token per
+    minute, and the fitter counts **distinct markets**, not rows — 500 estimates on three
+    5-minute windows is three coin flips (§90). Fits are stored but never self-activate
 
 **Done when:** engines produce calibrated probabilities and abstain correctly
 on missing state.
+
+**Calibration is wired but every engine still runs on identity, and that is the correct
+state rather than an unfinished one.** A curve is only installed when an operator marks a
+fit active, and no fit can exist until settled markets have accumulated behind recorded
+predictions. The floors are 200 samples from 50 distinct markets. What to watch on the
+health line is `predictions` climbing with `settled` following it; `settled` pinned at zero
+while `predictions` rises is the one shape that means scoring is broken rather than waiting.
+
+One number from that work is worth carrying into every engine written from here: in the
+0.95-1.00 band, across 91 settled markets, the crowd said **0.991** and delivered **0.989**
+(§90). That is the baseline to beat in precisely the band this system targets.
 
 **Unblocked, 2026-09-13.** This previously read "blocked, not merely unstarted", on the
 claim that no market-to-live-game join existed. That was wrong — see

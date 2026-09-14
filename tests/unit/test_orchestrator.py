@@ -297,3 +297,77 @@ def test_a_prior_must_name_its_source() -> None:
 
     with _pytest.raises(ValueError):
         BaseRateConfig(probability=Decimal("0.3"), source="")
+
+
+async def test_the_settlement_loop_is_wired() -> None:
+    """Calibration's raw material, and the reason ``_calibrate`` was an identity
+    function for so long.
+
+    Predictions were never the missing half -- ``signals`` stored a model probability
+    all along. What nothing recorded was how a market *resolved*, so no amount of
+    running could have produced a fit. The loop that records it has to be reachable
+    from ``start()`` or the tables stay empty and the fitter keeps declining for want
+    of samples, which looks exactly like "not enough data yet".
+    """
+    import inspect
+
+    from deepflow.pipeline.orchestrator import Orchestrator as Orc
+
+    source = inspect.getsource(Orc.start)
+    assert "SettlementRecorder(" in source
+    assert 'name="settlement"' in source
+    # The curve an operator activated must be installed before any estimate is made,
+    # or the first minutes of a run are silently uncalibrated.
+    assert "_install_calibrators()" in source
+
+
+async def test_every_estimate_is_recorded_not_only_the_traded_ones() -> None:
+    """Calibrating on the traded subset would fit the curve to the region where this
+    system already believed it had an edge -- and leave it blind everywhere else,
+    which is the part a fit exists to correct.
+
+    So the recording call sits in ``_consider``, beside the estimate counter, rather
+    than anywhere downstream of the gate.
+    """
+    import inspect
+
+    from deepflow.pipeline.orchestrator import Orchestrator as Orc
+
+    source = inspect.getsource(Orc._consider)
+    assert "_record_prediction(" in source
+    recorded = source.index("_record_prediction(")
+    decided = source.index("_decide(")
+    assert recorded < decided, "predictions must be recorded before the gate can refuse"
+
+
+async def test_predictions_are_sampled_rather_than_stored_per_snapshot() -> None:
+    """An engine re-estimates on every book update, and a 5-minute crypto window
+    sampled that way yields hundreds of rows settled by one coin flip. Stored whole,
+    they make a curve fitted on a handful of outcomes look like one fitted on
+    thousands -- with the false confidence densest in the 0.85-0.98 band.
+    """
+    from deepflow.pipeline.orchestrator import PREDICTION_SAMPLE_SECONDS
+
+    assert PREDICTION_SAMPLE_SECONDS >= 60.0
+
+
+async def test_the_sampling_interval_admits_several_horizons_per_short_market() -> None:
+    """The other side of that trade-off: sampling too coarsely would record one row
+    per 5-minute market and lose the horizon variation entirely. A model four minutes
+    out and one minute out are different estimators."""
+    from deepflow.engines.crypto.btc_5m import Btc5mEngine  # noqa: F401
+    from deepflow.pipeline.orchestrator import PREDICTION_SAMPLE_SECONDS
+
+    assert 300 / PREDICTION_SAMPLE_SECONDS >= 4
+
+
+async def test_a_prediction_failure_never_costs_the_decision() -> None:
+    """A prediction row is evidence for a future fit, not a safety mechanism. Losing
+    one must not stop the estimate it came from being acted on."""
+    import inspect
+
+    from deepflow.pipeline.orchestrator import Orchestrator as Orc
+
+    source = inspect.getsource(Orc._record_prediction)
+    assert "_prediction_failures" in source
+    assert "except Exception" in source

@@ -35,6 +35,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Coroutine, Sequence
 from dataclasses import dataclass, field
+from datetime import datetime
 from decimal import Decimal
 from hashlib import sha256
 from typing import Any, Protocol
@@ -45,6 +46,7 @@ from deepflow.adapters.persistence.engine import build_engine, build_session_fac
 from deepflow.adapters.persistence.repositories import SqlUnitOfWork
 from deepflow.adapters.polymarket.discovery import SdkMarketDiscovery
 from deepflow.adapters.polymarket.games import GameLink, GammaGameLinks
+from deepflow.adapters.polymarket.resolutions import PolymarketResolutions
 from deepflow.adapters.polymarket.sdk_client import PolymarketSession
 from deepflow.adapters.polymarket.streams import PolymarketStreams
 from deepflow.config.settings import Settings
@@ -54,6 +56,7 @@ from deepflow.core.domain import (
     Classification,
     Market,
     MarketSnapshot,
+    Prediction,
     ProbabilityEstimate,
     ResolutionCriteria,
     Signal,
@@ -67,6 +70,7 @@ from deepflow.core.enums import (
 )
 from deepflow.core.logging import get_logger
 from deepflow.core.types import ClobTokenId, ConditionId, SignalId
+from deepflow.engines.calibration import IsotonicCalibrator
 from deepflow.engines.crypto.btc_5m import TWAP_WINDOW_SECONDS, Btc5mEngine
 from deepflow.engines.crypto.reference import TwapReference
 from deepflow.engines.ev import EvEngine
@@ -80,6 +84,7 @@ from deepflow.journal.recorder import JournalRecorder
 from deepflow.pipeline.classifier import MarketClassifier
 from deepflow.pipeline.features import FeatureEngine
 from deepflow.pipeline.resolution import ResolutionValidator
+from deepflow.pipeline.settlement import SettlementRecorder
 from deepflow.risk.breaker_supervisor import BreakerSupervisor
 from deepflow.risk.circuit_breakers import CircuitBreakerRegistry
 from deepflow.risk.exposure import ExposureTracker
@@ -114,6 +119,7 @@ REFERENCE_SYMBOLS: tuple[str, ...] = ()
 
 #: How often the health line is emitted.
 HEALTH_INTERVAL_SECONDS = 30.0
+
 
 #: The execution-quality fields a category's thresholds must expose for the gate.
 #:
@@ -150,6 +156,20 @@ EVENT_CATEGORIES = frozenset(
 #: Short, because every second without it is a second of TWAP history the process cannot
 #: recover, and a market whose window opens inside the gap is unpriceable for its whole
 #: life (§77).
+#: Fewest seconds between two stored predictions for the same outcome token.
+#:
+#: A statistical guard, not a write-volume one. An engine re-estimates on every book
+#: update, and a 5-minute crypto window sampled that way yields hundreds of rows whose
+#: outcome is a single coin flip. Stored whole, they would make a curve fitted on a
+#: handful of real outcomes look like one fitted on thousands -- and the tightest part
+#: of that false confidence would sit in the 0.85-0.98 band this system trades.
+#:
+#: One minute keeps several genuinely different horizons per 5-minute market (the model
+#: at 4 minutes out and at 1 minute out are different estimators) while cutting the
+#: within-market correlation that inflates the sample. The fitter's ``MIN_MARKETS``
+#: guards the same error from the other end.
+PREDICTION_SAMPLE_SECONDS = 60.0
+
 REFERENCE_RETRY_SECONDS = 2.0
 
 
@@ -249,6 +269,11 @@ class Orchestrator:
     _priors_applied: int = 0
     _clock: SystemClock = field(default_factory=SystemClock)
     _tracked: tuple[Market, ...] = ()
+    _settlement: SettlementRecorder | None = None
+    _predictions_written: int = 0
+    _calibrated_engines: int = 0
+    _prediction_failures: int = 0
+    _last_prediction: dict[ClobTokenId, datetime] = field(default_factory=dict)
     _in_play: tuple[GameLink, ...] = ()
     _snapshots_written: int = 0
 
@@ -341,9 +366,7 @@ class Orchestrator:
         )
         self._engines = EngineRegistry()
         self._engines.register(
-            Btc5mEngine(
-                self.settings.thresholds.btc_5m, reference=self._reference, clock=clock
-            )
+            Btc5mEngine(self.settings.thresholds.btc_5m, reference=self._reference, clock=clock)
         )
 
         # Politics and geopolitics, which are the bulk of the venue: 98 and 2 of the 100
@@ -359,6 +382,8 @@ class Orchestrator:
         self._geopolitical = GeopoliticalEngine(self._events, self.settings.thresholds.geopolitics)
         self._engines.register(self._political)
         self._engines.register(self._geopolitical)
+        await self._install_calibrators()
+
         self._journal = JournalRecorder(
             repository=_SessionScopedJournal(self._sessions, clock),
             clock=clock,
@@ -379,6 +404,14 @@ class Orchestrator:
         self._spawn(self._live_game_loop(), name="live-games")
         self._spawn(self._stream_loop(), name="market-stream")
         self._spawn(self._health_loop(), name="health")
+
+        # Settlement is what makes calibration possible: a prediction nobody scored is
+        # half a sample, and until this loop existed the system stored only that half
+        # (§90). It is spawned last because nothing else waits on it.
+        self._settlement = SettlementRecorder(
+            self._sessions, PolymarketResolutions(self._venue, clock), clock=clock
+        )
+        self._spawn(self._settlement.run_forever(), name="settlement")
 
     async def stop(self) -> None:
         """Graceful shutdown: halt entries, drain, cancel tasks, disconnect."""
@@ -619,9 +652,11 @@ class Orchestrator:
             if market is None:
                 log.warning("orchestrator.prior_market_not_tracked", slug=slug)
                 continue
-            engine = self._engines.resolve(self._context[market.condition_id][0]) if (
-                market.condition_id in self._context
-            ) else None
+            engine = (
+                self._engines.resolve(self._context[market.condition_id][0])
+                if (market.condition_id in self._context)
+                else None
+            )
             if not isinstance(engine, EventDrivenEngine):
                 log.warning(
                     "orchestrator.prior_for_unpriceable_market",
@@ -680,7 +715,114 @@ class Orchestrator:
             self._abstained += 1
             return
         self._estimates += 1
+        await self._record_prediction(market, classification, estimate)
         await self._decide(market, snapshot, classification, resolution, estimate)
+
+    async def _install_calibrators(self) -> None:
+        """Give each engine the calibration curve an operator has marked active.
+
+        Only fits explicitly activated are loaded. A fit sitting in the table is a
+        measurement; a fit marked active is a decision, and this system should not
+        start applying a correction to every probability it produces because a
+        fitting job happened to run overnight.
+
+        A failure here leaves every engine on identity, which is the uncalibrated
+        behaviour the system has had all along -- so a database problem costs the
+        correction, never the run.
+        """
+        assert self._engines is not None and self._sessions is not None
+        try:
+            async with self._sessions() as session:
+                fits = await SqlUnitOfWork(session, self._clock).calibration.active_fits()
+        except Exception:
+            log.warning("calibration.load_failed", exc_info=True)
+            return
+
+        if not fits:
+            log.info("calibration.none_active", engines=len(self._engines.engines))
+            return
+
+        for engine in self._engines.engines:
+            payload = fits.get(engine.name)
+            if payload is None:
+                continue
+            try:
+                calibrator = IsotonicCalibrator.from_dict(payload)
+            except (ValueError, KeyError, ArithmeticError):
+                # A malformed stored fit must not silently become an identity that
+                # looks calibrated; it is named here and the engine stays honest.
+                log.warning("calibration.fit_unreadable", engine=engine.name, exc_info=True)
+                continue
+            installer = getattr(engine, "use_calibrator", None)
+            if installer is None:
+                log.warning("calibration.engine_not_calibratable", engine=engine.name)
+                continue
+            installer(calibrator)
+            self._calibrated_engines += 1
+
+    async def _record_prediction(
+        self,
+        market: Market,
+        classification: Classification,
+        estimate: ProbabilityEstimate,
+    ) -> None:
+        """Store an estimate so it can be scored once the market settles.
+
+        Recorded for **every** estimate that reaches this point, not only the ones that
+        became signals. Calibrating on the traded subset would fit the curve to the
+        region where this system already believed it had an edge -- the tail above 0.85
+        -- and leave it blind everywhere else, which is the region a fit is supposed to
+        correct.
+
+        **Sampled at one row per token per minute**, and that is a statistical decision
+        rather than a write-volume one. A 5-minute crypto window re-estimated on every
+        book update yields hundreds of rows resolved by a single coin flip; stored
+        whole, they would make a fit built on a handful of real outcomes look like one
+        built on thousands. The fitter counts distinct markets for the same reason
+        (``MIN_MARKETS``), so this is the second of two guards against the same error.
+
+        A failure here is counted and swallowed. A prediction row is evidence for a
+        future fit, not a safety mechanism, and losing one must not cost the decision
+        that was about to be made on the estimate itself.
+        """
+        if self._sessions is None:
+            return
+
+        now = self._clock.now()
+        last = self._last_prediction.get(estimate.token_id)
+        if last is not None and (now - last).total_seconds() < PREDICTION_SAMPLE_SECONDS:
+            return
+        self._last_prediction[estimate.token_id] = now
+
+        # Horizon rather than market age: calibration is horizon-dependent, since a model
+        # five seconds from settlement is a different estimator from the same model five
+        # minutes out. `None` when the end is unknown -- never 0, which would read as
+        # "settles now" and pool those rows with the sharpest predictions in the set.
+        horizon: int | None = None
+        if market.end_date is not None:
+            horizon = max(int((market.end_date - now).total_seconds()), 0)
+
+        try:
+            async with self._sessions() as session:
+                uow = SqlUnitOfWork(session, self._clock)
+                await uow.predictions.record(
+                    Prediction(
+                        engine=estimate.engine,
+                        category=classification.category,
+                        condition_id=market.condition_id,
+                        token_id=estimate.token_id,
+                        model_probability=estimate.model_probability,
+                        calibrated_probability=estimate.calibrated_probability,
+                        uncertainty=estimate.uncertainty,
+                        predicted_at=now,
+                        horizon_seconds=horizon,
+                    )
+                )
+                await uow.commit()
+            self._predictions_written += 1
+        except Exception:
+            self._prediction_failures += 1
+            log.warning("prediction.persist_failed", exc_info=True)
 
     async def _decide(
         self,
@@ -953,4 +1095,14 @@ class Orchestrator:
                 # Reported next to `decisions` on purpose: without it "decisions=3642" can
                 # mean 3,642 rows or none, and a run once meant none (§83).
                 journal_failures=self._journal.write_failures if self._journal else 0,
+                # Calibration's raw material. `predictions` counts what was stored to be
+                # scored later and `settled` what has been scored; the gap between them is
+                # simply markets that have not ended yet, and a `settled` stuck at zero
+                # while `predictions` climbs is the one shape that means the scoring join
+                # is broken rather than merely waiting.
+                predictions=self._predictions_written,
+                prediction_failures=self._prediction_failures,
+                calibrated_engines=self._calibrated_engines,
+                settled=self._settlement.recorded if self._settlement else 0,
+                awaiting_settlement=self._settlement.pending if self._settlement else 0,
             )

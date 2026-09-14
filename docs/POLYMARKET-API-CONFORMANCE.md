@@ -1843,6 +1843,70 @@ Two smaller decisions recorded alongside it:
   defensible rate at which a human judgement becomes a different number by itself, and a
   long-running process would otherwise signal on a forgotten prior indefinitely.
 
+## 89. The settled outcome is at `/v2/resolutions`, and nowhere more obvious
+
+Calibration needs to know how a market actually ended, and the two places you would look
+first are both wrong.
+
+**`outcomes.*.price` reads 0 on both sides of a settled market.** Not 1 for the winner and
+0 for the loser — zero for each. Read as "price 1 means winner" it finds no winner at all;
+read as a payout it scores every outcome as a loss, which would teach a calibration curve
+that every prediction ever made was wrong. **`market.resolution` is no better**: its
+`question_id`, `uma_resolution_status`, `source` and `resolved_by` were all `None` on every
+settled market sampled, despite being the field group named for this.
+
+The real source is the data API's `/v2/resolutions` (SDK: `get_resolutions`), which returns
+per-outcome `payouts` in USDC per share alongside `status`, `was_disputed` and `resolved_at`.
+On 100 settled up/down markets it answered for 100.
+
+**The payout pair is positional, and its alignment had to be proved.** `payouts` is a
+two-element tuple from the data service; `Market.outcomes` is built from the SDK's *named*
+`yes`/`no` accessors on the Gamma model. Two different services, and nothing in either says
+the orders agree — while §22 is in this repo precisely because a plausible positional zip
+returns a binary market's complement. Here that error would invert the outcome of every
+sample and produce a well-behaved-looking curve that teaches each engine to be exactly wrong.
+
+Checked against what each token last traded at before expiry: **17 agreed, 0 disagreed**, and
+a re-run over a 6-hour sweep gave **88 agree, 0 disagree, 12 untraded**. So `payouts[i]`
+belongs to `outcomes[i]`. `PolymarketResolutions` skips any market whose payout count does not
+match its outcome count rather than zipping as far as it goes, because that mismatch is the
+one shape in which the assumption could silently break.
+
+Two limits worth knowing before writing a sweep: **20 condition ids per request** (the SDK
+raises rather than truncating), and an **empty list is rejected outright** —
+`condition_id must be non-empty`, the same shape as §79's `symbols=[]`.
+
+---
+
+## 90. A last-trade price is a biased calibration sample, and the bias is measurable
+
+Having built the scoring path, the obvious way to test it without waiting days for real
+predictions is to calibrate the *market* against its own outcomes: take each token's last
+traded price as the prediction, the payout as the result. The machinery ran, and the table it
+produced is a good lesson in why a sample's provenance matters more than its size.
+
+Every band from 0.05 to 0.75 realized **0.000**. No honest market is that wrong, so the
+sampling was.
+
+Measured rather than guessed: across 88 settled markets the two sides' last-trade prices
+summed to a median of **1.030**, with **43% above 1.05** and one at **1.94**. A simultaneous
+pair sums to ~1, so these are not simultaneous. The mechanism is that a losing token stops
+trading once it is hopeless, while the winner trades to the bell — so the loser's "prediction"
+comes from the middle of the window and its outcome is final. Every mid-range sample is
+therefore a loser priced early, and the curve fits that artefact beautifully.
+
+**The one trustworthy row is the top band**, where both sides trade all the way: at 0.95-1.00
+the crowd said **0.991** and delivered **0.989** across 91 markets. That is the baseline any
+engine here has to beat in the band this system trades, and it is a sobering one — there is
+very little room above a crowd that well calibrated.
+
+The real pipeline does not have this problem, because it records each prediction with the
+horizon it was made at rather than reconstructing one from whenever a token last happened to
+trade. Two guards exist for the related error of *autocorrelation*: predictions are sampled at
+one row per token per minute, and the fitter counts **distinct markets** (`MIN_MARKETS`) as
+well as rows. Five hundred rows from three markets is three coin flips, and a curve fitted on
+them looks tight around a result that had three chances to be wrong.
+
 ---
 
 ## Confirmed correct
