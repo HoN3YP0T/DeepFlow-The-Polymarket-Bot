@@ -71,6 +71,7 @@ from deepflow.core.enums import (
     SignalAction,
 )
 from deepflow.core.logging import get_logger
+from deepflow.core.state_machine import MarketState
 from deepflow.core.types import ClobTokenId, ConditionId, SignalId
 from deepflow.engines.calibration import IsotonicCalibrator
 from deepflow.engines.crypto.btc_5m import TWAP_WINDOW_SECONDS, Btc5mEngine
@@ -312,6 +313,9 @@ class Orchestrator:
     _political: PoliticalEngine | None = None
     _geopolitical: GeopoliticalEngine | None = None
     _priors_applied: int = 0
+    _verdicts: dict[ConditionId, tuple[Classification, ResolutionCriteria]] = field(
+        default_factory=dict
+    )
     _clock: SystemClock = field(default_factory=SystemClock)
     _tracked: tuple[Market, ...] = ()
     _settlement: SettlementRecorder | None = None
@@ -578,6 +582,7 @@ class Orchestrator:
 
         self._tracked = tuple(markets) + short_dated
         self._rebuild_decision_context()
+        await self._persist_verdicts()
         log.info(
             "discovery.swept",
             markets=len(markets),
@@ -640,6 +645,38 @@ class Orchestrator:
             self._snapshots_evicted += 1
         self._snapshot_buffer.append(snapshot)
 
+    def _with_microstructure(self, snapshot: MarketSnapshot) -> MarketSnapshot:
+        """Attach order-flow features to a snapshot about to be stored.
+
+        ``FeatureEngine.compute`` -- Phase 3 item 10, built and tested -- was called by
+        nothing on the running path. The consequence was measurable: **2,737,376 stored
+        snapshots with zero non-null ``book_imbalance`` and zero non-null
+        ``flow_imbalance``**, columns created for a measurement nobody was taking.
+
+        Computed **in the writer task, never on the consumer path.** This was first put
+        in the sampling step -- once per market per second, which sounded bounded -- and
+        it immediately cost 53,630 dropped events, because ``compute`` walks every level
+        of a book twice (the wide-band confirmation re-scans) and the books here carry
+        30-150 levels a side. §81 a third time, self-inflicted: anything that touches
+        book levels belongs off the path the fold runs on.
+
+        Nothing reads these columns yet -- ``MicrostructureEngine`` and its
+        ``FlowAssessment`` are still unwired, a Phase 4 item. What this buys is that the
+        recorded history contains what its schema promises, which is the difference
+        between a backtest being possible later and the data never having existed.
+        """
+        if self._features is None or not snapshot.books:
+            return snapshot
+        try:
+            return snapshot.model_copy(
+                update={"microstructure": self._features.compute(book=snapshot.books[0])}
+            )
+        except Exception:
+            # A feature that cannot be measured must not cost the row it was attached
+            # to: the prices are the part a backtest cannot do without.
+            log.warning("snapshot.microstructure_failed", exc_info=True)
+            return snapshot
+
     async def _snapshot_writer(self) -> None:
         """Drain the snapshot buffer to the database on a fixed cadence.
 
@@ -670,7 +707,7 @@ class Orchestrator:
 
         batch: list[MarketSnapshot] = []
         while self._snapshot_buffer and len(batch) < SNAPSHOT_MAX_BATCH_ROWS:
-            batch.append(self._snapshot_buffer.popleft())
+            batch.append(self._with_microstructure(self._snapshot_buffer.popleft()))
         try:
             async with self._sessions() as session:
                 uow = SqlUnitOfWork(session)
@@ -735,12 +772,19 @@ class Orchestrator:
         assert self._engines is not None
 
         context: dict[ConditionId, tuple[Classification, ResolutionCriteria]] = {}
+        verdicts: dict[ConditionId, tuple[Classification, ResolutionCriteria]] = {}
         for market in self._tracked:
             classification = self._classifier.classify(market)
+            resolution = self._resolution.validate(market)
+            # Kept for **every** tracked market, so the database can record what we
+            # decided about all of them. The context below keeps only the priceable
+            # ones, which is a different question and a much smaller set.
+            verdicts[market.condition_id] = (classification, resolution)
             if self._engines.resolve(classification) is None:
                 continue
-            context[market.condition_id] = (classification, self._resolution.validate(market))
+            context[market.condition_id] = (classification, resolution)
         self._context = context
+        self._verdicts = verdicts
         self._apply_base_rates()
         log.info(
             "orchestrator.decision_context",
@@ -748,6 +792,46 @@ class Orchestrator:
             tracked=len(self._tracked),
             priors_applied=self._priors_applied,
         )
+
+    async def _persist_verdicts(self) -> None:
+        """Write what we decided about each market, not just what the venue says it is.
+
+        Without this the ``markets`` table records only the venue's own fields: the
+        process upserted every market and never wrote a category, a resolution verdict
+        or a lifecycle state, so **398 rows sat at DISCOVERED / NOT_CHECKED / UNKNOWN**
+        beside 161 properly classified ones that a verification script had written once,
+        by hand, weeks earlier.
+
+        That is the `games.py` shape again: ``DiscoveryService`` does all of this --
+        lifecycle transitions, rejection journalling, the CLASSIFIED -> VALIDATED ->
+        MONITORED edges -- is fully tested, and is constructed by nothing on the running
+        path. Wiring that service properly means reconciling its own sweep with the
+        orchestrator's two-part one (general plus short-dated), which is a larger change
+        than this; what this does is stop the table being actively misleading in the
+        meantime, using the classification the process has already computed.
+
+        ``record_classification`` is deliberately separate from ``upsert``: a catalogue
+        refresh must not reset our verdicts, which is why the two writes are distinct.
+        """
+        if self._sessions is None or not self._verdicts:
+            return
+
+        try:
+            async with self._sessions() as session:
+                uow = SqlUnitOfWork(session, self._clock)
+                for condition_id, (classification, resolution) in self._verdicts.items():
+                    await uow.markets.record_classification(
+                        condition_id,
+                        category=classification.category.value,
+                        confidence=classification.confidence,
+                        lifecycle_state=_lifecycle_for(classification, resolution).value,
+                        resolution_validity=resolution.validity.value,
+                    )
+                await uow.commit()
+        except Exception:
+            # Same reasoning as every other write on this path: losing the verdicts
+            # costs a record, and taking the feed down over it costs the trading loop.
+            log.warning("discovery.verdicts_persist_failed", exc_info=True)
 
     def _apply_base_rates(self) -> None:
         """Hand each event-driven engine the operator priors for the markets it claims.
@@ -1263,3 +1347,24 @@ class Orchestrator:
                 settled=self._settlement.recorded if self._settlement else 0,
                 awaiting_settlement=self._settlement.pending if self._settlement else 0,
             )
+
+
+def _lifecycle_for(classification: Classification, resolution: ResolutionCriteria) -> MarketState:
+    """The lifecycle state a market has actually reached.
+
+    Three outcomes, and the distinction between the last two is the one worth keeping:
+
+    * ``MARKET_INVALID`` -- the rules text could not be read well enough to trade on.
+      Terminal, and the honest verdict for the ~half of markets that parse as AMBIGUOUS
+      or UNPARSEABLE.
+    * ``MONITORED`` -- classified into a tradeable category *and* its resolution text
+      accepted. This is the only state from which anything may be traded.
+    * ``CLASSIFIED`` -- read, and not tradeable by category. Recorded rather than
+      rejected, because "we know what this is and have no model for it" is a different
+      fact from "we could not read it".
+    """
+    if not resolution.is_tradeable:
+        return MarketState.MARKET_INVALID
+    if classification.is_tradeable:
+        return MarketState.MONITORED
+    return MarketState.CLASSIFIED

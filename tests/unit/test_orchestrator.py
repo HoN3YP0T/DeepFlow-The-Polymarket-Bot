@@ -489,3 +489,56 @@ async def test_a_silent_eviction_is_counted() -> None:
 
     assert "_snapshots_evicted" in inspect.getsource(Orc._buffer_snapshot)
     assert "snapshots_evicted=" in inspect.getsource(Orc._health_loop)
+
+
+async def test_the_process_records_what_it_decided_about_each_market() -> None:
+    """Without this the ``markets`` table holds only the venue's own fields.
+
+    Measured before the fix: **398 rows at DISCOVERED / NOT_CHECKED / UNKNOWN**, written
+    by the running process, sitting beside 161 properly classified rows that a
+    verification script had written once by hand. The table recorded what the venue said
+    and nothing about what this system thought.
+    """
+    import inspect
+
+    from deepflow.pipeline.orchestrator import Orchestrator as Orc
+
+    assert "_persist_verdicts()" in inspect.getsource(Orc._sweep_once)
+    source = inspect.getsource(Orc._persist_verdicts)
+    assert "record_classification(" in source
+
+
+async def test_a_verdict_is_kept_for_every_market_not_only_priceable_ones() -> None:
+    """The decision context keeps what an engine can price; the database should record
+    what we concluded about everything, which is a much larger set."""
+    import inspect
+
+    from deepflow.pipeline.orchestrator import Orchestrator as Orc
+
+    source = inspect.getsource(Orc._rebuild_decision_context)
+    verdict_line = source.index("verdicts[market.condition_id]")
+    skip_line = source.index("if self._engines.resolve(classification) is None")
+    assert verdict_line < skip_line, "the verdict must be recorded before the filter"
+
+
+def test_lifecycle_distinguishes_unreadable_from_unmodelled() -> None:
+    """ "We could not read this market" and "we read it and have no model" are
+    different facts, and collapsing them loses the one that says where to spend
+    effort."""
+    from deepflow.core.domain import Classification, ResolutionCriteria
+    from deepflow.core.enums import MarketCategory, ResolutionValidity
+    from deepflow.core.state_machine import MarketState
+    from deepflow.pipeline.orchestrator import _lifecycle_for
+
+    tradeable = Classification(
+        category=MarketCategory.FOOTBALL, confidence=Decimal("0.9"), rationale="tag"
+    )
+    unknown = Classification(
+        category=MarketCategory.UNKNOWN, confidence=Decimal(0), rationale="no match"
+    )
+    valid = ResolutionCriteria(validity=ResolutionValidity.VALID)
+    ambiguous = ResolutionCriteria(validity=ResolutionValidity.AMBIGUOUS)
+
+    assert _lifecycle_for(tradeable, valid) is MarketState.MONITORED
+    assert _lifecycle_for(unknown, valid) is MarketState.CLASSIFIED
+    assert _lifecycle_for(tradeable, ambiguous) is MarketState.MARKET_INVALID
