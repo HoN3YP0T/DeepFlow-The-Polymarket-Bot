@@ -50,6 +50,7 @@ from deepflow.adapters.polymarket.streams import PolymarketStreams
 from deepflow.config.settings import Settings
 from deepflow.core.clock import SystemClock
 from deepflow.core.domain import (
+    BaseRate,
     Classification,
     Market,
     MarketSnapshot,
@@ -69,6 +70,10 @@ from deepflow.core.types import ClobTokenId, ConditionId, SignalId
 from deepflow.engines.crypto.btc_5m import TWAP_WINDOW_SECONDS, Btc5mEngine
 from deepflow.engines.crypto.reference import TwapReference
 from deepflow.engines.ev import EvEngine
+from deepflow.engines.event_driven import EventDrivenEngine
+from deepflow.engines.geopolitics.engine import GeopoliticalEngine
+from deepflow.engines.geopolitics.events import EventPipeline
+from deepflow.engines.politics.political import PoliticalEngine
 from deepflow.engines.registry import EngineRegistry
 from deepflow.engines.sports.rules import SportRegistry, category_for
 from deepflow.journal.recorder import JournalRecorder
@@ -127,6 +132,18 @@ class ExecutionQualityLimits(Protocol):
     @property
     def min_liquidity_usdc(self) -> Decimal: ...
 
+
+#: Categories the event-driven engines claim, and which share one set of measured
+#: execution-quality limits.
+EVENT_CATEGORIES = frozenset(
+    {
+        MarketCategory.POLITICS,
+        MarketCategory.GEOPOLITICS,
+        MarketCategory.WAR_CONFLICT,
+        MarketCategory.CEASEFIRE,
+        MarketCategory.MILITARY_DIPLOMATIC,
+    }
+)
 
 #: How long to wait before resubscribing a dropped reference feed.
 #:
@@ -226,6 +243,10 @@ class Orchestrator:
     _context: dict[ConditionId, tuple[Classification, ResolutionCriteria]] = field(
         default_factory=dict
     )
+    _events: EventPipeline | None = None
+    _political: PoliticalEngine | None = None
+    _geopolitical: GeopoliticalEngine | None = None
+    _priors_applied: int = 0
     _clock: SystemClock = field(default_factory=SystemClock)
     _tracked: tuple[Market, ...] = ()
     _in_play: tuple[GameLink, ...] = ()
@@ -324,6 +345,20 @@ class Orchestrator:
                 self.settings.thresholds.btc_5m, reference=self._reference, clock=clock
             )
         )
+
+        # Politics and geopolitics, which are the bulk of the venue: 98 and 2 of the 100
+        # markets a general sweep returns. They were discovered, streamed and snapshotted
+        # while no engine claimed them, so every one was dropped from the decision context —
+        # the `games.py` failure again, on the largest category there is.
+        #
+        # Both share one pipeline: corroboration is counted across a window of claims, and
+        # two pipelines would each see half the reports and neither would reach the
+        # two-publisher bar.
+        self._events = EventPipeline(self.settings.thresholds.geopolitics, clock=clock)
+        self._political = PoliticalEngine(self._events)
+        self._geopolitical = GeopoliticalEngine(self._events, self.settings.thresholds.geopolitics)
+        self._engines.register(self._political)
+        self._engines.register(self._geopolitical)
         self._journal = JournalRecorder(
             repository=_SessionScopedJournal(self._sessions, clock),
             clock=clock,
@@ -553,11 +588,60 @@ class Orchestrator:
                 continue
             context[market.condition_id] = (classification, self._resolution.validate(market))
         self._context = context
+        self._apply_base_rates()
         log.info(
             "orchestrator.decision_context",
             priceable_markets=len(context),
             tracked=len(self._tracked),
+            priors_applied=self._priors_applied,
         )
+
+    def _apply_base_rates(self) -> None:
+        """Hand each event-driven engine the operator priors for the markets it claims.
+
+        Matched on **slug**, because a slug is the thing an operator can read off the market
+        page; a condition id is 66 hex characters and not something anyone transcribes
+        correctly. A prior naming a market that is not tracked is logged rather than ignored:
+        a typo in a slug otherwise looks exactly like a market that has closed.
+
+        Without priors both engines abstain on everything, which is correct rather than
+        broken — see ``Settings.base_rates``.
+        """
+        configured = self.settings.base_rates
+        if not configured or self._engines is None:
+            return
+
+        by_slug = {market.slug: market for market in self._tracked if market.slug}
+        now = self._clock.now()
+        applied = 0
+        for slug, prior in configured.items():
+            market = by_slug.get(slug)
+            if market is None:
+                log.warning("orchestrator.prior_market_not_tracked", slug=slug)
+                continue
+            engine = self._engines.resolve(self._context[market.condition_id][0]) if (
+                market.condition_id in self._context
+            ) else None
+            if not isinstance(engine, EventDrivenEngine):
+                log.warning(
+                    "orchestrator.prior_for_unpriceable_market",
+                    slug=slug,
+                    reason="no event-driven engine claims this market",
+                )
+                continue
+            engine.set_base_rate(
+                market.condition_id,
+                BaseRate(
+                    probability=prior.probability,
+                    uncertainty=prior.uncertainty,
+                    source=prior.source,
+                    # Stamped here rather than taken from configuration: a prior that
+                    # self-reported its age could claim to be fresher than the process.
+                    as_of=now,
+                ),
+            )
+            applied += 1
+        self._priors_applied = applied
 
     async def _consider(self, snapshot: MarketSnapshot) -> None:
         """Run one market's snapshot through probability, EV, the gate and risk.
@@ -742,6 +826,8 @@ class Orchestrator:
         thresholds = self.settings.thresholds
         if category is MarketCategory.BTC_5M:
             return thresholds.btc_5m
+        if category in EVENT_CATEGORIES:
+            return thresholds.event_markets
         by_sport = {
             MarketCategory.FOOTBALL: thresholds.sports.football,
             MarketCategory.CRICKET: thresholds.sports.cricket,

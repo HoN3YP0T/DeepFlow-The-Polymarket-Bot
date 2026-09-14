@@ -122,6 +122,27 @@ class PolymarketSettings(BaseModel):
         )
 
 
+class BaseRateConfig(BaseModel):
+    """One operator-supplied prior, as it appears in configuration.
+
+    Separate from :class:`deepflow.core.domain.BaseRate` because this is the *input* shape:
+    it carries no ``as_of``, which the loader stamps at startup. A prior whose age was
+    self-reported could claim to be fresher than the process that read it.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    probability: Decimal = Field(ge=0, le=1)
+    uncertainty: Decimal = Field(default=Decimal("0.15"), ge=0, le=1)
+    """Wide by default, and deliberately wider than any model output here. A prior on "will X
+    resign by June" is a judgement, and one that claimed model-like precision would be sized
+    as though it had been measured."""
+
+    source: str = Field(min_length=3)
+    """Required and non-trivial. The whole distinction this type enforces is between a
+    sourced prior and a number someone typed."""
+
+
 class DatabaseSettings(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -190,6 +211,24 @@ class Settings(BaseSettings):
     The stream subscribes per connection, so the token set is fixed until the next
     sweep reopens it. An unbounded set would mean one reconnect churning thousands
     of subscriptions."""
+
+    base_rates: dict[str, BaseRateConfig] = Field(default_factory=dict)
+    """Operator-supplied priors for event-driven markets, keyed by market **slug**.
+
+    These exist because politics and geopolitics markets have no continuously observable
+    state, so an engine's only candidates for a number are an external prior or the market
+    price — and the price is circular, forbidden by ``BaseProbabilityEngine``'s first
+    contract. Nothing in this system can derive one, and there is no polling or news feed
+    here to derive it from.
+
+    So the prior comes from a human, and every entry must name its ``source``: a polling
+    average, a scheduled timetable, an analyst's own view. An unsourced prior is a guess
+    wearing a probability's clothes, and the journal records which it was.
+
+    Empty by default, in which case **both event-driven engines abstain on every market**.
+    That is the correct behaviour for an engine holding no evidence, not a gap: it is what
+    stops the system manufacturing an edge out of a number nobody stands behind.
+    """
 
     paper_bankroll_usdc: Decimal = Field(default=Decimal(1000), ge=0)
     """Simulated capital for PAPER and SHADOW runs.

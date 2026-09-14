@@ -103,28 +103,67 @@ async def test_no_base_rate_means_no_estimate() -> None:
 
 
 @pytest.mark.asyncio
-async def test_a_base_rate_without_an_event_means_no_estimate() -> None:
-    """The market is probably right. With no unpriced evidence there is no edge, and an
-    engine that answers here is manufacturing one."""
-    engine = _engine(base_rates={CONDITION: _base_rate()})
+async def test_a_sourced_prior_alone_is_an_estimate() -> None:
+    """Changed deliberately on 2026-09-14, and this test records why.
+
+    The engine used to require a corroborated event before it would speak, on the grounds
+    that without unpriced evidence the market is probably right. That holds for an engine with
+    no information; it does not hold for one an operator has handed a *sourced* prior, which
+    is itself the claim "I know something the market may not". Requiring a news event on top
+    made the prior unusable — and no news feed exists, while politics is 98 of the 100 markets
+    a sweep returns.
+
+    What keeps it honest is downstream: the prior is wide by default, carries its source into
+    the journal, and still faces the EV buffer, the Kelly haircut, the gate and risk.
+    """
+    engine = _engine(base_rates={CONDITION: _base_rate("0.40")})
+    estimate = await _estimate(engine)
+    assert estimate is not None
+    assert estimate.model_probability == Decimal("0.40")
+    assert estimate.uncertainty == _base_rate().uncertainty
+    assert estimate.inputs["base_rate_source"] == "test prior"
+
+
+@pytest.mark.asyncio
+async def test_a_prior_nobody_has_revisited_in_a_week_is_refused() -> None:
+    """A stale judgement is not evidence, and a long-running process would otherwise signal
+    on it forever. Refused rather than decayed toward the market: there is no defensible rate
+    at which a human judgement becomes a different number by itself."""
+    from datetime import timedelta
+
+    from deepflow.core.clock import ManualClock
+    from deepflow.engines.event_driven import MAX_PRIOR_AGE
+
+    engine = GeopoliticalEngine(
+        EventPipeline(),
+        GeopoliticsThresholds(),
+        base_rates={CONDITION: _base_rate()},
+        clock=ManualClock(NOW + MAX_PRIOR_AGE + timedelta(hours=1)),
+    )
     assert await _estimate(engine) is None
 
 
 @pytest.mark.asyncio
 async def test_an_uncorroborated_event_is_not_held_at_all() -> None:
-    """Keeping it would let uncorroborated reports accumulate into an estimate nobody
-    decided to trust."""
-    engine = _engine(base_rates={CONDITION: _base_rate()})
+    """Keeping it would let uncorroborated reports accumulate into an estimate nobody decided
+    to trust. The prior comes through **unmoved**, which is a stronger statement than the
+    abstention this used to assert: it shows the event was discarded rather than merely
+    outvoted."""
+    engine = _engine(base_rates={CONDITION: _base_rate("0.40")})
     engine.observe(_event(corroborated=1), [CONDITION])
-    assert await _estimate(engine) is None
+    estimate = await _estimate(engine)
+    assert estimate is not None
+    assert estimate.model_probability == Decimal("0.40")
 
 
 @pytest.mark.asyncio
 async def test_a_directionless_event_moves_nothing() -> None:
-    """An event with no sign is not evidence for either side."""
-    engine = _engine(base_rates={CONDITION: _base_rate()})
+    """An event with no sign is not evidence for either side, so the prior stands."""
+    engine = _engine(base_rates={CONDITION: _base_rate("0.40")})
     engine.observe(_event(direction=Direction.NEUTRAL, kind=EventKind.NEGOTIATION), [CONDITION])
-    assert await _estimate(engine) is None
+    estimate = await _estimate(engine)
+    assert estimate is not None
+    assert estimate.model_probability == Decimal("0.40")
 
 
 # --- Estimating -----------------------------------------------------------
@@ -185,7 +224,9 @@ async def test_opposing_events_net_off() -> None:
         _event(direction=Direction.DE_ESCALATION, kind=EventKind.CEASEFIRE_ANNOUNCED, severity=80),
         [CONDITION],
     )
-    assert await _estimate(engine) is None  # net zero shift, so nothing to say
+    estimate = await _estimate(engine)
+    assert estimate is not None
+    assert estimate.model_probability == Decimal("0.50")  # net zero shift, so the prior stands
 
 
 @pytest.mark.asyncio
@@ -210,9 +251,11 @@ async def test_a_probability_never_leaves_the_unit_interval() -> None:
 
 @pytest.mark.asyncio
 async def test_an_event_for_another_market_does_not_reach_this_one() -> None:
-    engine = _engine(base_rates={CONDITION: _base_rate()})
+    engine = _engine(base_rates={CONDITION: _base_rate("0.40")})
     engine.observe(_event(), [ConditionId("0xelsewhere")])
-    assert await _estimate(engine) is None
+    estimate = await _estimate(engine)
+    assert estimate is not None
+    assert estimate.model_probability == Decimal("0.40")
 
 
 # --- The political variant ------------------------------------------------
@@ -257,3 +300,51 @@ def test_the_two_engines_claim_disjoint_categories() -> None:
     geo = GeopoliticalEngine(EventPipeline(), GeopoliticsThresholds())
     political = PoliticalEngine(EventPipeline())
     assert not geo.categories & political.categories
+
+
+@pytest.mark.asyncio
+async def test_a_prior_far_from_the_market_is_treated_as_an_error_not_an_edge() -> None:
+    """Added after a verification run approved a 0.79 edge on a prior that was simply wrong.
+
+    A prior of 0.97 typed against a market trading at 0.18 passed the full gate, reporting a
+    net EV of 0.78 (§87). Every safeguard behaved correctly and none could help, because
+    nothing distinguishes a sourced prior from a fabricated one — `source` is free text. At 25
+    points of divergence the likelier explanation is a stale or mistyped prior than a market
+    that wrong, and the costs are asymmetric: refusing loses a trade, accepting sizes a
+    position at odds nobody checked.
+    """
+    from deepflow.core.domain import BookLevel, OrderBook
+
+    def _snapshot_at(ask: str) -> MarketSnapshot:
+        return MarketSnapshot(
+            condition_id=CONDITION,
+            books=(
+                OrderBook(
+                    token_id=TOKEN,
+                    bids=(BookLevel(price=Decimal(ask) - Decimal("0.01"), size=Decimal(100)),),
+                    asks=(BookLevel(price=Decimal(ask), size=Decimal(100)),),
+                    captured_at=NOW,
+                ),
+            ),
+            captured_at=NOW,
+        )
+
+    engine = _engine(base_rates={CONDITION: _base_rate("0.97")})
+    far = await engine.estimate(market=_market(), snapshot=_snapshot_at("0.18"), token_id=TOKEN)
+    assert far is None
+
+    near = await engine.estimate(market=_market(), snapshot=_snapshot_at("0.90"), token_id=TOKEN)
+    assert near is not None
+    assert near.model_probability == Decimal("0.97")
+
+
+@pytest.mark.asyncio
+async def test_the_divergence_bound_only_ever_suppresses() -> None:
+    """It reads the market price, which the independence contract permits only in this
+    direction: the contract forbids *deriving* an estimate from the price, and a bound on a
+    number we supplied can never create or enlarge a trade."""
+    engine = _engine(base_rates={CONDITION: _base_rate("0.40")})
+    # No book at all: nothing to bound against, and the estimate is the prior unchanged.
+    estimate = await _estimate(engine)
+    assert estimate is not None
+    assert estimate.model_probability == Decimal("0.40")

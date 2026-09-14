@@ -59,6 +59,27 @@ class StrategyThresholds(BaseModel):
     min_confidence: int = Field(default=70, ge=0, le=100)
 
 
+#: Execution-quality limits for the event-driven categories: politics, geopolitics,
+#: war/conflict, ceasefire and military-diplomatic.
+#:
+#: Measured, and they are nothing like the crypto ones. Across 30 live books on 16 politics
+#: markets: median spread **39 bps** (min 10, max 5,000), median ask-side depth **2.7 M pUSD**
+#: (min 130 K), tick size **0.001** — ten times finer than the up/down markets' 0.01. So a
+#: cap that is impossible on a 5-minute crypto book is generous here, which is exactly why
+#: these numbers are not shared.
+#:
+#: Freshness is looser on purpose. These markets have no continuously observable state: the
+#: true probability sits still between announcements rather than drifting, so a book a few
+#: seconds old is not stale in the way a 5-minute crypto book is. Not *arbitrarily* loose,
+#: because the repricing when an announcement lands is fast and that is when a stale book is
+#: most dangerous.
+#:
+#: The geopolitics figure is inherited rather than measured: only 2 of the 100 markets
+#: sampled classified as GEOPOLITICS, which is too few to characterise. Recorded here so the
+#: number is not mistaken for an observation.
+EVENT_MARKET_LIMITS_NOTE = "measured on politics markets; geopolitics sample was 2 markets"
+
+
 class SportsThresholds(BaseModel):
     """Section 7 candidate zones. Ranges, not buy conditions.
 
@@ -410,4 +431,17 @@ class Thresholds(BaseModel):
     risk: RiskLimits = RiskLimits()
     execution: ExecutionThresholds = ExecutionThresholds()
     exits: ExitThresholds = ExitThresholds()
+
+    event_markets: StrategyThresholds = StrategyThresholds(
+        candidate_band=ProbabilityBand(low=Decimal("0.85"), high=Decimal("0.98")),
+        # See EVENT_MARKET_LIMITS_NOTE: median spread 39 bps and median depth 2.7M pUSD across
+        # 30 live books, so these are generous against what was measured rather than against
+        # what a sports market looks like.
+        max_spread_bps=Decimal(100),
+        max_slippage_bps=Decimal(100),
+        max_data_age_seconds=10.0,
+        min_liquidity_usdc=Decimal(50_000),
+        require_moneyline=False,
+    )
+    """Politics, geopolitics, war/conflict, ceasefire and military-diplomatic markets."""
     breakers: CircuitBreakerThresholds = CircuitBreakerThresholds()

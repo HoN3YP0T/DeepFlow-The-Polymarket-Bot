@@ -1787,6 +1787,62 @@ snapshots, median ask-side depth 5,213 pUSD across 28 live books — and one of 
 borrowed default was impossible: `StrategyThresholds.max_spread_bps` is 150, while **one 0.01
 tick at a price near 0.5 is already 200 bps**.
 
+## 87. Politics is 98% of the venue's discoverable markets, and nothing priced them
+
+Measured on a general sweep of 100 markets: **98 POLITICS, 2 GEOPOLITICS, 0 anything else.**
+Both event-driven engines existed, were tested, and were **not registered** with the
+`EngineRegistry`, so every one of those markets was discovered, streamed, snapshotted — and
+dropped from the decision context. The `games.py` failure again, on the largest category
+there is. Registering them took `priceable_markets` from 55 to **148 of 156**.
+
+These markets are nothing like the up/down ones, which is why their limits are separate.
+Across 30 live books on 16 politics markets:
+
+| | Politics | Up/down crypto |
+| --- | --- | --- |
+| Median spread | **39 bps** (min 10) | 217 bps |
+| Median ask depth | **2.7 M pUSD** (min 130 K) | 5.2 K pUSD |
+| Tick size | **0.001** | 0.01 |
+| Resolution parses | 51 of 100 VALID | 22 of 22 after §86 |
+
+A cap that is impossible on a crypto book is generous here, so `Thresholds.event_markets`
+carries its own measured figures. Note the geopolitics numbers are inherited rather than
+measured — only 2 of 100 markets classified that way, too few to characterise.
+
+## 88. A prior 79 points from the market passed every safeguard
+
+The finding that matters most from wiring politics up, and it is about this system rather
+than the venue.
+
+To verify the path end to end, a prior of **0.97** was configured on markets trading at
+**0.18**. The full chain approved 58 of them: edge 0.79, net EV 0.78, `ENTERED` in the
+journal. Every component behaved exactly as designed — the prior arrived wide (0.15), the EV
+buffer and Kelly haircut applied, all 17 checks ran — and **none of them could help**, because
+nothing in the system can distinguish a sourced prior from a fabricated one. `source` is free
+text, and mine said "operator view, verification run".
+
+So the safeguards were never protecting against a *wrong input*; they protect against thin
+books, stale data and oversizing. A bad number sails through all of them looking like the
+largest edge the system has ever seen.
+
+Fixed with `MAX_PRIOR_DIVERGENCE` (25 points): beyond that the likelier explanation is a
+stale, mistyped or misaligned prior than a market that wrong, and the costs are asymmetric —
+refusing loses one trade, accepting sizes a position at odds nobody checked.
+
+**This reads the market price, and it is not a breach of the independence contract.** The
+contract forbids *deriving* an estimate from the price, because an edge computed from its own
+input is an artefact. A plausibility bound on a number we supplied can only ever suppress a
+trade, never create or enlarge one — which is the asymmetry that makes it legitimate.
+
+Two smaller decisions recorded alongside it:
+
+* **A sourced prior alone is now enough to produce an estimate.** The engine used to require a
+  corroborated news event on top, which made the prior unusable — and no news feed exists.
+  Requiring one meant the 98% of the venue that is politics could never be priced at all.
+* **A prior older than a week is refused**, not decayed toward the market. There is no
+  defensible rate at which a human judgement becomes a different number by itself, and a
+  long-running process would otherwise signal on a forgotten prior indefinitely.
+
 ---
 
 ## Confirmed correct

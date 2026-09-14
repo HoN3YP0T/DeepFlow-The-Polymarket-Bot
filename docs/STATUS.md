@@ -1,7 +1,7 @@
 # Status and handover
 
 **As of:** 2026-09-13 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· 31 commits · **780 tests passing, 0 skipped** · **44 stubs remain** · 86 findings recorded
+· 31 commits · **780 tests passing, 0 skipped** · **44 stubs remain** · 88 findings recorded
 · 109 source files, ~12,500 lines
 
 **Phase 1** complete · **Phase 2** complete · **Phase 3** 3 of 6 · **Phase 4** complete
@@ -444,7 +444,7 @@ is the point of having built it first.
 
 ---
 
-Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (86 findings).
+Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (88 findings).
 Venue surface map and the method for not misreading it:
 `docs/POLYMARKET-SURFACE-AUDIT.md` — 9 hosts, 223 operations, plus
 `make audit-surface`.

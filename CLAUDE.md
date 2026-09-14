@@ -14,7 +14,7 @@ mistakes are not made a fourth time.
 | Question | File |
 | --- | --- |
 | What is done, what is left, what broke and was fixed | `docs/STATUS.md` — **start here** |
-| What the venue actually does (86 findings, 5 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
+| What the venue actually does (88 findings, 5 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
 | The venue's full surface + the method for not misreading it | `docs/POLYMARKET-SURFACE-AUDIT.md` |
 | Build order, per-phase state | `docs/ROADMAP.md` |
 | Module map, dependency rule, data flow | `docs/ARCHITECTURE.md` |
@@ -162,6 +162,16 @@ the venue lacks anything, run `make audit-surface` and paste what it returned.
   `connected=True`, no reconnects and no open breakers (§81). Both are properties of the
   market: compute them at sweep time. Same for realized volatility, which scans a
   1,800-element series.
+- **Register every engine, then check `_limits_for` covers its categories.** Politics is
+  **98 of 100** markets a general sweep returns and both event-driven engines were
+  unregistered, so all of them were dropped from the decision context (§87). Their
+  microstructure is also nothing like crypto's — 39 bps median spread against 217, tick 0.001
+  against 0.01 — so the limits are not shared.
+- **The safeguards do not protect against a wrong *input*.** A prior of 0.97 on a market at
+  0.18 was approved 58 times with a 0.79 edge; the wide uncertainty, EV buffer, Kelly haircut
+  and all 17 checks ran correctly and none could help, because `source` is free text (§88).
+  `MAX_PRIOR_DIVERGENCE` now bounds a prior against the market price — legitimate because a
+  bound can only suppress a trade, never create one.
 - **A zero bankroll zeroes every decision, and blames the book.** 23,249 estimates produced
   zero journal rows, all reporting "book cannot support the sized trade", because sizing is
   a fraction of a bankroll nothing had funded (§82).

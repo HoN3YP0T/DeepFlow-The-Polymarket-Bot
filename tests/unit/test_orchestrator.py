@@ -9,6 +9,7 @@ safe shutdown, and that a dead task is surfaced rather than swallowed.
 from __future__ import annotations
 
 import asyncio
+from decimal import Decimal
 
 import pytest
 
@@ -226,3 +227,73 @@ async def test_the_decision_chain_is_constructed_as_a_whole() -> None:
     source = inspect.getsource(Orc.start)
     for component in ("EngineRegistry()", "default_gate()", "RiskEngine(", "JournalRecorder("):
         assert component in source, f"{component} must be constructed in start()"
+
+
+async def test_every_category_with_an_engine_has_execution_limits() -> None:
+    """The gate cannot examine a trade it has no limits for, and the limits are not
+    transferable: politics books measured a median spread of 39 bps against crypto's 217, and
+    a tick of 0.001 against 0.01. A category with an engine and no limits fails closed, which
+    is safe and also silent — so this pins the pairing instead.
+    """
+    from deepflow.pipeline.orchestrator import Orchestrator as Orc
+
+    orchestrator = Orc(settings=Settings(_env_file=None))
+    from deepflow.config.thresholds import Btc5mThresholds
+    from deepflow.engines.crypto.btc_5m import Btc5mEngine
+    from deepflow.engines.crypto.reference import TwapReference
+    from deepflow.engines.geopolitics.engine import GeopoliticalEngine
+    from deepflow.engines.geopolitics.events import EventPipeline
+    from deepflow.engines.politics.political import PoliticalEngine
+    from deepflow.engines.registry import EngineRegistry
+
+    registry = EngineRegistry()
+    registry.register(Btc5mEngine(Btc5mThresholds(), reference=TwapReference()))
+    registry.register(PoliticalEngine(EventPipeline()))
+    registry.register(
+        GeopoliticalEngine(EventPipeline(), Settings(_env_file=None).thresholds.geopolitics)
+    )
+
+    for category in registry.registered_categories:
+        assert orchestrator._limits_for(category) is not None, category
+
+
+async def test_the_political_and_geopolitical_engines_are_registered() -> None:
+    """They are 100 of the 100 markets a general sweep returns — 98 politics and 2
+    geopolitics — and while no engine claimed them every one was dropped from the decision
+    context. Built, tested, and reachable from nothing.
+    """
+    import inspect
+
+    from deepflow.pipeline.orchestrator import Orchestrator as Orc
+
+    source = inspect.getsource(Orc.start)
+    assert "PoliticalEngine(" in source
+    assert "GeopoliticalEngine(" in source
+    # One pipeline between them: corroboration is counted across a window of claims, and two
+    # pipelines would each see half the reports and neither reach the two-publisher bar.
+    assert source.count("EventPipeline(") == 1
+
+
+async def test_a_prior_naming_an_untracked_market_is_reported() -> None:
+    """A typo in a slug otherwise looks exactly like a market that has closed."""
+    from deepflow.pipeline.orchestrator import Orchestrator as Orc
+
+    orchestrator = Orc(
+        settings=Settings(
+            _env_file=None,
+            base_rates={"no-such-market": {"probability": "0.3", "source": "poll average"}},
+        )
+    )
+    orchestrator._apply_base_rates()  # no engines built yet, so this must not raise
+    assert orchestrator._priors_applied == 0
+
+
+def test_a_prior_must_name_its_source() -> None:
+    """An unsourced prior is a guess wearing a probability's clothes, and these markets have
+    no other source of a number — the price being circular and forbidden."""
+    import pytest as _pytest
+
+    from deepflow.config.settings import BaseRateConfig
+
+    with _pytest.raises(ValueError):
+        BaseRateConfig(probability=Decimal("0.3"), source="")
