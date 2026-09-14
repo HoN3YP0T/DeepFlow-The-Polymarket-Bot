@@ -46,6 +46,19 @@ class JournalRecorder:
         self._repository = repository
         self._clock = clock
         self._mode = mode
+        self._write_failures = 0
+
+    @property
+    def write_failures(self) -> int:
+        """Rows this recorder failed to write.
+
+        Exposed because swallowing the failure is only defensible if someone can find out.
+        A run once reported 3,642 decisions while the table gained none -- every insert
+        rejected for an over-long id, each one logged at warning and then forgotten (§83).
+        A caller that reports "decisions made" without this is reporting a number that may
+        mean nothing, and the whole purpose of the journal is that the record exists.
+        """
+        return self._write_failures
 
     async def record_entry(
         self, signal: Signal, *, gate: GateDecision, context: dict[str, Any] | None = None
@@ -145,6 +158,7 @@ class JournalRecorder:
             await self._repository.record_decision(entry)
         except Exception:
             # See the class docstring: loud, never fatal, never silent.
+            self._write_failures += 1
             log.warning("journal.write_failed", kind=str(kind), reason=reason, exc_info=True)
 
     @staticmethod

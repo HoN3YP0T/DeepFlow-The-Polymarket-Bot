@@ -1575,6 +1575,149 @@ toward 0.5 and makes nothing look more certain than it is. Recorded because the 
 is to treat a measured number as authoritative simply because it was measured — the sample
 was real, and the inference from it was not.
 
+## 79. The TWAP topic publishes eight symbols, and a hardcoded list got three wrong
+
+Subscribing to `prices.crypto.chainlink.twap` **without a symbol filter** returns exactly
+what the venue publishes. Measured:
+
+```
+bnb/usd  btc/usd  doge/usd  eth/usd  hype/usd  sol/usd  xrp/usd  zec/usd
+```
+
+Those are precisely the assets the venue runs the up/down cadence on, counted the same
+day from the `up-or-down` tag: eth 15, xrp 16, btc 14, sol 15, bnb 4, hype 3, doge 2,
+zec 2.
+
+A hardcoded map in `btc_5m.py` listed `btc eth sol xrp doge ada link avax` — **wrong about
+three** (ada, link and avax are not published) and **missing three** the venue actually
+trades (bnb, hype, zec). The failure would have been silent: a market for an unlisted asset
+resolves to no symbol, so the engine abstains and looks merely cautious.
+
+Now derived from the market's slug (`bnb-updown-5m-…` → `bnb/usd`) with no allowlist, and
+the subscription takes no filter. An asset added tomorrow works without a release.
+
+**The subscription trap next to it:** an empty symbol list is **not** the same as no
+filter. `symbols=[]` is rejected outright with `symbols must be non-empty when provided`,
+while `symbols=None` subscribes to everything. Passing `[]` cost a live run — the feed
+raised on every attempt, retried every two seconds, and each retry recorded a reconnect
+until the websocket breaker latched. The visible symptom was a tripped breaker and a model
+that never spoke, with nothing pointing at an empty list.
+
+## 80. The general market sweep cannot see up/down markets at all
+
+`list_markets(closed=False, liquidity_num_min=…)` sized at 100 returned **100 markets, zero
+of them up/down** — 98 politics and 2 geopolitics. These markets list ~24 hours before
+their window (§54) and carry no volume until its final minutes, so any ranking by liquidity
+buries them behind every long-horizon market on the venue.
+
+So **one undifferentiated discovery sweep cannot serve both horizons**, and the strategy
+that needs short-dated markets is the one guaranteed not to be served. They need their own
+path, and it has to go through **events** — the contest window lives there, so a market
+fetched directly has no `eventStartTime`, `contest_window_seconds()` returns `None`, and the
+classifier can never promote it to `BTC_5M`.
+
+Two further traps in building that path:
+
+* **Stale windows stay open.** `list_events(tag_slug="up-or-down", closed=False)` returned
+  46 tradeable markets whose windows had **expired 39 days earlier** — still
+  `closed=False`, still reporting an enabled order book. Every market tracked was one the
+  engine would correctly refuse, which is indistinguishable from a broken model. Bounding
+  the request with `start_time_min` / `start_time_max` fixed it: 72 current markets, 64
+  classified `BTC_5M`, 8 inside the engine's expiry band.
+* **`end_date_min` does not filter these events.** The same request with `end_date_min=now`
+  returned 100 events, **zero** with a current window — they carry no usable end date. The
+  window's *start* time is the only filter that works.
+
+And the tag id recorded for `BTC_5M` was wrong: `102892` appears on none of the 71 live
+up/down events. All 71 carry `102127` (`up-or-down`) and `1312` (`crypto-prices`) — but
+those identify the **family**, not the cadence, and the family spans 5m, 15m and 4h. So
+they map to `CRYPTO` and the window arithmetic promotes to `BTC_5M`; the venue does not
+publish the cadence as a tag at all.
+
+## 81. A decision chain run per snapshot starves the feed
+
+With classification and resolution parsing inline in the stream consumer, a ten-minute run
+wrote 312,000 snapshots and **dropped 1,313,255 events**. Before the chain was wired the
+same process dropped zero.
+
+Both operations are properties of the *market* and neither changes between book updates —
+classification runs a tag and keyword scan, resolution parsing runs regexes over prose —
+but they were being redone for all 172 tracked markets at the rate a live book moves. They
+now run once per market at sweep time, leaving the per-snapshot path a dict lookup that
+misses for the ~90% of markets no engine claims.
+
+Recorded because the failure mode is quiet in a specific way: the process reported
+`connected=True`, no reconnects, no open breakers, and a healthy snapshot count throughout.
+Nothing said the feed was losing four events for every one it kept except a counter nobody
+was reading.
+
+The same run also showed an abstention logged per snapshot per market — thousands of
+identical `strike_unobserved` lines, burying the decisions that did happen. Routine
+abstentions are now `debug`; the health line's counters carry the signal.
+
+## 82. Zero bankroll silently zeroes every decision
+
+A wired run produced **23,249 probability estimates and zero journal rows**. Every one died
+at the EV step reporting `book cannot support the sized trade`, with `stake=0.00`.
+
+The cause was not the book. `RiskEngine` starts from `BankrollState()` — a balance of zero —
+and nothing in the process ever called `update_bankroll`. Sizing is a fraction of bankroll,
+so the stake was zero, the share count was zero, and `EvEngine.assess` correctly declined to
+price a trade of nothing. Three components each behaved exactly as designed and the system
+produced nothing.
+
+Worth recording as a venue-adjacent finding rather than a mere bug, because of how it
+presented: the error surfaced as a *market* problem ("the book cannot support this") when
+the real cause was unconfigured capital, three layers away. Now funded from
+`paper_bankroll_usdc` at startup, with LIVE taking its balance from the venue instead.
+
+## 83. A journal that swallows write failures reported 3,642 decisions and wrote none
+
+A wired run reported `decisions=3642` on its health line. The table gained **zero rows**.
+
+Every insert was rejected with:
+
+```
+asyncpg.exceptions.StringDataRightTruncationError: value too long for type character varying(64)
+```
+
+`journal.signal_id` is `varchar(64)` and the id was built as
+`f"{condition_id}:{token_id}:{n}"` — a condition id is 66 characters on its own, and a
+token id is ~77. `JournalRecorder` swallows write failures by design (documented: "the
+journal is a record, not a safety mechanism"), so each failure logged a warning and the
+process carried on counting decisions it had not recorded.
+
+Two fixes, and the second matters more than the first:
+
+* The id is now a 12-hex digest of market and outcome plus the sequence — 17 characters,
+  stable across restarts for the same market, unique per decision.
+* `JournalRecorder.write_failures` is now exposed and reported next to `decisions` on the
+  health line. **Swallowing a failure is only defensible if someone can find out**, and
+  "decisions made" is not a meaningful figure unless it can be read against "rows that
+  failed". This is the same class of quiet lie as §81's dropped events: every individual
+  component behaved exactly as documented, and the aggregate was false.
+
+## 84. The model needs about six minutes of warm-up before it can speak
+
+Not a venue behaviour but a property of the estimator, recorded because it looks like a
+fault. On startup the crypto engine abstains for **~6 minutes**, and the reason is
+arithmetic: realized volatility needs `MIN_VOL_SAMPLES` (6) non-overlapping returns at a lag
+of at least twice the 30-second averaging window (§76), which is 6 × 60 s of continuous
+feed.
+
+Measured across one run, the abstention reasons in order of appearance:
+
+| Elapsed | Dominant abstention |
+| --- | --- |
+| 0 – 6 min | `volatility_unmeasurable` — not enough history yet |
+| throughout | `strike_unobserved` — windows that opened before the process started (§77) |
+| last 30 s of any window | `inside_averaging_window` — part of the settlement average is already fixed |
+
+So the first window the process can price is the first one opening **at least six minutes
+after startup**, and a restart costs that again. Operationally this means the reference feed
+should outlive any individual decision loop, and a process restarted every few minutes can
+never trade these markets at all.
+
 ---
 
 ## Confirmed correct

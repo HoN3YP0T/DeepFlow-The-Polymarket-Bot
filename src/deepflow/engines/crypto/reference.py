@@ -92,6 +92,16 @@ class TwapReference:
         self._series: dict[str, deque[tuple[datetime, Decimal]]] = {}
         self._source: dict[str, str] = {}
         self._windows: dict[str, int | None] = {}
+        # Memo for the volatility estimate, keyed by the series state it was computed from.
+        # Exact rather than time-based: the entry is discarded the moment a new observation
+        # arrives, so a cached sigma is always the sigma the current series implies.
+        #
+        # It exists because the estimate is O(series) -- up to ~1,800 observations over a
+        # 30-minute window -- and was being recomputed for every market on every book
+        # update. Dozens of snapshots arrive between two Chainlink publications, and every
+        # one of those recomputations returned the same number while starving the feed
+        # (§81).
+        self._volatility: dict[str, tuple[datetime, Decimal | None]] = {}
 
     def observe(self, price: ReferencePrice) -> None:
         """Record an observation, dropping the duplicate ticks the feed carries forward.
@@ -115,6 +125,7 @@ class TwapReference:
             return
 
         series.append((price.observed_at, price.value))
+        self._volatility.pop(price.symbol, None)
         cutoff = price.observed_at - self._history
         while series and series[0][0] < cutoff:
             series.popleft()
@@ -177,6 +188,10 @@ class TwapReference:
         if not series or len(series) < 2:
             return None
 
+        cached = self._volatility.get(symbol)
+        if cached is not None and cached[0] == series[-1][0]:
+            return cached[1]
+
         window = self._windows.get(symbol) or 30
         lag = timedelta(seconds=window * MIN_LAG_WINDOWS)
 
@@ -205,25 +220,25 @@ class TwapReference:
             anchor_time, anchor_value = stamp, value
 
         if len(samples) < MIN_VOL_SAMPLES:
-            return None
+            return self._memo(symbol, series[-1][0], None)
 
         mean = sum(samples) / len(samples)
         variance = sum((sample - mean) ** 2 for sample in samples) / (len(samples) - 1)
         if variance <= 0:
-            return None
+            return self._memo(symbol, series[-1][0], None)
 
         measured = Decimal(str(sqrt(variance)))
         floor = MIN_ANNUALISED_VOLATILITY / Decimal(str(sqrt(float(SECONDS_PER_YEAR))))
         if measured < floor:
-            log.info(
+            log.debug(
                 "reference.volatility_floored",
                 symbol=symbol,
                 measured=str(measured),
                 floor=str(floor),
                 samples=len(samples),
             )
-            return floor
-        return measured
+            return self._memo(symbol, series[-1][0], floor)
+        return self._memo(symbol, series[-1][0], measured)
 
     def first_observed(self, symbol: str) -> datetime | None:
         """When the series begins, or ``None`` if there is none.
@@ -235,6 +250,23 @@ class TwapReference:
         """
         series = self._series.get(symbol)
         return series[0][0] if series else None
+
+    def _memo(self, symbol: str, at: datetime, value: Decimal | None) -> Decimal | None:
+        """Remember a volatility answer against the series state that produced it.
+
+        ``None`` is cached as deliberately as a number: "not enough history yet" is just as
+        expensive to recompute and just as stable between observations.
+        """
+        self._volatility[symbol] = (at, value)
+        return value
+
+    def symbols(self) -> int:
+        """How many distinct symbols are being held.
+
+        Reported on the health line: a reference feed carrying zero symbols means the
+        crypto engine cannot speak at all, whatever the other counters say.
+        """
+        return len(self._series)
 
     def samples(self, symbol: str) -> int:
         """Distinct observations held. Exposed for the journal and for abstention reasons."""

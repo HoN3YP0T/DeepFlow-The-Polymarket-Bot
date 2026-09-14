@@ -92,6 +92,20 @@ _MARKET_TYPES = frozenset(
 )
 
 
+def _symbol_filter(symbols: Sequence[str]) -> list[str] | None:
+    """The SDK's symbol filter, where **empty and absent are different things**.
+
+    ``None`` subscribes to every symbol the venue publishes; an empty list is rejected
+    outright with "symbols must be non-empty when provided". Passing ``[]`` through cost a
+    live run: the reference feed raised on every attempt, retried every two seconds, and
+    each retry recorded a reconnect until the websocket breaker latched — so the symptom
+    was a tripped breaker and a model that never spoke, with nothing pointing at an empty
+    list as the cause.
+    """
+    filtered = [symbol.lower() for symbol in symbols if symbol.strip()]
+    return filtered or None
+
+
 def _to_twap_reference(event: Any) -> ReferencePrice | None:
     """One Chainlink TWAP event as a :class:`ReferencePrice`.
 
@@ -474,7 +488,7 @@ class PolymarketStreams:
 
         handle = await self._session.public.subscribe(
             CryptoPricesChainlinkTwapSpec(
-                window_seconds=window_seconds, symbols=[s.lower() for s in symbols]
+                window_seconds=window_seconds, symbols=_symbol_filter(symbols)
             )
         )
         try:
@@ -511,7 +525,7 @@ class PolymarketStreams:
                 f"unknown crypto price source {source!r}: expected one of {sorted(SPOT_TOPICS)}"
             )
         handle = await self._session.public.subscribe(
-            CryptoPricesSpec(topic=topic, symbols=[s.lower() for s in symbols])
+            CryptoPricesSpec(topic=topic, symbols=_symbol_filter(symbols))
         )
         try:
             async for event in handle:

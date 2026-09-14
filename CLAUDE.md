@@ -14,7 +14,7 @@ mistakes are not made a fourth time.
 | Question | File |
 | --- | --- |
 | What is done, what is left, what broke and was fixed | `docs/STATUS.md` — **start here** |
-| What the venue actually does (78 findings, 4 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
+| What the venue actually does (84 findings, 4 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
 | The venue's full surface + the method for not misreading it | `docs/POLYMARKET-SURFACE-AUDIT.md` |
 | Build order, per-phase state | `docs/ROADMAP.md` |
 | Module map, dependency rule, data flow | `docs/ARCHITECTURE.md` |
@@ -129,6 +129,15 @@ the venue lacks anything, run `make audit-surface` and paste what it returned.
 - **A 7-minute vol sample is not a forecast.** BTC measured 4% and 8% annualised on two
   consecutive samples; trusting either pushes 0.8 to 0.99. Floored at 20%, which is the
   conservative direction (§78).
+- **The general market sweep returns *zero* up/down markets** — they list ~24 h early with
+  no volume, so liquidity ranking buries them. They need their own event-based sweep
+  bounded by `start_time_min/max`, because stale windows stay `closed=False` with an open
+  book **39 days** after expiring, and `end_date_min` does not filter them (§80).
+- **`symbols=[]` is not "no filter".** Empty is rejected (`must be non-empty when
+  provided`); `None` subscribes to everything. Passing `[]` retried every 2 s and latched
+  the websocket breaker, so the symptom pointed nowhere near the cause (§79).
+- **The TWAP topic publishes 8 symbols** (bnb btc doge eth hype sol xrp zec). A hardcoded
+  list was wrong about 3 and missing 3; derive the symbol from the slug instead (§79).
 
 - **A wrong import path poisons everything downstream of it.** mypy *does* check the
   SDK (it ships `py.typed`) and would have caught `AssetType.COLLATERAL` — but the
@@ -141,6 +150,24 @@ the venue lacks anything, run `make audit-surface` and paste what it returned.
 - **Position size is `current_size`**, not `size`. Reading the wrong name yields zero
   shares, and the zero-filter then drops the position, so a funded account reconciles
   as **flat** (§68). Both sites now share `mapping.position_shares`.
+
+### Performance and wiring traps
+
+- **Never run per-market work per snapshot.** Classification and resolution parsing inline
+  in the stream consumer dropped **1.3 M events** in ten minutes while reporting
+  `connected=True`, no reconnects and no open breakers (§81). Both are properties of the
+  market: compute them at sweep time. Same for realized volatility, which scans a
+  1,800-element series.
+- **A zero bankroll zeroes every decision, and blames the book.** 23,249 estimates produced
+  zero journal rows, all reporting "book cannot support the sized trade", because sizing is
+  a fraction of a bankroll nothing had funded (§82).
+- **The journal swallows write failures, so check `write_failures`.** A run reported 3,642
+  decisions and wrote none — `signal_id` overflowed `varchar(64)`, since a condition id is
+  66 characters alone (§83). "Decisions made" is meaningless without the failure count
+  beside it.
+- **The crypto model needs ~6 minutes of warm-up** (6 vol samples × 60 s lag), so a freshly
+  started process abstains on everything, and a process restarted often can never trade
+  these markets (§84).
 
 ### Testing traps
 

@@ -1,7 +1,7 @@
 # Status and handover
 
 **As of:** 2026-09-13 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· 31 commits · **780 tests passing, 0 skipped** · **44 stubs remain** · 78 findings recorded
+· 31 commits · **780 tests passing, 0 skipped** · **44 stubs remain** · 84 findings recorded
 · 109 source files, ~12,500 lines
 
 **Phase 1** complete · **Phase 2** complete · **Phase 3** 3 of 6 · **Phase 4** complete
@@ -326,28 +326,26 @@ Neither engine is registered with `EngineRegistry`, because the registry still h
 consumer — that arrives with a Phase 3 model. A test pins that the two can be registered
 together without a category collision, which is the real risk.
 
-**The largest remaining gap is not a stub: nothing is wired into the orchestrator.**
+**The short-dated crypto path is now wired end to end and runs.** `Orchestrator` gained a
+`reference-feed` task holding the Chainlink TWAP for all eight published assets, a targeted
+discovery sweep for up/down markets, and a decision chain in the stream loop: classify →
+probability → sizing → EV → the 17-check gate → the journal. Decisions are recorded and
+**never submitted** — no execution adapter is constructed in this process, so that is true
+by construction rather than by a flag.
 
-`Orchestrator` runs four loops — `discovery`, `stream`, `live-game`, `health`. Grepping it
-for `Btc5mEngine`, `EngineRegistry`, `PositionManager`, `ExitEngine`, `SmartMoneyEngine`,
-`EventPipeline`, `OrderManager`, `Reconciler`, `PolymarketExecution` or
-`subscribe_crypto_twap` returns **nothing**. Phases 4, 5 and 6 and the BTC model are all
-built, tested and reachable from no running code path.
+Getting it running found six things no unit test could, all now recorded as findings:
 
-This is the `games.py` failure at a much larger scale, and it is deliberately recorded here
-because the stub count hides it completely: every one of those modules is at zero stubs.
-Two consequences worth naming:
+| | What |
+| --- | --- |
+| §79 | The TWAP topic publishes 8 symbols; a hardcoded list had 3 wrong and missed 3. And `symbols=[]` is rejected where `None` means "everything" — which tripped a breaker via retry. |
+| §80 | The general sweep returns **zero** up/down markets. They need their own event-based path, bounded by `start_time`, because stale windows stay `closed=False` with open books 39 days later. |
+| §81 | Running the chain per snapshot dropped **1.3M events**; classification and resolution now run once per market. Volatility was also recomputed over a 1,800-element series per snapshot. |
+| §82 | A zero bankroll produced **23,249 estimates and zero journal rows**, surfacing as "the book cannot support this" three layers from the real cause. |
 
-* **`Btc5mEngine` cannot fire until the TWAP feed runs in-process continuously.** The
-  strike is the reference price at the window's opening instant and the venue publishes
-  none (§77), so a process that subscribes on demand has already missed it. The wiring is
-  not a convenience — it is the difference between a model that abstains always and one
-  that prices.
-* **`EngineRegistry` is never instantiated**, so even a finished engine has no route to
-  the decision layer.
-
-Wiring is cheap relative to what it unlocks and belongs before `FootballEngine`: a second
-model that nothing consumes adds no more capability than the first one did.
+**Still unwired**, and each for a stated reason: execution (a journalled approval is not an
+order), the position manager (nothing can open a position), reconciliation (nothing has
+placed one), the user stream, the smart-money poll, the sports socket, and probability for
+every category except short-dated crypto.
 
 **Phase 7 — dashboard (0 of 4).** 24 API stubs; the Next.js frontend is scaffolding.
 
@@ -424,7 +422,7 @@ is the point of having built it first.
 
 ---
 
-Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (78 findings).
+Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (84 findings).
 Venue surface map and the method for not misreading it:
 `docs/POLYMARKET-SURFACE-AUDIT.md` — 9 hosts, 223 operations, plus
 `make audit-surface`.

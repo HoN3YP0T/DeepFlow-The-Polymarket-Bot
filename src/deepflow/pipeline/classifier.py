@@ -44,11 +44,17 @@ CATEGORY_TAG_IDS: Final[dict[MarketCategory, frozenset[str]]] = {
     MarketCategory.BADMINTON: frozenset({"102880"}),
     MarketCategory.POLITICS: frozenset({"2", "144", "264", "1101", "101206"}),
     MarketCategory.GEOPOLITICS: frozenset({"100265", "101253", "366"}),
-    MarketCategory.CRYPTO: frozenset({"21", "100328"}),
-    # ``102892`` is the venue's own ``5M`` cadence tag and ``102127`` its
-    # ``up-or-down`` family. Authoritative where the window arithmetic is derived:
-    # the venue is stating the cadence rather than leaving it to be measured.
-    MarketCategory.BTC_5M: frozenset({"102892"}),
+    # ``102127`` (``up-or-down``) and ``1312`` (``crypto-prices``) are carried by **all
+    # 71** live up/down events, measured; they identify the *family*, not the cadence, and
+    # the family spans 5m, 15m and 4h windows. So they map to CRYPTO and the window
+    # arithmetic promotes to BTC_5M -- see ``_apply_short_dated``.
+    MarketCategory.CRYPTO: frozenset({"21", "100328", "102127", "1312"}),
+    # Deliberately empty. ``102892`` was recorded here as "the venue's own 5M cadence tag"
+    # and appears on none of the live up/down events (§80); the cadence is not published as
+    # a tag at all, which is why it has to be derived from the window. Left as an empty set
+    # rather than deleted so the tag route stays visible as the thing that cannot answer
+    # this question.
+    MarketCategory.BTC_5M: frozenset(),
     MarketCategory.OTHER_SPORTS: frozenset({"64", "65"}),  # esports
 }
 

@@ -15,11 +15,13 @@ pipeline.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import timedelta
 from typing import Any
 
 from deepflow.adapters.polymarket import mapping
 from deepflow.adapters.polymarket.sdk_client import PolymarketSession
 from deepflow.config.settings import Settings
+from deepflow.core.clock import Clock, SystemClock
 from deepflow.core.domain import Market
 from deepflow.core.logging import get_logger
 from deepflow.core.types import ConditionId
@@ -31,13 +33,37 @@ log = get_logger(__name__)
 #: assumes it got its limit would silently see a fifth of the market universe.
 MAX_PAGE_SIZE = 100
 
+#: The venue tag carried by every up/down event. Measured on all 71 live ones.
+#:
+#: The *family* tag, spanning 5m, 15m and 4h windows — it does not state the cadence, so the
+#: window still has to be derived (§80). Used here to find the markets at all, which the
+#: liquidity-ranked sweep never surfaces.
+UP_OR_DOWN_TAG = "up-or-down"
+
+#: How far back a window may have opened and still be worth tracking.
+#:
+#: Four hours, because that is the longest cadence the venue runs (§63) and such a window
+#: is still live four hours after it opened.
+UP_OR_DOWN_LOOKBACK = timedelta(hours=4)
+
+#: How far ahead to pick up windows that have not opened yet.
+#:
+#: Must exceed the discovery interval, or a 5-minute window can open *and expire* between
+#: two sweeps and never be tracked at all. More than that matters for a second reason: the
+#: strike is the reference price at the opening instant (§77), so a market has to be known
+#: before it opens, not when it is noticed.
+UP_OR_DOWN_LOOKAHEAD = timedelta(minutes=15)
+
 
 class SdkMarketDiscovery:
     """Discovery backed by the official SDK."""
 
-    def __init__(self, session: PolymarketSession, settings: Settings) -> None:
+    def __init__(
+        self, session: PolymarketSession, settings: Settings, *, clock: Clock | None = None
+    ) -> None:
         self._session = session
         self._settings = settings
+        self._clock = clock or SystemClock()
 
     async def list_active_markets(self, *, limit: int = 500) -> Sequence[Market]:
         """Page active, order-accepting markets and normalize them.
@@ -89,6 +115,73 @@ class SdkMarketDiscovery:
             classification_min_confidence=str(thresholds.classification_min_confidence),
         )
         return tuple(markets)
+
+    async def list_short_dated_crypto(self, *, limit: int = 100) -> Sequence[Market]:
+        """Up/down markets, which the general sweep cannot see at all.
+
+        Measured: `list_active_markets(limit=100)` returned 100 markets, **zero** of them
+        up/down — all politics and geopolitics. These markets are listed ~24 hours before
+        their window (§54) and carry no volume until the last minutes of it, so any ranking
+        by liquidity buries them behind every long-horizon market on the venue. A single
+        undifferentiated sweep therefore cannot serve both horizons, and the strategy that
+        needs them most is the one guaranteed not to be served (§80).
+
+        Reached through **events**, not markets, for the same structural reason the sports
+        join is: the contest window lives on the event. A market fetched directly has no
+        `eventStartTime`, and `contest_window_seconds()` then returns `None`, so the
+        classifier cannot promote it to `BTC_5M` and the engine never sees it. Event context
+        is attached to every market here for that reason.
+
+        Filtered to markets whose book is actually open. 71 up/down events were live when
+        this was written and 17 had order books; the remainder are future windows that
+        cannot be traded yet, and carrying them would inflate the tracked set with markets
+        no snapshot will ever arrive for.
+        """
+        # Bounded by the window's own start time, and that filter is load-bearing rather
+        # than an optimisation. Without it the first 100 events came back with windows that
+        # had **expired 39 days earlier** -- still `closed=False`, still reporting an open
+        # order book -- so every market tracked was one the engine would correctly refuse,
+        # and the result was indistinguishable from a broken model (§80).
+        #
+        # `end_date_min` does not work here: the same request filtered that way returned 100
+        # events with zero current windows, because these events carry no usable end date.
+        now = self._clock.now()
+        events = await self._page(
+            self._session.public.list_events(
+                tag_slug=UP_OR_DOWN_TAG,
+                closed=False,
+                start_time_min=now - UP_OR_DOWN_LOOKBACK,
+                start_time_max=now + UP_OR_DOWN_LOOKAHEAD,
+                page_size=MAX_PAGE_SIZE,
+            )
+        )
+
+        markets: list[Market] = []
+        for sdk_event in events:
+            for sdk_market in getattr(sdk_event, "markets", None) or ():
+                if not self._is_tradeable(sdk_market):
+                    continue
+                market = mapping.with_event_context(mapping.to_market(sdk_market), sdk_event)
+                if not market.outcomes:
+                    continue
+                markets.append(market)
+                if len(markets) >= limit:
+                    break
+            if len(markets) >= limit:
+                break
+
+        log.info(
+            "discovery.short_dated_crypto",
+            events=len(events),
+            tradeable_markets=len(markets),
+            tag=UP_OR_DOWN_TAG,
+        )
+        return tuple(markets)
+
+    @staticmethod
+    async def _page(paginator: Any) -> tuple[Any, ...]:
+        page = await paginator.first_page()
+        return tuple(page.items)
 
     async def get_market(self, condition_id: ConditionId) -> Market | None:
         """Fetch one market by condition id.

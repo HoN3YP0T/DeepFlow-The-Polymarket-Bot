@@ -358,3 +358,58 @@ def test_out_of_order_ticks_are_dropped() -> None:
         )
     assert reference.samples(SYMBOL) == 2
     assert reference.latest(SYMBOL) == (WINDOW_START + timedelta(seconds=60), Decimal(77100))
+
+
+def test_the_volatility_memo_is_invalidated_by_a_new_observation() -> None:
+    """Exact, not time-based: a cached sigma must always be the sigma the current series
+    implies.
+
+    The memo exists because the estimate is O(series) — up to ~1,800 observations — and was
+    being recomputed for every market on every book update, starving the feed (§81). Dozens
+    of snapshots arrive between two Chainlink publications, so most of those recomputations
+    returned an identical number.
+    """
+    reference = _series(strike=Decimal(77000), wiggle=Decimal(40))
+    first = reference.volatility_per_second(SYMBOL)
+    assert first is not None
+    # Same series, so the same answer, and it must come from the memo rather than a rerun.
+    assert reference.volatility_per_second(SYMBOL) == first
+
+    latest = reference.latest(SYMBOL)
+    assert latest is not None
+    reference.observe(
+        ReferencePrice(
+            symbol=SYMBOL,
+            value=Decimal(90000),
+            source="chainlink_twap",
+            window_seconds=30,
+            observed_at=latest[0] + timedelta(seconds=61),
+        )
+    )
+    # A 17% jump cannot leave the estimate unchanged; a stale memo would say it did.
+    assert reference.volatility_per_second(SYMBOL) != first
+
+
+def test_an_unmeasurable_volatility_is_cached_too() -> None:
+    """"Not enough history yet" is as expensive to recompute and as stable as a number."""
+    thin = TwapReference()
+    thin.observe(
+        ReferencePrice(
+            symbol=SYMBOL,
+            value=Decimal(77000),
+            source="chainlink_twap",
+            window_seconds=30,
+            observed_at=WINDOW_START,
+        )
+    )
+    thin.observe(
+        ReferencePrice(
+            symbol=SYMBOL,
+            value=Decimal(77010),
+            source="chainlink_twap",
+            window_seconds=30,
+            observed_at=WINDOW_START + timedelta(seconds=61),
+        )
+    )
+    assert thin.volatility_per_second(SYMBOL) is None
+    assert thin.volatility_per_second(SYMBOL) is None

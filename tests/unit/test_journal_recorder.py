@@ -249,3 +249,37 @@ async def test_a_write_failure_is_logged_and_never_raised() -> None:
     await recorder.record_entry(_signal(), gate=_gate(approved=True))
     await recorder.record_exit(_exit(ExitAction.FULL_EXIT), outcome={})
     assert repo.entries == []
+
+
+@pytest.mark.asyncio
+async def test_write_failures_are_counted_not_merely_logged() -> None:
+    """Swallowing a write failure is only defensible if someone can find out.
+
+    A run reported 3,642 decisions while the table gained none — every insert rejected for
+    an over-long signal id, each logged at warning and then forgotten (§83). The counter is
+    what lets a caller report "decisions recorded" rather than "decisions attempted".
+    """
+
+    class _Broken:
+        async def record_signal(self, signal: object) -> None: ...
+        async def record_decision(self, entry: dict[str, object]) -> None:
+            raise RuntimeError("value too long for type character varying(64)")
+
+        async def list_recent(self, *, limit: int = 100) -> list[dict[str, object]]:
+            return []
+
+    recorder = JournalRecorder(
+        repository=_Broken(),  # type: ignore[arg-type]
+        clock=ManualClock(NOW),
+        mode=RunMode.PAPER,
+    )
+    assert recorder.write_failures == 0
+    await recorder.record_hold(
+        ExitDecision(
+            position_id=PositionId("p1"),
+            action=ExitAction.HOLD,
+            exit_score=0,
+            reason="test",
+        )
+    )
+    assert recorder.write_failures == 1

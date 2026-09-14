@@ -56,21 +56,18 @@ TWAP_WINDOW_SECONDS_5M: Final = 30
 #: *listed*, roughly 24 hours earlier (§54).
 SLUG_WINDOW = re.compile(r"-(\d+)m-(\d{9,11})$")
 
-#: Chainlink's symbol for each asset, keyed by the slug prefix.
+#: Chainlink's quote currency for the up/down cadence. Every published pair is against USD.
+#:
+#: The symbol is **derived** from the market's slug rather than looked up in a table, and
+#: that is a correction rather than a shortcut: a hardcoded list of eight assets had three
+#: wrong (ada, link, avax are not published) and was missing three the venue actually runs
+#: (bnb, hype, zec) — §79. Subscribing without a symbol filter gives exactly what the venue
+#: publishes, and an asset it adds tomorrow then works with no release.
 #:
 #: Slash-delimited and lowercase, which is Chainlink's format and **not** Binance's
 #: (``btcusdt``). The two are not interchangeable and the wrong one silently prices a
 #: different instrument (§63).
-CHAINLINK_SYMBOLS: Final[dict[str, str]] = {
-    "btc": "btc/usd",
-    "eth": "eth/usd",
-    "sol": "sol/usd",
-    "xrp": "xrp/usd",
-    "doge": "doge/usd",
-    "ada": "ada/usd",
-    "link": "link/usd",
-    "avax": "avax/usd",
-}
+CHAINLINK_QUOTE: Final = "usd"
 
 #: The source this engine is willing to price against.
 #:
@@ -201,7 +198,11 @@ class Btc5mEngine(BaseProbabilityEngine):
             # published rolling average. Abstaining here is why the configured
             # ``min_seconds_to_expiry`` floor must sit above the TWAP window -- see
             # ``Btc5mThresholds``.
-            log.info("btc_5m.inside_averaging_window", seconds_left=seconds_left)
+            # Debug, not info: this fires on every snapshot of every market in its final
+            # 30 seconds, and a measured run produced thousands of identical lines that
+            # buried the decisions that did happen. The health line's counters carry the
+            # signal instead (§81).
+            log.debug("btc_5m.inside_averaging_window", seconds_left=seconds_left)
             return None
 
         latest = self._reference.latest(symbol)
@@ -219,19 +220,19 @@ class Btc5mEngine(BaseProbabilityEngine):
 
         observed_at, spot = latest
         if now - observed_at > MAX_REFERENCE_AGE:
-            log.info("btc_5m.stale_reference", symbol=symbol, age=str(now - observed_at))
+            log.debug("btc_5m.stale_reference", symbol=symbol, age=str(now - observed_at))
             return None
 
         strike = self._reference.value_at(symbol, start)
         if strike is None:
             # The common case in practice: this process was not subscribed when the window
             # opened. Unrecoverable rather than approximable.
-            log.info("btc_5m.strike_unobserved", symbol=symbol, window_start=start.isoformat())
+            log.debug("btc_5m.strike_unobserved", symbol=symbol, window_start=start.isoformat())
             return None
 
         sigma = self._reference.volatility_per_second(symbol)
         if sigma is None or sigma <= 0:
-            log.info(
+            log.debug(
                 "btc_5m.volatility_unmeasurable",
                 symbol=symbol,
                 samples=self._reference.samples(symbol),
@@ -318,16 +319,20 @@ def _parse_window(slug: str | None) -> tuple[datetime, int] | None:
 
 
 def _chainlink_symbol(slug: str | None) -> str | None:
-    """Chainlink's symbol for the asset a slug names, or ``None`` if unrecognised.
+    """Chainlink's symbol for the asset a slug names, derived rather than looked up.
 
-    Unrecognised is an abstention rather than a guess: the venue runs this cadence on
-    eight assets (§53) and a symbol built by string surgery would subscribe to nothing and
-    look like a quiet feed.
+    ``btc-updown-5m-...`` -> ``btc/usd``. No allowlist, because an allowlist is a second
+    place for the truth to live and the first copy was wrong about three of its eight
+    entries (§79). An asset the venue has not published simply has no series in the
+    reference, so :meth:`TwapReference.latest` returns ``None`` and the engine abstains --
+    the same answer the allowlist gave, reached without a list to maintain.
     """
     if not slug:
         return None
-    prefix = slug.split("-", 1)[0].lower()
-    return CHAINLINK_SYMBOLS.get(prefix)
+    prefix = slug.split("-", 1)[0].strip().lower()
+    if not prefix or not prefix.isalnum():
+        return None
+    return f"{prefix}/{CHAINLINK_QUOTE}"
 
 
 def _settles_on_chainlink(market: Market) -> bool:

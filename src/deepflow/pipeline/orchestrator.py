@@ -7,12 +7,23 @@ Shutdown ordering matters: stop taking on new risk first, then drain, then
 disconnect. Tearing down the stream while an order is in flight manufactures
 exactly the uncertain-execution state the rest of the system works to avoid.
 
-**Current scope.** Only the Phase 1 tasks are wired: discovery sweep, market
-stream, snapshot persistence, health logging. The rest are listed in the task
-inventory below and log once at startup as not yet wired, so what is running is
-visible from the logs rather than inferred from which modules happen to exist.
-This process therefore collects data and reports its own health. It does not
-trade, and cannot -- nothing here can reach the execution adapter.
+**Current scope.** Discovery sweep, market stream, snapshot persistence, live-game
+sweep, health logging, the **reference-price feed**, and the **decision chain for
+short-dated crypto markets** -- probability, EV, the safety gate and risk, journalled
+in full. Everything still unwired is listed in the task inventory below and logged
+once at startup, so what is running is visible from the logs rather than inferred
+from which modules happen to exist.
+
+This process decides and records; it does not trade, and cannot -- nothing here
+constructs an execution adapter, and LIVE is refused before anything is built.
+
+**Why the reference feed runs continuously and from the first moment.** A crypto
+up/down market's strike is the Chainlink TWAP at the instant its window opens, and
+the venue publishes that number nowhere (§77). A process that subscribes when it
+notices the market has already missed it, permanently -- there is no later price that
+substitutes, because the strike is one instant's value. So the feed is subscribed at
+startup for every asset the venue runs the cadence on, independently of which markets
+discovery happens to have found. It is the one input here that cannot be caught up on.
 
 That is a useful thing to run long before it trades: the snapshot history a
 backtest replays can only be gathered in real time, so starting collection early
@@ -22,8 +33,10 @@ is the one part of this build that cannot be caught up on later.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Coroutine
+from collections.abc import Coroutine, Sequence
 from dataclasses import dataclass, field
+from decimal import Decimal
+from hashlib import sha256
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
@@ -36,14 +49,31 @@ from deepflow.adapters.polymarket.sdk_client import PolymarketSession
 from deepflow.adapters.polymarket.streams import PolymarketStreams
 from deepflow.config.settings import Settings
 from deepflow.core.clock import SystemClock
-from deepflow.core.domain import Market, MarketSnapshot
-from deepflow.core.enums import BreakerReason, DataQuality, RunMode
+from deepflow.core.domain import (
+    Classification,
+    Market,
+    MarketSnapshot,
+    ProbabilityEstimate,
+    ResolutionCriteria,
+    Signal,
+)
+from deepflow.core.enums import BreakerReason, DataQuality, RunMode, SignalAction
 from deepflow.core.logging import get_logger
-from deepflow.core.types import ClobTokenId
+from deepflow.core.types import ClobTokenId, ConditionId, SignalId
+from deepflow.engines.crypto.btc_5m import TWAP_WINDOW_SECONDS_5M, Btc5mEngine
+from deepflow.engines.crypto.reference import TwapReference
+from deepflow.engines.ev import EvEngine
+from deepflow.engines.registry import EngineRegistry
 from deepflow.engines.sports.rules import SportRegistry, category_for
+from deepflow.journal.recorder import JournalRecorder
+from deepflow.pipeline.classifier import MarketClassifier
 from deepflow.pipeline.features import FeatureEngine
+from deepflow.pipeline.resolution import ResolutionValidator
 from deepflow.risk.breaker_supervisor import BreakerSupervisor
 from deepflow.risk.circuit_breakers import CircuitBreakerRegistry
+from deepflow.risk.exposure import ExposureTracker
+from deepflow.risk.limits import BankrollState, RiskEngine
+from deepflow.risk.safety_gate import GateContext, SafetyGate, default_gate
 
 log = get_logger(__name__)
 
@@ -52,16 +82,79 @@ log = get_logger(__name__)
 #: for "the bot is trading".
 NOT_YET_WIRED = (
     "sports socket (in-play state comes from the REST sweep instead)",
-    "crypto price stream",
     "user stream",
     "smart-money poll",
-    "signal loop",
-    "position manager",
-    "reconciliation (needs an authenticated venue adapter)",
+    "execution (decisions are journalled, never submitted)",
+    "position manager (no positions can be opened yet)",
+    "reconciliation (nothing has placed an order)",
+    "probability for every category except short-dated crypto",
 )
+
+#: Symbols the reference feed subscribes to: **all of them**.
+#:
+#: An empty tuple means no filter, and the venue then sends every symbol it publishes —
+#: measured as 8 (bnb, btc, doge, eth, hype, sol, xrp, zec), exactly matching the assets it
+#: runs the up/down cadence on. Subscribing to a named list instead was wrong about three
+#: of eight (§79), and would have silently abstained on the assets it missed.
+#:
+#: The whole set rather than what discovery found, because the strike must already be in
+#: hand when a window opens; a market noticed mid-window can never be priced (§77).
+REFERENCE_SYMBOLS: tuple[str, ...] = ()
 
 #: How often the health line is emitted.
 HEALTH_INTERVAL_SECONDS = 30.0
+
+#: How long to wait before resubscribing a dropped reference feed.
+#:
+#: Short, because every second without it is a second of TWAP history the process cannot
+#: recover, and a market whose window opens inside the gap is unpriceable for its whole
+#: life (§77).
+REFERENCE_RETRY_SECONDS = 2.0
+
+
+def _signal_id(condition_id: ConditionId, token_id: ClobTokenId, sequence: int) -> SignalId:
+    """A short, deterministic signal id that fits the journal's column.
+
+    ``journal.signal_id`` is ``varchar(64)`` and a condition id alone is 66 characters, so
+    the obvious ``f"{condition}:{token}:{n}"`` overflowed it. Every decision of a ten-minute
+    run then failed to insert — silently, because the recorder swallows write failures by
+    design, so the health line reported 3,642 decisions while the table gained none (§83).
+
+    A 12-hex digest of the market and token, plus the sequence: stable for the same
+    market+outcome across restarts, unique per decision, and 21 characters.
+    """
+    digest = sha256(f"{condition_id}:{token_id}".encode()).hexdigest()[:12]
+    return SignalId(f"{digest}-{sequence}")
+
+
+class _SessionScopedJournal:
+    """A :class:`JournalRepository` that opens its own session per write.
+
+    The unit of work exists to commit a fill and its reasoning together, and there is no
+    fill here to group with -- so a decision row gets its own short transaction rather
+    than being held open across the stream loop. Holding one would mean a long-lived
+    transaction on a connection the snapshot writer also needs.
+    """
+
+    def __init__(self, sessions: async_sessionmaker[AsyncSession], clock: SystemClock) -> None:
+        self._sessions = sessions
+        self._clock = clock
+
+    async def record_signal(self, signal: Signal) -> None:
+        async with self._sessions() as session:
+            uow = SqlUnitOfWork(session, self._clock)
+            await uow.journal.record_signal(signal)
+            await uow.commit()
+
+    async def record_decision(self, entry: dict[str, Any]) -> None:
+        async with self._sessions() as session:
+            uow = SqlUnitOfWork(session, self._clock)
+            await uow.journal.record_decision(entry)
+            await uow.commit()
+
+    async def list_recent(self, *, limit: int = 100) -> Sequence[dict[str, Any]]:
+        async with self._sessions() as session:
+            return await SqlUnitOfWork(session, self._clock).journal.list_recent(limit=limit)
 
 
 @dataclass(slots=True)
@@ -93,6 +186,23 @@ class Orchestrator:
     _sports: SportRegistry | None = None
     _breakers: CircuitBreakerRegistry | None = None
     _supervisor: BreakerSupervisor | None = None
+    _reference: TwapReference | None = None
+    _engines: EngineRegistry | None = None
+    _classifier: MarketClassifier | None = None
+    _resolution: ResolutionValidator | None = None
+    _ev: EvEngine | None = None
+    _gate: SafetyGate | None = None
+    _risk: RiskEngine | None = None
+    _journal: JournalRecorder | None = None
+    _decisions: int = 0
+    _estimates: int = 0
+    _unpriceable: int = 0
+    _considered: int = 0
+    _abstained: int = 0
+    _context: dict[ConditionId, tuple[Classification, ResolutionCriteria]] = field(
+        default_factory=dict
+    )
+    _clock: SystemClock = field(default_factory=SystemClock)
     _tracked: tuple[Market, ...] = ()
     _in_play: tuple[GameLink, ...] = ()
     _snapshots_written: int = 0
@@ -162,6 +272,44 @@ class Orchestrator:
             limits=self.settings.thresholds.risk,
             clock=clock,
         )
+
+        # The decision chain. Constructed together because a partial chain is worse
+        # than none: an estimate with no gate behind it is a number nobody vetoed.
+        self._reference = TwapReference()
+        self._classifier = MarketClassifier(self.settings.thresholds)
+        self._resolution = ResolutionValidator()
+        self._ev = EvEngine(self.settings.thresholds)
+        self._gate = default_gate()
+        # No position repository is passed: nothing can open a position yet, so the
+        # tracker starts empty rather than being handed a store it would read as
+        # authoritative. It is wired the moment execution is.
+        self._risk = RiskEngine(self.settings.thresholds.risk, ExposureTracker())
+        # Without this every stake is zero, so every sized trade is unfillable and no
+        # decision is ever reachable: a measured run produced 23,249 estimates and zero
+        # journal rows (§82). In LIVE the balance would come from the venue instead, which
+        # is one more reason LIVE is refused here.
+        self._risk.update_bankroll(
+            BankrollState(
+                balance_usdc=self.settings.paper_bankroll_usdc,
+                peak_balance_usdc=self.settings.paper_bankroll_usdc,
+            )
+        )
+        self._engines = EngineRegistry()
+        self._engines.register(
+            Btc5mEngine(
+                self.settings.thresholds.btc_5m, reference=self._reference, clock=clock
+            )
+        )
+        self._journal = JournalRecorder(
+            repository=_SessionScopedJournal(self._sessions, clock),
+            clock=clock,
+            mode=self.settings.mode,
+        )
+
+        # The reference feed starts *before* discovery, and that ordering is the whole
+        # point of the task: a window that opens while we are still reading the market
+        # catalogue is a window whose strike we have missed for good (§77).
+        self._spawn(self._reference_loop(), name="reference-feed")
 
         # Discovery runs once synchronously so the stream has a token set to open
         # with. Starting the stream first would mean subscribing to nothing and
@@ -248,8 +396,35 @@ class Orchestrator:
                 await uow.markets.upsert(market)
             await uow.commit()
 
-        self._tracked = tuple(markets)
-        log.info("discovery.swept", markets=len(markets), tokens=len(self._token_ids()))
+        # The up/down markets, fetched separately because the general sweep cannot see
+        # them: they are listed ~24h early and carry no volume until their final minutes,
+        # so a liquidity-ranked page of 100 returned zero of them (§80). Fetched through
+        # events so the contest window travels with each market.
+        short_dated: tuple[Market, ...] = ()
+        try:
+            short_dated = tuple(
+                await discovery.list_short_dated_crypto(limit=self.settings.max_tracked_markets)
+            )
+        except Exception:
+            # Survivable and worth saying: the general sweep still succeeded, so the
+            # process keeps streaming everything else rather than losing the feed over one
+            # extra request.
+            log.warning("discovery.short_dated_failed", exc_info=True)
+
+        async with self._sessions() as session:
+            uow = SqlUnitOfWork(session)
+            for market in short_dated:
+                await uow.markets.upsert(market)
+            await uow.commit()
+
+        self._tracked = tuple(markets) + short_dated
+        self._rebuild_decision_context()
+        log.info(
+            "discovery.swept",
+            markets=len(markets),
+            short_dated=len(short_dated),
+            tokens=len(self._token_ids()),
+        )
 
     def _token_ids(self) -> list[ClobTokenId]:
         return [outcome.token_id for market in self._tracked for outcome in market.outcomes]
@@ -270,6 +445,13 @@ class Orchestrator:
                 log.warning("stream.inconsistent_snapshot", condition_id=str(snapshot.condition_id))
             if self.settings.persist_snapshots:
                 await self._persist(snapshot)
+            try:
+                await self._consider(snapshot)
+            except Exception:
+                # A failure in the decision chain must not take the feed with it. The
+                # snapshot history is the one thing that cannot be collected later, and
+                # a bug in sizing or the gate is no reason to stop gathering it.
+                log.warning("signal.consider_failed", exc_info=True)
 
     async def _persist(self, snapshot: MarketSnapshot) -> None:
         assert self._sessions is not None
@@ -291,6 +473,232 @@ class Orchestrator:
             log.warning("snapshot.persist_failed", exc_info=True)
             if self._supervisor is not None:
                 self._supervisor.record_database_failure("snapshot persist failed")
+
+    async def _reference_loop(self) -> None:
+        """Hold the Chainlink TWAP series every short-dated crypto market settles on.
+
+        Runs for the life of the process. A gap here is not recoverable later: the strike
+        of an up/down market is the value at one instant, published nowhere (§77), so a
+        feed that reconnects after a window opened has permanently lost that market.
+
+        A dropped subscription is retried rather than fatal, and the retry is logged and
+        counted as a reconnect so the breakers see it -- a silently dead reference feed
+        would leave the engine abstaining forever while every other signal looked healthy,
+        which is indistinguishable from a quiet market.
+        """
+        assert self._streams is not None and self._reference is not None
+        while not self._stopping.is_set():
+            try:
+                async for price in self._streams.subscribe_crypto_twap(
+                    REFERENCE_SYMBOLS, window_seconds=TWAP_WINDOW_SECONDS_5M
+                ):
+                    self._reference.observe(price)
+                    if self._stopping.is_set():
+                        return
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                log.warning("reference.feed_dropped", exc_info=True)
+                if self._supervisor is not None:
+                    self._supervisor.record_reconnect()
+            if self._stopping.is_set():
+                return
+            await asyncio.sleep(REFERENCE_RETRY_SECONDS)
+
+    def _rebuild_decision_context(self) -> None:
+        """Classify and parse resolution **once per market**, not once per snapshot.
+
+        Both are properties of the market and neither changes between book updates, but
+        doing them inline cost the feed: with the chain running per snapshot the stream
+        dropped **1.3 million events** in ten minutes while writing 312,000, because the
+        consumer could not keep up with the pump (§81). Classification runs a keyword and
+        tag scan and resolution parsing runs a set of regexes over prose -- per snapshot,
+        for 172 markets, at the rate a live book moves.
+
+        Only markets an engine actually claims are kept. That makes the per-snapshot path a
+        dict lookup that misses for the 90% of tracked markets nothing can price, which is
+        the cheapest possible answer for the common case.
+        """
+        assert self._classifier is not None and self._resolution is not None
+        assert self._engines is not None
+
+        context: dict[ConditionId, tuple[Classification, ResolutionCriteria]] = {}
+        for market in self._tracked:
+            classification = self._classifier.classify(market)
+            if self._engines.resolve(classification) is None:
+                continue
+            context[market.condition_id] = (classification, self._resolution.validate(market))
+        self._context = context
+        log.info(
+            "orchestrator.decision_context",
+            priceable_markets=len(context),
+            tracked=len(self._tracked),
+        )
+
+    async def _consider(self, snapshot: MarketSnapshot) -> None:
+        """Run one market's snapshot through probability, EV, the gate and risk.
+
+        Journals every outcome that reached a verdict, including refusals. The trades
+        taken are a biased sample of the opportunities seen, and a log that keeps only
+        approvals can never say whether a gate is correctly protective or merely never
+        satisfied.
+
+        Silent on an **abstention**, deliberately. The BTC engine declines most snapshots
+        it is offered -- an unobserved strike, a stale tick, a horizon inside the averaging
+        window -- and journalling each one would bury the decisions that did happen under
+        thousands of rows saying nothing happened. Abstentions are counted and reported on
+        the health line instead.
+        """
+        assert self._engines is not None
+        cached = self._context.get(snapshot.condition_id)
+        if cached is None:
+            # Not priceable by any engine, established at sweep time. The common case by
+            # far, and deliberately the cheapest: one dict lookup.
+            return
+        classification, resolution = cached
+
+        market = self._market_for(snapshot.condition_id)
+        if market is None:
+            return
+        engine = self._engines.resolve(classification)
+        if engine is None:
+            return
+
+        self._considered += 1
+        estimate = await engine.estimate(
+            market=market, snapshot=snapshot, token_id=self._entry_token(market)
+        )
+        if estimate is None:
+            self._abstained += 1
+            return
+        self._estimates += 1
+        await self._decide(market, snapshot, classification, resolution, estimate)
+
+    async def _decide(
+        self,
+        market: Market,
+        snapshot: MarketSnapshot,
+        classification: Classification,
+        resolution: ResolutionCriteria,
+        estimate: ProbabilityEstimate,
+    ) -> None:
+        """Size, price and vet a candidate, then record the verdict.
+
+        The order is fixed and each step can only refuse: risk sizes the trade, EV prices
+        it *at that size*, and the gate examines the whole picture. Sizing first because an
+        EV figure is meaningless without a size -- the cost of crossing the book depends on
+        how much of it you take -- and the gate last because it is the only component that
+        sees every input at once.
+
+        Two paths leave no journal row, and both are correct rather than convenient:
+
+        * **No ask.** There is no price to buy at, so there is no candidate.
+        * **No EV assessment.** ``EvEngine.assess`` returns ``None`` when the book cannot
+          support the size, and :class:`Signal` requires a priced assessment -- by
+          construction, not by omission. Fabricating one to get a row written would put an
+          invented cost into the record that later analysis would read as measured.
+
+        Both are counted and surfaced on the health line instead, because "the gate
+        rejected nothing today" and "nothing was ever priceable" are very different
+        states.
+        """
+        assert self._risk is not None and self._ev is not None and self._gate is not None
+        assert self._resolution is not None and self._journal is not None
+
+        book = snapshot.book_for(estimate.token_id)
+        price = book.best_ask if book is not None else None
+        if price is None or price <= 0:
+            self._unpriceable += 1
+            return
+
+        verdict = self._risk.approve(
+            probability=estimate.calibrated_probability,
+            price=price,
+            uncertainty=estimate.uncertainty,
+            condition_id=market.condition_id,
+        )
+        # Shares from the stake at the price we would pay. A refused verdict still has a
+        # size of zero, which ``assess`` will correctly decline to price.
+        stake = verdict.sizing.stake_usdc if verdict.sizing else Decimal(0)
+        shares = stake / price if stake > 0 else Decimal(0)
+
+        assessment = self._ev.assess(
+            estimate=estimate,
+            snapshot=snapshot,
+            token_id=estimate.token_id,
+            size_shares=shares,
+            market=market,
+        )
+        if assessment is None:
+            self._unpriceable += 1
+            log.info(
+                "signal.unpriceable",
+                condition_id=str(market.condition_id),
+                reason="book cannot support the sized trade",
+                stake=str(stake),
+            )
+            return
+
+        decision = self._gate.evaluate(
+            GateContext(
+                now=self._clock.now(),
+                market=market,
+                classification=classification,
+                resolution=resolution,
+                snapshot=snapshot,
+                estimate=estimate,
+                ev=assessment,
+                risk=verdict,
+                capital_available_usdc=self._risk.available_capital(),
+                stake_usdc=stake,
+                execution_healthy=self._breakers is None or not self._breakers.open_reasons,
+            )
+        )
+
+        self._decisions += 1
+        signal = Signal(
+            signal_id=_signal_id(market.condition_id, estimate.token_id, self._decisions),
+            condition_id=market.condition_id,
+            token_id=estimate.token_id,
+            action=SignalAction.BUY,
+            category=classification.category,
+            probability=estimate,
+            ev=assessment,
+            target_price=price,
+            generated_at=self._clock.now(),
+            rationale=f"{estimate.engine}: {verdict.reason}",
+        )
+        context = {"mode": str(self.settings.mode), "engine": estimate.engine}
+
+        if decision.approved and verdict.approved:
+            # Recorded as an entry and **not submitted**: no execution adapter is
+            # constructed in this process, so an approval is a paper decision by
+            # construction rather than by a flag someone could flip.
+            await self._journal.record_entry(signal, gate=decision, context=context)
+            log.info(
+                "signal.approved_not_submitted",
+                condition_id=str(market.condition_id),
+                model_probability=str(estimate.calibrated_probability),
+                price=str(price),
+                net_ev=str(assessment.net_ev),
+                stake=str(stake),
+            )
+        else:
+            await self._journal.record_rejection(signal, gate=decision, context=context)
+
+    def _market_for(self, condition_id: ConditionId) -> Market | None:
+        return next((m for m in self._tracked if m.condition_id == condition_id), None)
+
+    @staticmethod
+    def _entry_token(market: Market) -> ClobTokenId:
+        """The outcome this system would buy.
+
+        The first outcome, which on an up/down market is ``Up``. Named rather than inlined
+        because choosing a token is a trading decision and not a lookup: the complement is
+        a different trade at a different price, and a model that estimates one while the
+        book is read for the other is the quietest available way to be wrong.
+        """
+        return market.outcomes[0].token_id
 
     async def _live_game_loop(self) -> None:
         """Sweep in-play fixtures and read each one with its own sport's rules.
@@ -381,4 +789,18 @@ class Orchestrator:
                 snapshots_written=self._snapshots_written,
                 breakers_open=[str(reason) for reason in open_reasons],
                 entries_allowed=self._breakers.entries_allowed() if self._breakers else None,
+                # The three decision counters, together, because each alone misleads.
+                # "estimates" without "decisions" says the model spoke and nothing acted;
+                # "decisions" without "unpriceable" hides a book too thin to trade; and a
+                # reference series of zero says the model cannot speak at all, whatever
+                # the other numbers look like.
+                reference_symbols=self._reference.symbols() if self._reference else 0,
+                considered=self._considered,
+                abstained=self._abstained,
+                estimates=self._estimates,
+                decisions=self._decisions,
+                unpriceable=self._unpriceable,
+                # Reported next to `decisions` on purpose: without it "decisions=3642" can
+                # mean 3,642 rows or none, and a run once meant none (§83).
+                journal_failures=self._journal.write_failures if self._journal else 0,
             )

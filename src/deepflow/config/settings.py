@@ -7,6 +7,7 @@ tracebacks.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from functools import lru_cache
 from typing import Literal
 
@@ -189,6 +190,19 @@ class Settings(BaseSettings):
     The stream subscribes per connection, so the token set is fixed until the next
     sweep reopens it. An unbounded set would mean one reconnect churning thousands
     of subscriptions."""
+
+    paper_bankroll_usdc: Decimal = Field(default=Decimal(1000), ge=0)
+    """Simulated capital for PAPER and SHADOW runs.
+
+    Not a "plausible default for an unknown" -- the thing this codebase refuses elsewhere --
+    but a deliberate simulation parameter. Sizing is a fraction of bankroll, so a bankroll
+    of zero makes every stake zero, every sized trade unfillable and every decision
+    unreachable: a measured run produced 23,249 probability estimates and **zero** journal
+    rows for exactly that reason (§82).
+
+    In LIVE this is ignored and the balance comes from the venue, because a locally held
+    figure that drifted would still look like it was enforcing the drawdown limit.
+    """
 
     persist_snapshots: bool = True
     """Write streamed snapshots to the database.
