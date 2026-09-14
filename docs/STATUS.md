@@ -333,7 +333,7 @@ probability → sizing → EV → the 17-check gate → the journal. Decisions a
 **never submitted** — no execution adapter is constructed in this process, so that is true
 by construction rather than by a flag.
 
-Getting it running found six things no unit test could, all now recorded as findings:
+Getting it running found eight things no unit test could, all now recorded as findings:
 
 | | What |
 | --- | --- |
@@ -341,6 +341,28 @@ Getting it running found six things no unit test could, all now recorded as find
 | §80 | The general sweep returns **zero** up/down markets. They need their own event-based path, bounded by `start_time`, because stale windows stay `closed=False` with open books 39 days later. |
 | §81 | Running the chain per snapshot dropped **1.3M events**; classification and resolution now run once per market. Volatility was also recomputed over a 1,800-element series per snapshot. |
 | §82 | A zero bankroll produced **23,249 estimates and zero journal rows**, surfacing as "the book cannot support this" three layers from the real cause. |
+| §83 | The journal reported **3,642 decisions and wrote none** — `signal_id` overflowed `varchar(64)`, and write failures are swallowed by design. `write_failures` is now on the health line. |
+| §84 | The model needs **~12 minutes of warm-up** before it can speak, so a process restarted often can never trade these markets. |
+| §85 | **Retracts part of §63.** Every market's own text says a **60-second** TWAP, including all 32 five-minute ones; the changelog says 30. The text is what the market pays on. |
+| §86 | Up/down markets parsed as `UNPARSEABLE`, so the gate refused **400 of 400** decisions — the parser wanted the literal token `yes` and these are labelled Up/Down. |
+
+**What the gate now says, which is the point of all of it.** Before, six checks failed for
+want of an input — 400 of 400 rows on `RESOLUTION_VALID`, and the same on data age, spread,
+slippage, liquidity and duplicate state. That is fail-closed working as designed *and* a gate
+not examining the trade. With the inputs supplied from measurement, the failures are on
+merit. Measured on the newest 60 decision rows after the 60-second-window correction:
+`SPREAD_ACCEPTABLE` 60, `LIQUIDITY_SUFFICIENT` 53, `RISK_APPROVED` 53,
+`SLIPPAGE_ACCEPTABLE` 23, and `RESOLUTION_VALID` down from 400 of 400 to **7 of 60**.
+
+**Nothing has been approved**, which is the expected answer for markets priced near 0.5
+against a 20% volatility floor, and the spread figure says why: the median spread of 217 bps
+against a 300 bps cap leaves almost nothing, because **one 0.01 tick near the money is
+already 200 bps**. Whether that is the market being untradeable or the cap being wrong is a
+calibration question the journal can now answer — which is what the journal is for, and what
+it could not do a day ago.
+
+Final verified run: 282 estimates, 53 journalled decisions, 0 write failures, after the
+~12-minute warm-up.
 
 **Still unwired**, and each for a stated reason: execution (a journalled approval is not an
 order), the position manager (nothing can open a position), reconciliation (nothing has
