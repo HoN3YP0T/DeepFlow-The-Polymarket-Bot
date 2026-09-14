@@ -110,5 +110,6 @@ def test_checklist_covers_the_specified_conditions() -> None:
         "RISK_APPROVED",
         "BOOK_CLEARED_AT_START",
         "REFERENCE_FEED_MATCHED",
+        "PROBABILITY_IN_BAND",
     }
     assert {c.value for c in CheckId} == required

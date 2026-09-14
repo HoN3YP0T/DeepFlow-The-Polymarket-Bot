@@ -18,6 +18,7 @@ from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
 
+from deepflow.config.thresholds import ProbabilityBand
 from deepflow.core.domain import (
     Classification,
     EvAssessment,
@@ -55,6 +56,20 @@ class CheckId(StrEnum):
     """The venue empties the book when a contest starts, best-effort. An early start
     can leave a resting order live into a game in progress -- the one state a
     pre-contest price was never meant to survive."""
+    PROBABILITY_IN_BAND = "PROBABILITY_IN_BAND"
+    """The estimate must sit inside the strategy's own candidate band.
+
+    Added 2026-09-14. ``candidate_band`` was defined seven times across the threshold
+    tree -- 0.85-0.98 for the sports strategies, 0.90-0.98 for crypto, 0.85-0.98 for
+    event markets -- and **read by nothing**. The band the whole system is described
+    around was documentation, not code.
+
+    Found by pricing a live fixture: with the market at 0.79 on the home side, the
+    football model said 0.42 and therefore claimed a +0.17 edge on the away side at
+    0.12. The edge was entirely an artefact of the model having no team ratings, and
+    nothing downstream would have stopped it -- the uncertainty buffer charges ~176 bps
+    against an edge worth ~14,575."""
+
     REFERENCE_FEED_MATCHED = "REFERENCE_FEED_MATCHED"
     """The price source we modelled from must be the source the market settles
     against. Crypto up/down settles on a Chainlink TWAP with a 30-second lookback,
@@ -144,6 +159,9 @@ class GateContext:
     max_slippage_bps: Decimal | None = None
     min_liquidity_usdc: Decimal | None = None
     min_confidence: int | None = None
+    candidate_band: ProbabilityBand | None = None
+    """The probability range this strategy is willing to enter, from its own
+    thresholds. ``None`` fails the check that reads it, like every other field here."""
 
     # --- Findings 63-64 ---
     contest_start: datetime | None = None
@@ -376,6 +394,47 @@ def check_probability_valid(ctx: GateContext) -> CheckResult:
     return _pass(CheckId.PROBABILITY_VALID, f"p={probability}")
 
 
+def check_probability_in_band(ctx: GateContext) -> CheckResult:
+    """The estimate must sit inside the band this strategy actually trades.
+
+    **This is a model-error check, not a preference.** The system targets high-probability
+    outcomes because that is where its edge is argued to exist; an estimate far outside
+    that range is much more likely to be the model being wrong than an opportunity
+    nobody else noticed.
+
+    The case that produced it: a live soccer fixture with the market at 0.79 on the home
+    side and the football model at 0.42, implying a +0.17 edge on the away side. The
+    model is league-agnostic -- it has no team ratings, because the venue's feed sends
+    none -- so on a big club against a small one it is confidently wrong, and the "edge"
+    is the size of its own blind spot. The uncertainty buffer does not catch it: at a
+    0.12 price it charges about 176 bps against an edge worth about 14,575.
+
+    This is §88's lesson in a third place. The safeguards protect against thin books,
+    stale data and oversizing; they do not protect against a wrong *input*, and here the
+    wrong input is the model's own missing knowledge. A band is the cheapest available
+    statement of "this model is only trusted where its errors are small".
+
+    Reads ``calibrated_probability``, the number sizing uses, rather than the raw model
+    output -- a fitted curve exists precisely to move one relative to the other.
+    """
+    estimate = ctx.estimate
+    if estimate is None:
+        return _fail(CheckId.PROBABILITY_IN_BAND, "no probability estimate")
+    if ctx.candidate_band is None:
+        # Fail closed: a strategy that did not state its band has not said this trade
+        # is one it wants, and silence is not consent.
+        return _fail(CheckId.PROBABILITY_IN_BAND, "no candidate band supplied")
+
+    probability = estimate.calibrated_probability
+    band = ctx.candidate_band
+    if not (band.low <= probability <= band.high):
+        return _fail(
+            CheckId.PROBABILITY_IN_BAND,
+            f"p={probability} outside candidate band {band.low}-{band.high}",
+        )
+    return _pass(CheckId.PROBABILITY_IN_BAND, f"p={probability} in {band.low}-{band.high}")
+
+
 def check_positive_net_ev(ctx: GateContext) -> CheckResult:
     """The one check the whole system exists to fail.
 
@@ -568,6 +627,7 @@ DEFAULT_CHECKS: tuple[tuple[CheckId, CheckFn], ...] = (
     (CheckId.POSITIVE_NET_EV, check_positive_net_ev),
     (CheckId.LIQUIDITY_SUFFICIENT, check_liquidity_sufficient),
     (CheckId.SPREAD_ACCEPTABLE, check_spread_acceptable),
+    (CheckId.PROBABILITY_IN_BAND, check_probability_in_band),
     (CheckId.SLIPPAGE_ACCEPTABLE, check_slippage_acceptable),
     (CheckId.BOOK_CLEARED_AT_START, check_book_cleared_at_start),
     (CheckId.REFERENCE_FEED_MATCHED, check_reference_feed_matched),

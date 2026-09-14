@@ -51,6 +51,7 @@ from deepflow.adapters.polymarket.resolutions import PolymarketResolutions
 from deepflow.adapters.polymarket.sdk_client import PolymarketSession
 from deepflow.adapters.polymarket.streams import PolymarketStreams
 from deepflow.config.settings import Settings
+from deepflow.config.thresholds import ProbabilityBand
 from deepflow.core.clock import SystemClock
 from deepflow.core.domain import (
     BaseRate,
@@ -141,6 +142,8 @@ class ExecutionQualityLimits(Protocol):
     def max_slippage_bps(self) -> Decimal: ...
     @property
     def min_liquidity_usdc(self) -> Decimal: ...
+    @property
+    def candidate_band(self) -> ProbabilityBand: ...
 
 
 #: Categories the event-driven engines claim, and which share one set of measured
@@ -1036,6 +1039,9 @@ class Orchestrator:
                 max_spread_bps=limits.max_spread_bps,
                 max_slippage_bps=limits.max_slippage_bps,
                 min_liquidity_usdc=limits.min_liquidity_usdc,
+                # The band the strategy actually trades, which until 2026-09-14 was
+                # configured in seven places and read in none.
+                candidate_band=limits.candidate_band,
                 # A known fact, not an assumption: this process constructs no execution
                 # adapter, so no order of ours can exist to duplicate. It becomes a real
                 # lookup the moment execution is wired.

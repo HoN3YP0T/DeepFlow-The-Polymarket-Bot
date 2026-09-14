@@ -1,4 +1,4 @@
-"""The 17 real safety checks, and the property that matters most about them.
+"""The 18 real safety checks, and the property that matters most about them.
 
 That property is **fail-closed**. A gate whose checks pass because nothing was
 supplied is worse than no gate at all, because the journal then records that the
@@ -16,6 +16,7 @@ from decimal import Decimal
 
 import pytest
 
+from deepflow.config.thresholds import ProbabilityBand
 from deepflow.core.domain import (
     BookLevel,
     Classification,
@@ -42,6 +43,7 @@ from deepflow.risk.safety_gate import (
     CheckId,
     GateContext,
     check_data_fresh,
+    check_probability_in_band,
     default_gate,
 )
 
@@ -60,7 +62,7 @@ def _book(*, bid: str = "0.94", ask: str = "0.95", size: str = "1000") -> OrderB
 
 
 def _approving_context(**overrides: object) -> GateContext:
-    """A context in which all 17 checks pass. Every test below breaks exactly one."""
+    """A context in which all 18 checks pass. Every test below breaks exactly one."""
     ctx = GateContext(
         now=NOW,
         market=Market(
@@ -80,6 +82,7 @@ def _approving_context(**overrides: object) -> GateContext:
             rationale="tag",
         ),
         resolution=ResolutionCriteria(validity=ResolutionValidity.VALID),
+        candidate_band=ProbabilityBand(low=Decimal("0.85"), high=Decimal("0.98")),
         snapshot=MarketSnapshot(
             condition_id=CID,
             books=(_book(),),
@@ -416,3 +419,51 @@ def test_the_freshness_check_reads_the_domain_rule_rather_than_restating_it() ->
 def test_fresh_data_still_passes() -> None:
     """The check has to be able to succeed, or it is not a gate but a wall."""
     assert check_data_fresh(_approving_context()).passed
+
+
+def test_an_estimate_outside_the_candidate_band_is_refused() -> None:
+    """**The check that would have stopped a fabricated football edge.**
+
+    Live fixture, market at 0.79 on the home side, model at 0.42 -- so the model
+    claimed a +0.17 edge on the away side at 0.12. The edge was entirely the size of
+    the model's own blind spot: it has no team ratings, because the venue's feed sends
+    none, so a big club against a small one prices identically to two equal sides.
+
+    Nothing else stops it. The uncertainty buffer charges about 176 bps at that price
+    against an edge worth about 14,575.
+    """
+    outside = _approving_context(
+        estimate=ProbabilityEstimate(
+            token_id=YES,
+            model_probability=Decimal("0.295"),
+            calibrated_probability=Decimal("0.295"),
+            uncertainty=Decimal("0.21"),
+            engine="football",
+        )
+    )
+    result = check_probability_in_band(outside)
+    assert not result.passed
+    assert "outside candidate band" in result.detail
+
+
+def test_a_missing_band_fails_closed() -> None:
+    """A strategy that did not state its band has not said this is a trade it wants,
+    and silence is not consent."""
+    assert not check_probability_in_band(_approving_context(candidate_band=None)).passed
+
+
+def test_the_band_check_reads_the_calibrated_probability() -> None:
+    """Sizing uses the calibrated number, and a fitted curve exists precisely to move
+    one relative to the other -- so gating the raw output would gate something the
+    trade is not made on."""
+    shifted = _approving_context(
+        estimate=ProbabilityEstimate(
+            token_id=YES,
+            # Raw is outside the band; calibrated is inside it. The calibrated one wins.
+            model_probability=Decimal("0.995"),
+            calibrated_probability=Decimal("0.95"),
+            uncertainty=Decimal("0.02"),
+            engine="test-engine",
+        )
+    )
+    assert check_probability_in_band(shifted).passed
