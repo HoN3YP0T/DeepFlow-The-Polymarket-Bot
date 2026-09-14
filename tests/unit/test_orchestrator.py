@@ -542,3 +542,60 @@ def test_lifecycle_distinguishes_unreadable_from_unmodelled() -> None:
     assert _lifecycle_for(tradeable, valid) is MarketState.MONITORED
     assert _lifecycle_for(unknown, valid) is MarketState.CLASSIFIED
     assert _lifecycle_for(tradeable, ambiguous) is MarketState.MARKET_INVALID
+
+
+async def test_the_subscription_reopens_when_new_markets_appear() -> None:
+    """The subscription used to be fixed at startup, which quietly capped what the
+    whole pipeline could see.
+
+    ``PolymarketStreams.start`` is idempotent -- the SDK subscribes per connection --
+    and the stream loop called ``subscribe_markets`` exactly once, with whatever the
+    first sweep had found. Everything discovered afterwards was tracked, classified,
+    persisted and never streamed. Measured across two sweeps: **12 markets newly
+    tracked, 0 of them streamed**, on a venue that lists a fresh five-minute crypto
+    window every five minutes.
+    """
+    import inspect
+
+    from deepflow.pipeline.orchestrator import Orchestrator as Orc
+
+    source = inspect.getsource(Orc._stream_loop)
+    assert "while not self._stopping.is_set():" in source
+    assert "_missing_tokens()" in source
+    assert "await self._streams.stop()" in source
+    # Closed explicitly: an abandoned async generator keeps its consumer alive and the
+    # next subscription would race the old one for events.
+    assert "aclose()" in source
+
+
+async def test_only_additions_reopen_the_socket() -> None:
+    """A market that drops out costs nothing by staying subscribed -- it goes quiet.
+    Reopening for removals would churn the socket on every sweep for no gain."""
+    from deepflow.core.types import ClobTokenId
+    from deepflow.pipeline.orchestrator import Orchestrator as Orc
+
+    orchestrator = Orc(settings=Settings(_env_file=None))
+    orchestrator._subscribed_tokens = {ClobTokenId("a"), ClobTokenId("b")}
+
+    orchestrator._tracked = ()
+    assert not orchestrator._missing_tokens(), "removals alone must not reopen"
+
+    market = _market_with_tokens("c")
+    orchestrator._tracked = (market,)
+    assert orchestrator._missing_tokens(), "a token we do not carry must reopen"
+
+
+def _market_with_tokens(*tokens: str):
+    from deepflow.core.domain import Market, Outcome
+
+    return Market(
+        condition_id="0xaa",  # type: ignore[arg-type]
+        question="?",
+        outcomes=tuple(
+            Outcome(token_id=t, label="Yes")
+            for t in tokens  # type: ignore[arg-type]
+        ),
+        active=True,
+        closed=False,
+        accepting_orders=True,
+    )

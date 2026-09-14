@@ -1,7 +1,7 @@
 # Status and handover
 
 **As of:** 2026-09-14 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· **904 tests passing, 0 skipped** · **44 stubs remain** · 93 findings recorded
+· **906 tests passing, 0 skipped** · **44 stubs remain** · 94 findings recorded
 · 115 source files
 
 **Phases 1–5 complete** · **Phase 6** 3 of 4 (cross-market deferred) · Phases 7–8 not started
@@ -494,7 +494,7 @@ describing models that do not exist.
 
 ### What the last audit found
 
-Five defects, all of the same shape — configured, documented or tested, and reachable from
+Seven defects, all of the same shape — configured, documented or tested, and reachable from
 nothing on the running path:
 
 | Defect | Evidence | Status |
@@ -505,6 +505,7 @@ nothing on the running path:
 | `up-or-down` tag mapped to CRYPTO | Apple, Tesla, Nvidia classified CRYPTO at 0.95 | fixed (§92) |
 | Process never recorded its own verdicts | 398 rows at DISCOVERED / NOT_CHECKED / UNKNOWN | fixed |
 | `FeatureEngine.compute` never called | 2,737,376 snapshots, zero non-null imbalance | fixed |
+| Subscription fixed at startup | 12 markets newly tracked across two sweeps, 0 streamed | fixed (§94) |
 
 Still open and recorded rather than fixed: `DiscoveryService` unwired; `MicrostructureEngine`
 and its `FlowAssessment` have no consumer; `LateGameThresholds` is configured and unread;
@@ -537,7 +538,7 @@ slowly — a live score — rather than for the ones where it cannot.
 
 ---
 
-Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (93 findings).
+Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (94 findings).
 Venue surface map and the method for not misreading it:
 `docs/POLYMARKET-SURFACE-AUDIT.md` — 9 hosts, 223 operations, plus
 `make audit-surface`.

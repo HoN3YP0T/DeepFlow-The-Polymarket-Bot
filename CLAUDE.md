@@ -14,7 +14,7 @@ mistakes are not made a fourth time.
 | Question | File |
 | --- | --- |
 | What is done, what is left, what broke and was fixed | `docs/STATUS.md` — **start here** |
-| What the venue actually does (93 findings, 6 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
+| What the venue actually does (94 findings, 6 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
 | The venue's full surface + the method for not misreading it | `docs/POLYMARKET-SURFACE-AUDIT.md` |
 | Build order, per-phase state | `docs/ROADMAP.md` |
 | Module map, dependency rule, data flow | `docs/ARCHITECTURE.md` |
@@ -215,6 +215,11 @@ the venue lacks anything, run `make audit-surface` and paste what it returned.
   `1312` (`crypto-prices`) and `21` (`crypto`), which are 68/68 on crypto up/down events
   and 0 on equity ones. `102892` really is the venue's `5M` cadence tag — 48 of 48 —
   which **retracts part of §80**.
+- **The market subscription is fixed per connection, so discovery needs a reopen.**
+  The stream loop subscribed once at startup and everything found later was swept,
+  classified, persisted and never streamed — **12 newly tracked, 0 streamed** across two
+  sweeps (§94). Reopen on *additions only*; removals just go quiet, and reopening for them
+  churns the socket every sweep.
 - **A configured limit nobody reads is not a limit.** `candidate_band` — the 0.85-0.98 band
   the whole system is described around — was defined seven times and read nowhere, so the
   football model's 0.42 against a market at 0.79 produced a +0.17 "edge" that

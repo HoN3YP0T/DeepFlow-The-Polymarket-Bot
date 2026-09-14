@@ -2017,6 +2017,36 @@ missing knowledge rather than an operator's typo. `PROBABILITY_IN_BAND` is now t
 eighteenth check, reading the calibrated probability against the category's own band and
 failing closed when none is supplied.
 
+## 94. The market subscription was fixed at startup, so discovery went nowhere
+
+`PolymarketStreams.start` is idempotent — the SDK subscribes per connection, so changing
+the token set means reopening — and the orchestrator's stream loop called
+`subscribe_markets` exactly once, with whatever the first sweep had found. Everything
+discovered afterwards was swept, classified, persisted to the `markets` table, and never
+subscribed to.
+
+Measured across two discovery sweeps:
+
+| | markets |
+| --- | --- |
+| newly tracked by the second sweep | 12 |
+| of those, actually streamed | **0** |
+
+The venue lists a fresh five-minute crypto window every five minutes, so the crypto
+model's market supply decays from startup: it prices whatever was open when the process
+booted and nothing after. No fixture discovered mid-run is ever priced either, which is
+why `FootballEngine` could hold live state for 9 markets and be asked about none of them.
+
+Fixed by re-opening the subscription when tokens appear that it does not carry.
+**Additions only** — a market dropping out of the tracked set costs nothing by staying
+subscribed, it simply goes quiet, whereas reopening for removals would churn the socket
+every sweep for no gain. A planned reopen is deliberately not counted as a reconnect: the
+breakers watch for a feed that keeps dropping, and this is not evidence of that. The
+generator is closed explicitly rather than abandoned, or its consumer stays alive and
+races the replacement for events.
+
+After: **12 newly tracked, 12 newly streamed.**
+
 ---
 
 ## Confirmed correct

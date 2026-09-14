@@ -331,6 +331,7 @@ class Orchestrator:
     )
     _snapshot_batches_lost: int = 0
     _snapshots_evicted: int = 0
+    _subscribed_tokens: set[ClobTokenId] = field(default_factory=set)
     _last_snapshot_persist: dict[ConditionId, datetime] = field(default_factory=dict)
 
     async def start(self) -> None:
@@ -594,28 +595,80 @@ class Orchestrator:
         return [outcome.token_id for market in self._tracked for outcome in market.outcomes]
 
     async def _stream_loop(self) -> None:
-        """Fold the market stream and persist each snapshot."""
-        assert self._streams is not None and self._features is not None
-        tokens = self._token_ids()
-        if not tokens:
-            log.warning("stream.no_tokens", reason="discovery returned no tradeable markets")
-            return
+        """Fold the market stream, and re-open it when new markets appear.
 
-        async for snapshot in self._streams.subscribe_markets(tokens):
-            quality = self._features.assess_snapshot(snapshot)
-            if quality is DataQuality.INCONSISTENT:
-                # Worth a line each time. An inconsistent book means our folded
-                # state is wrong, which no amount of waiting fixes.
-                log.warning("stream.inconsistent_snapshot", condition_id=str(snapshot.condition_id))
-            if self.settings.persist_snapshots:
-                self._buffer_snapshot(snapshot)
+        **The subscription used to be fixed at startup**, and that quietly capped what
+        the whole pipeline could see. ``PolymarketStreams.start`` is idempotent -- the
+        SDK subscribes per connection, so changing the token set means reopening -- and
+        this loop called ``subscribe_markets`` exactly once, with whatever the first
+        sweep had found. Everything discovered afterwards was tracked, classified,
+        persisted and never streamed.
+
+        Measured across two sweeps: **12 markets newly tracked, 0 of them streamed.**
+        For a venue that lists a fresh five-minute crypto window every five minutes,
+        that means the crypto model's market supply decays to nothing shortly after
+        startup, and no sports fixture discovered mid-run is ever priced.
+
+        Re-opened only when tokens appear that we are *not* subscribed to. Markets
+        dropping out need no reopen -- they simply go quiet -- and reopening on every
+        sweep would churn the socket every five minutes for no gain. A reopen is not a
+        reconnect and is deliberately not counted as one: the breakers watch for a feed
+        that keeps dropping, and a planned resubscription is not evidence of that.
+        """
+        assert self._streams is not None and self._features is not None
+
+        while not self._stopping.is_set():
+            tokens = self._token_ids()
+            if not tokens:
+                log.warning("stream.no_tokens", reason="discovery returned no tradeable markets")
+                return
+
+            self._subscribed_tokens = set(tokens)
+            log.info("stream.subscribing", tokens=len(tokens))
+            stream = self._streams.subscribe_markets(tokens)
             try:
-                await self._consider(snapshot)
-            except Exception:
-                # A failure in the decision chain must not take the feed with it. The
-                # snapshot history is the one thing that cannot be collected later, and
-                # a bug in sizing or the gate is no reason to stop gathering it.
-                log.warning("signal.consider_failed", exc_info=True)
+                async for snapshot in stream:
+                    quality = self._features.assess_snapshot(snapshot)
+                    if quality is DataQuality.INCONSISTENT:
+                        # Worth a line each time. An inconsistent book means our folded
+                        # state is wrong, which no amount of waiting fixes.
+                        log.warning(
+                            "stream.inconsistent_snapshot",
+                            condition_id=str(snapshot.condition_id),
+                        )
+                    if self.settings.persist_snapshots:
+                        self._buffer_snapshot(snapshot)
+                    try:
+                        await self._consider(snapshot)
+                    except Exception:
+                        # A failure in the decision chain must not take the feed with
+                        # it. The snapshot history is the one thing that cannot be
+                        # collected later, and a bug in sizing or the gate is no reason
+                        # to stop gathering it.
+                        log.warning("signal.consider_failed", exc_info=True)
+
+                    if self._stopping.is_set() or self._missing_tokens():
+                        break
+            finally:
+                # Closed explicitly rather than left to the garbage collector: an async
+                # generator abandoned mid-iteration keeps the queue consumer alive, and
+                # the next subscription would then race the old one for events.
+                await stream.aclose()
+
+            if self._stopping.is_set():
+                return
+
+            # The pump holds the token set, so a new set needs a new pump.
+            await self._streams.stop()
+
+    def _missing_tokens(self) -> bool:
+        """Whether discovery has found tokens this subscription does not carry.
+
+        Only additions trigger a reopen. A market that has dropped out of the tracked
+        set costs nothing by staying subscribed -- it simply stops updating -- while
+        reopening for removals would churn the socket on every sweep.
+        """
+        return bool(set(self._token_ids()) - self._subscribed_tokens)
 
     def _buffer_snapshot(self, snapshot: MarketSnapshot) -> None:
         """Queue a snapshot for the writer, at most one per market per second.

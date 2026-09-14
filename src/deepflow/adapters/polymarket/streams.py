@@ -44,7 +44,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import random
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncGenerator, AsyncIterator, Sequence
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Final, Literal
@@ -407,9 +407,9 @@ class PolymarketStreams:
         return mapping.to_sports_feed_event(event)
 
     # --- Port surface -----------------------------------------------------
-    async def subscribe_markets(
+    def subscribe_markets(
         self, token_ids: Sequence[ClobTokenId]
-    ) -> AsyncIterator[MarketSnapshot]:
+    ) -> AsyncGenerator[MarketSnapshot, None]:
         """Stream normalized snapshots for the given tokens.
 
         Yields one :class:`MarketSnapshot` per updated market, carrying every book
@@ -420,7 +420,17 @@ class PolymarketStreams:
         Degraded state is explicitly usable for monitoring and exits but blocks
         new entries: reducing an uncertain position shrinks the problem, opening
         one on stale depth compounds it.
+
+        Typed as an ``AsyncGenerator`` rather than an ``AsyncIterator`` because the
+        caller needs ``aclose()``: the token set changes as markets are discovered, and
+        a subscription abandoned mid-iteration leaves its consumer alive to race the
+        replacement for events.
         """
+        return self._market_snapshots(token_ids)
+
+    async def _market_snapshots(
+        self, token_ids: Sequence[ClobTokenId]
+    ) -> AsyncGenerator[MarketSnapshot, None]:
         await self.start(token_ids)
         watched = {ClobTokenId(str(t)) for t in token_ids}
 
