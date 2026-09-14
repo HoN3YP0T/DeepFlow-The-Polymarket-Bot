@@ -126,6 +126,30 @@ class Btc5mThresholds(BaseModel):
     margin before a late-expiry entry is considered."""
     uncertainty_buffer: Decimal = Field(default=Decimal("0.01"), ge=0)
 
+    # --- Execution-quality limits, measured rather than borrowed ------------
+    # These exist separately from the sports defaults because a borrowed number was
+    # unsatisfiable here: `StrategyThresholds.max_spread_bps` is 150, and **one 0.01 tick at
+    # a price near 0.5 is already 200 bps**, so no up/down market near the money could ever
+    # pass it. Measured over 59,048 recorded snapshots of these markets: 97% two-sided,
+    # median spread 217 bps, p90 833. A live sample of 28 books gave a median of 267.
+    max_spread_bps: Decimal = Field(default=Decimal(300), ge=0)
+    """Admits the measured median with headroom. Below 200 is unsatisfiable by tick
+    arithmetic alone, which is worth knowing before tightening it."""
+
+    max_slippage_bps: Decimal = Field(default=Decimal(200), ge=0)
+    """One 0.01 tick near the money. Walking two ticks into this book is not a fill at a
+    price the model priced."""
+
+    max_data_age_seconds: float = Field(default=3.0, gt=0)
+    """Tighter than any other strategy here. The TWAP publishes about every two seconds and
+    the whole edge decays in minutes, so a five-second-old book is a different market."""
+
+    min_liquidity_usdc: Decimal = Field(default=Decimal(1000), ge=0)
+    """From measured ask-side notional: median 5,213 pUSD across 28 live books, min 125.
+    Set well under the median so a normal book passes, and above the thin tail so a
+    near-empty one does not. Collateral is pUSD; the name is kept for continuity with
+    ``StrategyThresholds``."""
+
 
 class SmartMoneyThresholds(BaseModel):
     """Section 11."""

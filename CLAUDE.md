@@ -14,7 +14,7 @@ mistakes are not made a fourth time.
 | Question | File |
 | --- | --- |
 | What is done, what is left, what broke and was fixed | `docs/STATUS.md` — **start here** |
-| What the venue actually does (84 findings, 4 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
+| What the venue actually does (86 findings, 5 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
 | The venue's full surface + the method for not misreading it | `docs/POLYMARKET-SURFACE-AUDIT.md` |
 | Build order, per-phase state | `docs/ROADMAP.md` |
 | Module map, dependency rule, data flow | `docs/ARCHITECTURE.md` |
@@ -22,7 +22,7 @@ mistakes are not made a fourth time.
 
 Findings are numbered and cross-referenced as `§N`. **Cite them rather than
 restating them**, and when a finding turns out wrong, mark it RETRACTED in place with
-the reason — §5, §34, §45 and §53 are all corrections and the trail matters.
+the reason — §5, §34, §45, §53 and §63 are all corrections and the trail matters.
 
 ## Commands
 
@@ -118,8 +118,12 @@ the venue lacks anything, run `make audit-surface` and paste what it returned.
 - **The book is cleared when a contest starts**, best-effort — an early start can
   leave a resting order live into play (§64). Any folded state held across that
   boundary is stale.
-- **Crypto up/down settles on a Chainlink TWAP** (30 s lookback at 5 min, 60 s at
-  15 min and 4 h), not spot (§63). Modelling spot prices a different instrument.
+- **Crypto up/down settles on a Chainlink TWAP**, not spot (§63) — and the window is
+  **60 s for every cadence including 5-minute**, per each market's own resolution text,
+  which contradicts the changelog's 30 s (§85). Read it with
+  `settlement_window_seconds(market)`; a market that names none is refused, not defaulted.
+  So `T_eff = T - 2w/3` loses 40 s of a 120 s horizon, the last 60 s of every window is
+  unpriceable, and warm-up is ~12 minutes.
 - **No up/down market publishes its strike.** It is the reference price at the window's
   opening *instant*, stated only in prose, so pricing one requires having watched it open
   (§77). The window comes from the slug's trailing epoch; equality resolves **Up**.
@@ -165,9 +169,16 @@ the venue lacks anything, run `make audit-surface` and paste what it returned.
   decisions and wrote none — `signal_id` overflowed `varchar(64)`, since a condition id is
   66 characters alone (§83). "Decisions made" is meaningless without the failure count
   beside it.
-- **The crypto model needs ~6 minutes of warm-up** (6 vol samples × 60 s lag), so a freshly
-  started process abstains on everything, and a process restarted often can never trade
-  these markets (§84).
+- **The crypto model needs ~12 minutes of warm-up** (6 vol samples at a 120 s lag, which is
+  twice the 60 s averaging window), so a freshly started process abstains on everything and
+  one restarted often can never trade these markets (§84, §85).
+- **A market labelled Up/Down parsed as UNPARSEABLE**, so the gate refused 400 of 400
+  decisions on `RESOLUTION_VALID` — `_YES_CLAUSE` wanted the literal token `yes` (§86). The
+  `labelled_binary` shape reads the market's own outcome labels instead.
+- **Six gate checks were failing for want of an input**, not on merit. That is fail-closed
+  working as designed *and* a gate not examining the trade; supply the inputs, never soften
+  the check. `StrategyThresholds.max_spread_bps` of 150 is also impossible here — **one 0.01
+  tick near 0.5 is 200 bps** — so `Btc5mThresholds` carries measured limits of its own.
 
 ### Testing traps
 

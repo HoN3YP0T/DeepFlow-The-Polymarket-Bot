@@ -266,6 +266,10 @@ class ResolutionValidator:
                 no_condition = (no.group(1) or "").strip() or "the YES condition is not met"
             return _tidy(yes.group(1)), no_condition, "explicit_binary"
 
+        labelled = _labelled_binary(text, market)
+        if labelled is not None:
+            return labelled
+
         group = _GROUP_CLAUSE.search(text)
         if group is not None:
             # The text names the contest; only group_item_title names *this*
@@ -322,6 +326,57 @@ class ResolutionValidator:
     def not_checked() -> ResolutionCriteria:
         """Default state for a freshly discovered market."""
         return ResolutionCriteria(validity=ResolutionValidity.NOT_CHECKED)
+
+
+def _labelled_binary(text: str, market: Market) -> tuple[str | None, str | None, str] | None:
+    """A binary market whose outcomes are **not** labelled Yes/No.
+
+    Crypto up/down markets say:
+
+        This market will resolve to "Up" if the Bitcoin price at the end of the time range
+        specified in the title is greater than or equal to the price at the beginning of
+        that range. Otherwise, it will resolve to "Down".
+
+    Every word of that is a payout condition and `_YES_CLAUSE` matches none of it, because it
+    requires the literal token ``yes``. The result was ``UNPARSEABLE`` on every up/down
+    market, and since an unparsed market is never tradeable, the gate refused all of them —
+    measured at 400 of 400 decision rows failing ``RESOLUTION_VALID``.
+
+    Read from the market's **own outcome labels** rather than by special-casing Up/Down. The
+    venue is free to label a binary anything, and a parser keyed to one vocabulary is a
+    parser that will be surprised again; keyed to the labels, it handles whatever the market
+    declares. Returns ``None`` when the market is not a two-outcome market or its labels do
+    not appear in a resolve clause, so the remaining shapes still get their turn.
+    """
+    if len(market.outcomes) != 2:
+        return None
+
+    first, second = market.outcomes[0].label.strip(), market.outcomes[1].label.strip()
+    if not first or not second or {first.lower(), second.lower()} == {"yes", "no"}:
+        # Yes/No is `_YES_CLAUSE`'s job, and it reads the pair together rather than one
+        # label at a time.
+        return None
+
+    clause = re.compile(
+        rf'resolve[sd]?\s+(?:to|as)\s+"?{re.escape(first)}"?\s*(?:if|when|once)\s+'
+        rf"(.{{10,400}}?)(?:\.\s|\.$|$)",
+        re.I | re.S,
+    ).search(text)
+    if clause is None:
+        return None
+
+    # The complement is stated as "Otherwise, it will resolve to <second>". Recorded as the
+    # label rather than as a negated sentence: the venue's own words are what the market pays
+    # on, and a paraphrase invites a reader to trust a restatement nobody checked.
+    otherwise = re.compile(
+        rf'otherwise[^.]{{0,80}}resolve[sd]?\s+(?:to|as)\s+"?{re.escape(second)}"?', re.I | re.S
+    ).search(text)
+    no_condition = (
+        f"the market resolves to {second}"
+        if otherwise is not None
+        else f"{first} condition is not met"
+    )
+    return _tidy(clause.group(1)), no_condition, "labelled_binary"
 
 
 def _tidy(fragment: str) -> str:

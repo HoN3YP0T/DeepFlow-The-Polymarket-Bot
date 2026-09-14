@@ -42,10 +42,21 @@ from deepflow.engines.crypto.reference import TwapReference
 
 log = get_logger(__name__)
 
-#: Chainlink's averaging window for a 5-minute market (§63). 15-minute and 4-hour
-#: markets use 60 seconds; the live feed reports its own window, which is preferred over
-#: this default whenever an observation has been seen.
-TWAP_WINDOW_SECONDS_5M: Final = 30
+#: The averaging window every live up/down market names in its own resolution text.
+#:
+#: **60 seconds, including the 5-minute ones.** The venue's changelog says 5-minute markets
+#: use a 30-second lookback (§63) and the markets themselves contradict it: all 56 live
+#: markets sampled -- 32 of them 5-minute -- cite
+#: ``data.chain.link/streams/<pair>-twap-60s-streams`` and state that the market "is about
+#: the price according to the TWAP Chainlink data stream". The resolution text is what the
+#: market pays on, so it wins over the changelog (§85).
+#:
+#: Read per market by :func:`settlement_window_seconds` rather than assumed from this
+#: constant; it exists to say what the feed should subscribe to.
+TWAP_WINDOW_SECONDS: Final = 60
+
+#: Matches the averaging window in a Chainlink stream URL, e.g. ``btc-usd-twap-60s-streams``.
+TWAP_WINDOW_IN_SOURCE = re.compile(r"twap-(\d{1,3})s", re.I)
 
 
 #: The venue's slug for these markets ends in the window's **start** epoch.
@@ -192,7 +203,24 @@ class Btc5mEngine(BaseProbabilityEngine):
         ):
             return None
 
-        twap_window = self._reference.window_of(symbol) or TWAP_WINDOW_SECONDS_5M
+        twap_window = settlement_window_seconds(market)
+        if twap_window is None:
+            # The market does not name its averaging window, so the settlement variable is
+            # unknown. Assuming one is precisely the §63 mistake -- pricing a different
+            # instrument -- and the error is largest exactly where this engine trades.
+            log.info("btc_5m.settlement_window_unknown", slug=market.slug)
+            return None
+
+        held = self._reference.window_of(symbol)
+        if held != twap_window:
+            # The series we hold averages over a different window than the market settles
+            # on. A 30-second average is not a 60-second one, and at these horizons the
+            # difference between them is a meaningful share of the edge.
+            log.info(
+                "btc_5m.window_mismatch", symbol=symbol, market=twap_window, reference=held
+            )
+            return None
+
         if seconds_left <= twap_window:
             # The settlement average already includes time we cannot separate from the
             # published rolling average. Abstaining here is why the configured
@@ -300,6 +328,20 @@ class Btc5mEngine(BaseProbabilityEngine):
         """
         symbol = _chainlink_symbol(getattr(snapshot, "slug", None))
         return self._reference.volatility_per_second(symbol) if symbol else None
+
+
+def settlement_window_seconds(market: Market) -> int | None:
+    """The averaging window the market says it settles on, or ``None`` if it does not say.
+
+    Read from the resolution text and source, where the venue names the stream explicitly
+    (``…-twap-60s-streams``). ``None`` rather than a default, because the default was wrong:
+    the changelog's "30 seconds for 5-minute markets" (§63) is contradicted by every live
+    market's own text, and an engine that assumed 30 while the market settled on 60 would be
+    pricing the wrong variable with no symptom (§85).
+    """
+    haystack = f"{market.resolution_text or ''} {market.resolution_source or ''}"
+    match = TWAP_WINDOW_IN_SOURCE.search(haystack)
+    return int(match.group(1)) if match else None
 
 
 def _parse_window(slug: str | None) -> tuple[datetime, int] | None:

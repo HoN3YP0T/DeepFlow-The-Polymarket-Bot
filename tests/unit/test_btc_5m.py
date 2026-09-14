@@ -24,9 +24,10 @@ from deepflow.core.domain import Market, MarketSnapshot, Outcome, ReferencePrice
 from deepflow.core.types import ClobTokenId, ConditionId
 from deepflow.engines.crypto.btc_5m import (
     MAX_REFERENCE_AGE,
-    TWAP_WINDOW_SECONDS_5M,
+    TWAP_WINDOW_SECONDS,
     Btc5mEngine,
     _parse_window,
+    settlement_window_seconds,
 )
 from deepflow.engines.crypto.reference import (
     MIN_ANNUALISED_VOLATILITY,
@@ -42,10 +43,15 @@ EXPIRY = WINDOW_START + timedelta(seconds=300)
 SLUG = f"btc-updown-5m-{int(WINDOW_START.timestamp())}"
 
 
+#: Live markets name the averaging window in the stream URL. Every one sampled says 60s,
+#: including the 5-minute markets — contradicting the changelog's 30s (§85).
+LIVE_SOURCE = "https://data.chain.link/streams/btc-usd-twap-60s-streams"
+
+
 def _market(
     *,
     slug: str = SLUG,
-    source: str | None = "https://data.chain.link/streams/btc-usd",
+    source: str | None = LIVE_SOURCE,
     text: str | None = None,
 ) -> Market:
     return Market(
@@ -71,15 +77,20 @@ def _series(
     spot: Decimal | None = None,
     wiggle: Decimal = Decimal(40),
     source: str = "chainlink_twap",
-    window: int | None = 30,
+    window: int | None = 60,
     start: datetime = WINDOW_START,
-    step_seconds: int = 61,
+    step_seconds: int = 121,
     steps: int = MIN_VOL_SAMPLES + 3,
 ) -> TwapReference:
     """A reference series that opens exactly at ``strike`` and ends at ``spot``.
 
     Values alternate around a level by ``wiggle`` so the return series has real variance;
     the final observation is forced to ``spot`` so the engine prices the intended distance.
+
+    ``step_seconds`` is 121 because the volatility estimator samples at twice the averaging
+    window and the window is 60 seconds (§85). Six samples therefore need ~12 minutes of
+    series — which is also the engine's real warm-up time, doubled from the 6 minutes a
+    30-second window implied.
     """
     reference = TwapReference()
     reference.observe(
@@ -178,7 +189,8 @@ async def test_the_same_distance_is_more_decisive_closer_to_expiry() -> None:
     """The whole reason this engine exists: with less time left, the same gap to the strike
     is harder to close."""
     early = await _price(_engine(_series(strike=Decimal(77000), spot=Decimal(77100)), now=_at(280)))
-    late = await _price(_engine(_series(strike=Decimal(77000), spot=Decimal(77100)), now=_at(60)))
+    # 70s, not 60: with a 60-second averaging window the engine refuses at or inside it.
+    late = await _price(_engine(_series(strike=Decimal(77000), spot=Decimal(77100)), now=_at(70)))
     assert early is not None and late is not None
     assert late.model_probability > early.model_probability
 
@@ -191,7 +203,8 @@ async def test_the_effective_horizon_is_shorter_than_the_calendar_one() -> None:
     estimate = await _price(_engine(_series(spot=Decimal(77000)), now=_at(120)))
     assert estimate is not None
     assert Decimal(estimate.inputs["seconds_to_expiry"]) == Decimal(120)
-    assert Decimal(estimate.inputs["effective_seconds"]) == Decimal(120) - Decimal(20)
+    # 2w/3 with w=60, so 40 seconds of the horizon are consumed by the averaging.
+    assert Decimal(estimate.inputs["effective_seconds"]) == Decimal(120) - Decimal(40)
 
 
 @pytest.mark.asyncio
@@ -199,7 +212,7 @@ async def test_uncertainty_widens_as_expiry_approaches() -> None:
     """Opposite to the model's own confidence: as T shrinks the probability approaches a
     step function, so the same four-second-old price moves the answer further."""
     early = await _price(_engine(_series(spot=Decimal(77000)), now=_at(280)))
-    late = await _price(_engine(_series(spot=Decimal(77000)), now=_at(45)))
+    late = await _price(_engine(_series(spot=Decimal(77000)), now=_at(70)))
     assert early is not None and late is not None
     assert late.uncertainty > early.uncertainty
 
@@ -210,7 +223,7 @@ async def test_it_abstains_inside_the_averaging_window() -> None:
     """Part of the settlement average is already realized and the published rolling average
     does not say which part, so the remaining uncertainty is not recoverable."""
     reference = _series(spot=Decimal(77000))
-    engine = _engine(reference, now=_at(TWAP_WINDOW_SECONDS_5M - 1), min_seconds_to_expiry=5)
+    engine = _engine(reference, now=_at(TWAP_WINDOW_SECONDS - 1), min_seconds_to_expiry=5)
     assert await _price(engine) is None
 
 
@@ -255,7 +268,10 @@ async def test_the_resolution_text_alone_is_enough_to_identify_the_source() -> N
     reference = _series(spot=Decimal(77000))
     described = _market(
         source=None,
-        text="The resolution source is the Chainlink BTC/USD stream at data.chain.link",
+        text=(
+            "The resolution source is the Chainlink BTC/USD TWAP stream at "
+            "data.chain.link/streams/btc-usd-twap-60s-streams"
+        ),
     )
     assert await _price(_engine(reference, now=_at(120)), described) is not None
 
@@ -283,7 +299,7 @@ async def test_it_abstains_when_volatility_is_unmeasurable() -> None:
             symbol=SYMBOL,
             value=Decimal(77000),
             source="chainlink_twap",
-            window_seconds=30,
+            window_seconds=60,
             observed_at=WINDOW_START,
         )
     )
@@ -302,7 +318,7 @@ def test_duplicate_ticks_are_not_new_measurements() -> None:
                 symbol=SYMBOL,
                 value=Decimal(77000),
                 source="chainlink_twap",
-                window_seconds=30,
+                window_seconds=60,
                 observed_at=WINDOW_START + timedelta(seconds=second),
             )
         )
@@ -352,7 +368,7 @@ def test_out_of_order_ticks_are_dropped() -> None:
                 symbol=SYMBOL,
                 value=value,
                 source="chainlink_twap",
-                window_seconds=30,
+                window_seconds=60,
                 observed_at=WINDOW_START + timedelta(seconds=offset),
             )
         )
@@ -382,8 +398,8 @@ def test_the_volatility_memo_is_invalidated_by_a_new_observation() -> None:
             symbol=SYMBOL,
             value=Decimal(90000),
             source="chainlink_twap",
-            window_seconds=30,
-            observed_at=latest[0] + timedelta(seconds=61),
+            window_seconds=60,
+            observed_at=latest[0] + timedelta(seconds=121),
         )
     )
     # A 17% jump cannot leave the estimate unchanged; a stale memo would say it did.
@@ -398,7 +414,7 @@ def test_an_unmeasurable_volatility_is_cached_too() -> None:
             symbol=SYMBOL,
             value=Decimal(77000),
             source="chainlink_twap",
-            window_seconds=30,
+            window_seconds=60,
             observed_at=WINDOW_START,
         )
     )
@@ -407,9 +423,34 @@ def test_an_unmeasurable_volatility_is_cached_too() -> None:
             symbol=SYMBOL,
             value=Decimal(77010),
             source="chainlink_twap",
-            window_seconds=30,
-            observed_at=WINDOW_START + timedelta(seconds=61),
+            window_seconds=60,
+            observed_at=WINDOW_START + timedelta(seconds=121),
         )
     )
     assert thin.volatility_per_second(SYMBOL) is None
     assert thin.volatility_per_second(SYMBOL) is None
+
+
+def test_the_settlement_window_is_read_from_the_market_not_assumed() -> None:
+    """Every live market names it in the stream URL, and the changelog's figure is wrong.
+
+    §63 (the venue's own changelog) says 5-minute markets use a 30-second lookback. All 56
+    live markets sampled — 32 of them 5-minute — cite `…-twap-60s-streams` and say the market
+    "is about the price according to the TWAP Chainlink data stream". The resolution text is
+    what the market pays on, so it wins (§85).
+    """
+    assert settlement_window_seconds(_market(source=LIVE_SOURCE)) == 60
+    assert settlement_window_seconds(_market(source=None, text="… twap-30s-streams …")) == 30
+
+
+def test_a_market_that_names_no_window_is_not_priced() -> None:
+    """Assuming one is the §63 mistake: pricing a different variable with no symptom."""
+    assert settlement_window_seconds(_market(source="https://example.com/feed", text="")) is None
+
+
+@pytest.mark.asyncio
+async def test_it_abstains_when_the_window_it_holds_is_not_the_one_that_settles() -> None:
+    """A 30-second average is not a 60-second one. At these horizons the difference between
+    them is a meaningful share of the whole edge."""
+    thirty_second_series = _series(spot=Decimal(77000), window=30)
+    assert await _price(_engine(thirty_second_series, now=_at(120))) is None

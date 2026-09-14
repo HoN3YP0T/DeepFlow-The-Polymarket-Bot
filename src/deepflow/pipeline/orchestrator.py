@@ -37,7 +37,7 @@ from collections.abc import Coroutine, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
 from hashlib import sha256
-from typing import Any
+from typing import Any, Protocol
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
@@ -57,10 +57,16 @@ from deepflow.core.domain import (
     ResolutionCriteria,
     Signal,
 )
-from deepflow.core.enums import BreakerReason, DataQuality, RunMode, SignalAction
+from deepflow.core.enums import (
+    BreakerReason,
+    DataQuality,
+    MarketCategory,
+    RunMode,
+    SignalAction,
+)
 from deepflow.core.logging import get_logger
 from deepflow.core.types import ClobTokenId, ConditionId, SignalId
-from deepflow.engines.crypto.btc_5m import TWAP_WINDOW_SECONDS_5M, Btc5mEngine
+from deepflow.engines.crypto.btc_5m import TWAP_WINDOW_SECONDS, Btc5mEngine
 from deepflow.engines.crypto.reference import TwapReference
 from deepflow.engines.ev import EvEngine
 from deepflow.engines.registry import EngineRegistry
@@ -103,6 +109,24 @@ REFERENCE_SYMBOLS: tuple[str, ...] = ()
 
 #: How often the health line is emitted.
 HEALTH_INTERVAL_SECONDS = 30.0
+
+#: The execution-quality fields a category's thresholds must expose for the gate.
+#:
+#: A structural type rather than a base class, because `Btc5mThresholds` and
+#: `StrategyThresholds` are unrelated models that happen to answer the same four questions,
+#: and making one inherit the other would imply a relationship that does not hold.
+class ExecutionQualityLimits(Protocol):
+    # Read-only properties rather than plain attributes: a mutable attribute in a Protocol
+    # is invariant, and these models are frozen, so only the read-only form matches them.
+    @property
+    def max_data_age_seconds(self) -> float: ...
+    @property
+    def max_spread_bps(self) -> Decimal: ...
+    @property
+    def max_slippage_bps(self) -> Decimal: ...
+    @property
+    def min_liquidity_usdc(self) -> Decimal: ...
+
 
 #: How long to wait before resubscribing a dropped reference feed.
 #:
@@ -490,7 +514,7 @@ class Orchestrator:
         while not self._stopping.is_set():
             try:
                 async for price in self._streams.subscribe_crypto_twap(
-                    REFERENCE_SYMBOLS, window_seconds=TWAP_WINDOW_SECONDS_5M
+                    REFERENCE_SYMBOLS, window_seconds=TWAP_WINDOW_SECONDS
                 ):
                     self._reference.observe(price)
                     if self._stopping.is_set():
@@ -605,6 +629,15 @@ class Orchestrator:
         assert self._risk is not None and self._ev is not None and self._gate is not None
         assert self._resolution is not None and self._journal is not None
 
+        limits = self._limits_for(classification.category)
+        if limits is None:
+            # Fail closed on an unknown category rather than lending it the crypto limits.
+            # Those limits are measured for a market with a 0.01 tick and a 300-second life;
+            # applying them to a football market would be a number that looks calibrated and
+            # is not.
+            log.warning("signal.no_limits_for_category", category=str(classification.category))
+            return
+
         book = snapshot.book_for(estimate.token_id)
         price = book.best_ask if book is not None else None
         if price is None or price <= 0:
@@ -652,6 +685,18 @@ class Orchestrator:
                 capital_available_usdc=self._risk.available_capital(),
                 stake_usdc=stake,
                 execution_healthy=self._breakers is None or not self._breakers.open_reasons,
+                # Six checks previously failed for want of an input rather than on merit,
+                # which is the gate failing closed exactly as designed — and a gate that
+                # refuses because nobody told it the limits is not examining the trade. The
+                # fix is to supply them, never to soften the checks (hard rule 2).
+                max_data_age_seconds=limits.max_data_age_seconds,
+                max_spread_bps=limits.max_spread_bps,
+                max_slippage_bps=limits.max_slippage_bps,
+                min_liquidity_usdc=limits.min_liquidity_usdc,
+                # A known fact, not an assumption: this process constructs no execution
+                # adapter, so no order of ours can exist to duplicate. It becomes a real
+                # lookup the moment execution is wired.
+                duplicate_order_exists=False,
             )
         )
 
@@ -685,6 +730,25 @@ class Orchestrator:
             )
         else:
             await self._journal.record_rejection(signal, gate=decision, context=context)
+
+    def _limits_for(self, category: MarketCategory) -> ExecutionQualityLimits | None:
+        """Execution-quality limits for a category, or ``None`` when none are defined.
+
+        Explicit per category because the numbers are not transferable: the crypto limits
+        are measured against a 0.01 tick and a 300-second life, and the sports ones against
+        books that stay two-sided for hours. A default that quietly lent one set to the other
+        would be the most plausible-looking way to mis-gate a trade.
+        """
+        thresholds = self.settings.thresholds
+        if category is MarketCategory.BTC_5M:
+            return thresholds.btc_5m
+        by_sport = {
+            MarketCategory.FOOTBALL: thresholds.sports.football,
+            MarketCategory.CRICKET: thresholds.sports.cricket,
+            MarketCategory.TENNIS: thresholds.sports.tennis,
+            MarketCategory.BADMINTON: thresholds.sports.badminton,
+        }
+        return by_sport.get(category)
 
     def _market_for(self, condition_id: ConditionId) -> Market | None:
         return next((m for m in self._tracked if m.condition_id == condition_id), None)

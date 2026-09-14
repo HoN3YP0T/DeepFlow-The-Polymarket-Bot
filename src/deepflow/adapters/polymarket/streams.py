@@ -54,7 +54,7 @@ from deepflow.adapters.polymarket.sdk_client import PolymarketSession
 from deepflow.adapters.polymarket.sports_feed import SportsFeedEvent
 from deepflow.config.settings import Settings
 from deepflow.core.clock import Clock, SystemClock
-from deepflow.core.domain import MarketSnapshot, Microstructure, ReferencePrice
+from deepflow.core.domain import MarketSnapshot, Microstructure, OrderBook, ReferencePrice
 from deepflow.core.enums import DataQuality
 from deepflow.core.errors import ConfigurationError
 from deepflow.core.logging import get_logger
@@ -90,6 +90,22 @@ QUEUE_MAXSIZE = 1000
 _MARKET_TYPES = frozenset(
     {"book", "price_change", "tick_size_change", "best_bid_ask", "last_trade_price"}
 )
+
+
+def _ask_side_notional(books: Sequence[OrderBook]) -> Decimal | None:
+    """Total notional resting on the ask side across a market's books.
+
+    ``None`` when no book has an ask at all, because zero depth and unmeasured depth are
+    different facts: a market with no offers cannot be bought, and one we cannot see is one
+    we must not trade. Both block an entry; only the first is the market's own state.
+    """
+    total = Decimal(0)
+    measured = False
+    for book in books:
+        for level in book.asks:
+            total += level.price * level.size
+            measured = True
+    return total if measured else None
 
 
 def _symbol_filter(symbols: Sequence[str]) -> list[str] | None:
@@ -442,6 +458,13 @@ class PolymarketStreams:
             condition_id=condition_id,
             books=tuple(books),
             microstructure=Microstructure(),
+            # Book depth, and named as such: the notional resting on the side we would buy
+            # from. **Not** Gamma's `liquidity` metric, which is a different aggregate the
+            # stream does not carry — and because it does not, this field was `None` on
+            # every one of 59,048 recorded snapshots, so the gate's liquidity check could
+            # never pass from streamed data. Depth is also the better answer to the question
+            # that check asks: whether there is enough here to trade against now.
+            liquidity=_ask_side_notional(books),
             captured_at=max(book.captured_at for book in books),
             quality=DataQuality.DEGRADED if gapped else DataQuality.FRESH,
         )
