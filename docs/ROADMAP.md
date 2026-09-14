@@ -9,7 +9,7 @@ ordering is a dependency order — nothing here is optional scaffolding.
 | --- | --- | --- |
 | 1 · Data spine | ✅ complete | verified live end to end by `verify_phase1.py` |
 | 2 · Classification and validation | ✅ complete | 300 live markets, 0 unresolved |
-| 3 · Probability | 5 of 6 | `Btc5mEngine` and calibration done; `FootballEngine` is the last item |
+| 3 · Probability | ✅ complete | `Btc5mEngine`, `FootballEngine` and calibration all done and verified live |
 | 4 · EV and safety | ✅ complete | decides in full, on injected probabilities |
 | 5 · Execution | ✅ complete | reads verified live; **every write unverified** — no order has been submitted |
 | 6 · Positions and intelligence | 3 of 4 | exits, positions, smart money, events; cross-market deferred |
@@ -101,9 +101,28 @@ can ever trade — see `docs/POLYMARKET-API-CONFORMANCE.md` §36-38.
     and parses it with that sport's rules; `scripts/verify_game_join.py` proves it
     against the live venue. Tradeable types gated to `moneyline` and
     `child_moneyline` — 2 of the venue's 240
-12. `FootballEngine` — the venue feed supplies score, period and clock only, so
-    build the score-and-clock model first and treat xG/shots/cards as a later
-    upgrade gated on a third-party feed
+12. ~~`FootballEngine`~~ **done and verified live** — remaining goals as independent
+    Poisson draws over the time left, summed into a three-way result distribution.
+    Checked against football reality rather than itself: 1-0 with five minutes on the
+    clock prices at 0.94 raw and 0.89 with the assumed stoppage added, against a
+    bookmaker's low 0.90s. Verified on a live fixture, where the three markets of a
+    result group summed to 1.000000.
+
+    Three things it had to get right that had nothing to do with the maths.
+    **`teams[0]` is not the home side** — home in 12 of 13 captured fixtures and away in
+    one, so position is backwards ~8% of the time, silently, between the two
+    complementary markets of a result group; each team carries its own `ordering`.
+    **`sports.home_team_name` is always `None`**, live and captured alike; the names are
+    in `teams`. And **a soccer result market is a three-way group** of separate Yes/No
+    markets, told apart only by `group_item_title` — with Draw checked *before* the team
+    names, because the draw title contains both.
+
+    It is **league-agnostic and that is its dominant error**: the feed sends no shots, no
+    xG and no team rating (see `rules/soccer.py`'s `UNAVAILABLE`), so a title favourite
+    and a relegation side price identically. That is charged to the uncertainty, which
+    scales with the share of the match still to play, and it is what §93's
+    `PROBABILITY_IN_BAND` exists to contain. A fitted attack/defence pair per team is the
+    first upgrade worth making and needs a data source this system does not have
 13. ~~`CricketEngine`~~ **resolved as a structural abstention** — `rules/cricket.py`
     is written and parses cricket faithfully; the model is not, and should not be.
     The feed gives runs and the innings phase and never wickets or balls remaining,
@@ -182,7 +201,7 @@ to check `sets_won_by_each_player` against.
     place. A book too thin to fill the size is no assessment rather than a bad one
 17. ~~`MicrostructureEngine`~~ **done in Phase 3 (item 10)** — listed twice in the
     original plan; kept here as a pointer rather than silently dropped
-18. ~~All 15 `SafetyGate` checks wired~~ **done, as 17** — the fifteen specified plus
+18. ~~All 15 `SafetyGate` checks wired~~ **done, as 18** — the fifteen specified plus
     `BOOK_CLEARED_AT_START` and `REFERENCE_FEED_MATCHED`, from findings 63-64. Checks
     are pure functions over a `GateContext`; **a missing input fails the check that
     reads it**, so a context assembled by a forgetful caller refuses and names the

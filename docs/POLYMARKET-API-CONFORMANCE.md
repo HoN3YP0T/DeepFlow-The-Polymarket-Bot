@@ -1907,6 +1907,116 @@ one row per token per minute, and the fitter counts **distinct markets** (`MIN_M
 well as rows. Five hundred rows from three markets is three coin flips, and a curve fitted on
 them looks tight around a result that had three chances to be wrong.
 
+## 91. The feed was degrading its own data, and the gate accepted it anyway
+
+Two defects that compound, found by reading the running system rather than the tests.
+
+**The entry gate admitted gapped books.** "Only FRESH data may open new risk" is written
+on `MarketSnapshot.entries_allowed` and in `FeatureEngine.assess_snapshot`'s docstring,
+and was enforced in neither: `entries_allowed` had **no callers anywhere in the
+codebase**, and `check_data_fresh` tested `INCONSISTENT` and `STALE` while letting
+`DEGRADED` through. `DEGRADED` is not a stale price, it is a possibly-wrong one — the
+stream marked a gap, so the folded book may be missing a level change that has already
+happened, and in the 0.85–0.98 band one missed level is most of the edge. The whole
+suite passed before and after the fix, which is the point.
+
+**And the feed was manufacturing that condition.** `await self._persist(snapshot)` ran
+inline in the stream consumer — a session round trip per book update. At ~180 tracked
+markets the consumer was slower than the pump, the queue overflowed, and every overflow
+calls `_mark_all_gapped()`, which marks *every* book rather than the one that overflowed.
+
+Measured, ~90 seconds at 194 markets:
+
+| | events dropped |
+| --- | --- |
+| write inline per snapshot | **529,756** |
+| persistence disabled | **0** |
+
+So the write was the whole of it. The consequence in the stored history: **2,664,954 of
+2,737,376 snapshots DEGRADED (97.4%)** — a system that, once the gate above is correct,
+cannot open a position at all.
+
+Batching alone was not enough. With an unbounded flush the writer completed one batch of
+4,056 rows and never finished another while the buffer grew past 44,000: each slow write
+leaves a bigger buffer for the next. Three changes together — buffered writes in their own
+task, a capped batch, and **one row per market per second** — because entries run against
+a 3–10 second age budget and anything finer is resolution nobody reads. After: 0 dropped,
+0 evicted, and **91% of newly written rows FRESH against 2.6% before**.
+
+A third round of §81, and one of them self-inflicted: computing microstructure in the
+sampling step looked bounded at once per market per second and immediately cost 53,630
+dropped events, because `compute` walks every book level twice. Anything that touches book
+levels belongs off the path the fold runs on.
+
+---
+
+## 92. `up-or-down` is a format tag, and the venue has extended it to equities
+
+`102127` (`up-or-down`) was mapped to CRYPTO on the reasonable assumption that up/down
+markets are crypto markets. That is no longer true: the venue now lists
+`aapl-up-or-down-on-september-14-2026` and siblings for MSFT, AMZN, GOOGL, META, TSLA,
+NVDA, NFLX, PLTR, COIN, HOOD and more, carrying `102127` alongside `equities`, `stocks`
+and `finance`.
+
+With that mapping in place, **Apple, Tesla and Nvidia classified as CRYPTO at 0.95
+confidence.** Today the damage stops there — their windows are 23,400 s so nothing
+promotes them to `BTC_5M`, and CRYPTO has no engine — but the moment the venue lists a
+short-dated equity window it hands a stock to a model that prices barriers against a
+Chainlink *crypto* TWAP.
+
+The tags separate the two families cleanly, measured on one page of 100 live events:
+
+| tag | crypto up/down | equity up/down |
+| --- | --- | --- |
+| `102127` `up-or-down` | 68 / 68 | 32 / 32 |
+| `1312` `crypto-prices` | **68 / 68** | **0** |
+| `21` `crypto` | **68 / 68** | **0** |
+
+So CRYPTO now keys on `1312` and `21`, and `"up or down"` is gone from the crypto keyword
+seeds for the same reason. Verified after the change: 68 of 68 crypto windows still reach
+`BTC_5M`, and every equity market falls to UNKNOWN, which is never auto-traded.
+
+**This also retracts part of §80.** That finding recorded `102892` as appearing "on none
+of the live up/down events" and concluded the cadence is not published as a tag at all.
+Measured again: `102892` is the venue's `5M` tag and appears on **48 of 68** live crypto
+up/down events — exactly those whose slug says `5m`, 48 of 48 with no disagreement. The
+earlier reading came from the same run whose sweep was returning windows that had expired
+39 days earlier, so it was measuring the wrong sample rather than the wrong field. The
+window arithmetic stays the primary route because it is the only one that also covers the
+15-minute cadence.
+
+---
+
+## 93. The 0.85–0.98 band was configured seven times and read nowhere
+
+`candidate_band` is defined on every strategy in the threshold tree — 0.85–0.98 for the
+sports strategies, 0.90–0.98 for crypto, 0.85–0.98 for event markets. Grepping for readers
+returns the definitions and nothing else. The band the whole system is described around was
+documentation rather than code. `LateGameThresholds` is in the same state.
+
+Found by pointing the new football model at a live fixture — Dynamo Kyiv vs Epitsentr
+Dunaivtsi, 0-0 at 23 minutes:
+
+| result | model | market ask | edge |
+| --- | --- | --- | --- |
+| HOME | 0.4182 | 0.7900 | −0.3718 |
+| DRAW | 0.2869 | 0.4100 | −0.1231 |
+| AWAY | 0.2949 | 0.1200 | **+0.1749** |
+
+The +0.17 is not an opportunity, it is the size of the model's own blind spot: it has no
+team ratings, because the venue's feed sends none, so a major club and a minor one price
+identically. The market is right and the model is wrong.
+
+Nothing downstream stopped it. The uncertainty buffer charges `uncertainty × 0.01 / price`
+— about 176 bps at 0.12 — against an edge worth about 14,575 bps, and running the real gate
+over that fixture confirmed **`POSITIVE_NET_EV` passed on the away leg**.
+
+§88's lesson a third time: the safeguards protect against thin books, stale data and
+oversizing, never against a wrong input — and here the wrong input is the model's own
+missing knowledge rather than an operator's typo. `PROBABILITY_IN_BAND` is now the
+eighteenth check, reading the calibrated probability against the category's own band and
+failing closed when none is supplied.
+
 ---
 
 ## Confirmed correct

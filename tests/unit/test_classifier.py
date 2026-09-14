@@ -368,3 +368,68 @@ async def test_venue_failure_degrades_coverage_not_classification() -> None:
     classifier = MarketClassifier(Thresholds())
     assert await classifier.load_sports_tags(_Broken()) == 0
     assert classifier.classify(_match(tag_ids=("517",))).category is MarketCategory.CRICKET
+
+
+def test_an_equity_up_or_down_market_is_not_crypto(classifier: MarketClassifier) -> None:
+    """**§92.** ``up-or-down`` is a *format* tag, not an asset-class one, and the venue
+    has extended the format to equities.
+
+    Measured live: with ``102127`` mapped to CRYPTO, Apple, Microsoft, Amazon, Google,
+    Meta, Tesla, Nvidia, Netflix and more all classified as **CRYPTO at 0.95
+    confidence**. Their windows are 23,400s so nothing promoted them to BTC_5M today --
+    but the moment the venue lists a short-dated equity window, that routes a stock to a
+    model that prices barriers against a Chainlink *crypto* TWAP.
+    """
+    apple = _market(
+        question="Will AAPL close up or down on September 14?",
+        tags=("aapl", "equities", "up-or-down", "daily", "finance", "stocks"),
+        tag_ids=("102680", "102676", "102127", "102281", "120", "103665"),
+        event_start_time=NOW,
+        end_date=NOW + timedelta(seconds=23_400),
+    )
+    verdict = classifier.classify(apple)
+    assert verdict.category is not MarketCategory.CRYPTO
+    assert verdict.category is not MarketCategory.BTC_5M
+
+
+def test_a_short_dated_equity_window_still_never_reaches_the_crypto_model(
+    classifier: MarketClassifier,
+) -> None:
+    """The case that makes the one above urgent rather than tidy: the same market with a
+    five-minute window must still not become BTC_5M."""
+    apple_5m = _market(
+        question="Will AAPL be up or down?",
+        tags=("aapl", "equities", "up-or-down"),
+        tag_ids=("102680", "102676", "102127"),
+        event_start_time=NOW,
+        end_date=NOW + timedelta(minutes=5),
+    )
+    assert classifier.classify(apple_5m).category is not MarketCategory.BTC_5M
+
+
+def test_a_crypto_up_down_market_is_still_reached(classifier: MarketClassifier) -> None:
+    """The fix must not cost the markets it was protecting. ``crypto-prices`` (1312) and
+    ``crypto`` (21) were carried by 68 of 68 live crypto up/down events and by none of
+    the equity ones, so they are the tags that actually answer the question."""
+    btc = _market(
+        question="Bitcoin Up or Down?",
+        tags=("up-or-down", "crypto-prices", "crypto", "btc", "5M"),
+        tag_ids=("102127", "1312", "102169", "21", "102892"),
+        event_start_time=NOW,
+        end_date=NOW + timedelta(minutes=5),
+    )
+    assert classifier.classify(btc).category is MarketCategory.BTC_5M
+
+
+def test_the_venue_does_publish_a_cadence_tag(classifier: MarketClassifier) -> None:
+    """**Retracts part of §80**, which recorded that ``102892`` "appears on none of the
+    live up/down events" and concluded the cadence is not published as a tag at all.
+
+    Measured again: it appears on 48 of 68 live crypto up/down events, and on exactly
+    those whose slug says ``5m`` -- 48 of 48, no disagreement. The earlier reading came
+    from the same run whose sweep was returning stale windows, so it was measuring the
+    wrong sample rather than the wrong field.
+    """
+    from deepflow.pipeline.classifier import CATEGORY_TAG_IDS
+
+    assert "102892" in CATEGORY_TAG_IDS[MarketCategory.BTC_5M]

@@ -44,17 +44,32 @@ CATEGORY_TAG_IDS: Final[dict[MarketCategory, frozenset[str]]] = {
     MarketCategory.BADMINTON: frozenset({"102880"}),
     MarketCategory.POLITICS: frozenset({"2", "144", "264", "1101", "101206"}),
     MarketCategory.GEOPOLITICS: frozenset({"100265", "101253", "366"}),
-    # ``102127`` (``up-or-down``) and ``1312`` (``crypto-prices``) are carried by **all
-    # 71** live up/down events, measured; they identify the *family*, not the cadence, and
-    # the family spans 5m, 15m and 4h windows. So they map to CRYPTO and the window
-    # arithmetic promotes to BTC_5M -- see ``_apply_short_dated``.
-    MarketCategory.CRYPTO: frozenset({"21", "100328", "102127", "1312"}),
-    # Deliberately empty. ``102892`` was recorded here as "the venue's own 5M cadence tag"
-    # and appears on none of the live up/down events (§80); the cadence is not published as
-    # a tag at all, which is why it has to be derived from the window. Left as an empty set
-    # rather than deleted so the tag route stays visible as the thing that cannot answer
-    # this question.
-    MarketCategory.BTC_5M: frozenset(),
+    # ``1312`` (``crypto-prices``) and ``21`` (``crypto``) are carried by **68 of 68**
+    # live crypto up/down events and by none of the equity ones. They say "this is about a
+    # crypto price", which is the question this map exists to answer; the window arithmetic
+    # then promotes to BTC_5M -- see ``_apply_short_dated_crypto``.
+    #
+    # **``102127`` (``up-or-down``) is deliberately absent, and used to be here.** It is a
+    # *format* tag, not an asset-class one, and the venue has since extended the format to
+    # equities: ``aapl-up-or-down-on-september-14-2026`` carries it alongside ``equities``,
+    # ``stocks`` and ``finance``. With it in this set, Apple, Microsoft, Tesla and Nvidia
+    # all classified as **CRYPTO at 0.95 confidence** (§92). Today that is merely wrong --
+    # their windows are 23,400s so nothing promotes them to BTC_5M, and CRYPTO has no
+    # engine -- but the moment the venue lists a short-dated equity window it would hand a
+    # stock to a model that prices barriers against a Chainlink *crypto* TWAP.
+    MarketCategory.CRYPTO: frozenset({"21", "100328", "1312"}),
+    # ``102892`` is the venue's own ``5M`` cadence tag and it is real.
+    #
+    # **This retracts part of §80**, which recorded that it "appears on none of the live
+    # up/down events" and concluded the cadence is not published as a tag at all. Measured
+    # again: it appears on 48 of 68 live crypto up/down events, and on exactly those whose
+    # slug says ``5m`` -- 48 of 48, no disagreement. The earlier reading was taken when the
+    # sweep itself was returning stale windows (the same run that produced §80's other
+    # findings), so it was measuring the wrong sample rather than the wrong field.
+    #
+    # The window arithmetic remains the primary route because it is the only one that
+    # covers the 15-minute cadence as well; this tag is corroboration that costs nothing.
+    MarketCategory.BTC_5M: frozenset({"102892"}),
     MarketCategory.OTHER_SPORTS: frozenset({"64", "65"}),  # esports
 }
 
@@ -84,7 +99,6 @@ CATEGORY_SIGNALS: Final[dict[MarketCategory, tuple[str, ...]]] = {
         "xrp",
         "ripple",
         "dogecoin",
-        "up or down",
     ),
     MarketCategory.POLITICS: ("election", "president", "senate", "parliament", "nominee"),
     MarketCategory.GEOPOLITICS: ("sanctions", "treaty", "summit", "diplomatic"),

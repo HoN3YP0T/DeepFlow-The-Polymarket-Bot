@@ -14,7 +14,7 @@ mistakes are not made a fourth time.
 | Question | File |
 | --- | --- |
 | What is done, what is left, what broke and was fixed | `docs/STATUS.md` — **start here** |
-| What the venue actually does (90 findings, 5 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
+| What the venue actually does (93 findings, 6 retractions) | `docs/POLYMARKET-API-CONFORMANCE.md` |
 | The venue's full surface + the method for not misreading it | `docs/POLYMARKET-SURFACE-AUDIT.md` |
 | Build order, per-phase state | `docs/ROADMAP.md` |
 | Module map, dependency rule, data flow | `docs/ARCHITECTURE.md` |
@@ -34,6 +34,7 @@ make verify             # 5 scripts against the live venue. No credentials neede
 make verify-account     # read-only credentialed checks (needs .env). Places no orders.
 make verify-btc         # the BTC model against the live TWAP feed. Collects 7 minutes.
 make verify-calibration # the settlement + fit chain against live settled markets. Read-only.
+make verify-football    # the football model against a live fixture, if one is in play.
 make calibrate          # fit each engine's curve from recorded data. --activate to go live.
 make audit-surface      # raw venue JSON vs what our code can see. See Traps.
 make capture-fixtures   # refresh the payload corpus; exits non-zero if it would test less
@@ -184,7 +185,7 @@ the venue lacks anything, run `make audit-surface` and paste what it returned.
   against 0.01 — so the limits are not shared.
 - **The safeguards do not protect against a wrong *input*.** A prior of 0.97 on a market at
   0.18 was approved 58 times with a 0.79 edge; the wide uncertainty, EV buffer, Kelly haircut
-  and all 17 checks ran correctly and none could help, because `source` is free text (§88).
+  and all the checks ran correctly and none could help, because `source` is free text (§88).
   `MAX_PRIOR_DIVERGENCE` now bounds a prior against the market price — legitimate because a
   bound can only suppress a trade, never create one.
 - **A zero bankroll zeroes every decision, and blames the book.** 23,249 estimates produced
@@ -197,6 +198,28 @@ the venue lacks anything, run `make audit-surface` and paste what it returned.
 - **The crypto model needs ~12 minutes of warm-up** (6 vol samples at a 120 s lag, which is
   twice the 60 s averaging window), so a freshly started process abstains on everything and
   one restarted often can never trade these markets (§84, §85).
+- **Only FRESH data may open new risk, and now something enforces that.**
+  `entries_allowed` had no callers and the gate refused only INCONSISTENT and STALE, so
+  DEGRADED — a book with a known gap — passed (§91). The whole suite passed before and
+  after; nothing covered it.
+- **Never do per-event work on the stream consumer path. Anything.** §81 fixed
+  classification and resolution; the *database write* was still inline, and at ~180 markets
+  it dropped **529,756 events in 90 seconds against zero** with persistence off. Every
+  overflow calls `_mark_all_gapped()`, so the feed degraded its own data — 97.4% of 2.7M
+  stored snapshots DEGRADED — and the gate then refused all of it. Snapshots are now
+  buffered, capped, sampled at one per market per second and written by their own task
+  (§91). Computing microstructure in the sampling step cost 53,630 drops for the same
+  reason; it lives in the writer task now.
+- **`up-or-down` is a format tag and the venue extended it to equities.** With `102127`
+  mapped to CRYPTO, Apple, Tesla and Nvidia classified as **CRYPTO at 0.95** (§92). Key on
+  `1312` (`crypto-prices`) and `21` (`crypto`), which are 68/68 on crypto up/down events
+  and 0 on equity ones. `102892` really is the venue's `5M` cadence tag — 48 of 48 —
+  which **retracts part of §80**.
+- **A configured limit nobody reads is not a limit.** `candidate_band` — the 0.85-0.98 band
+  the whole system is described around — was defined seven times and read nowhere, so the
+  football model's 0.42 against a market at 0.79 produced a +0.17 "edge" that
+  `POSITIVE_NET_EV` *passed* (§93). Now `PROBABILITY_IN_BAND`, the eighteenth check.
+  `LateGameThresholds` is still in that state.
 - **A sample's provenance matters more than its size.** Calibrating the market against its
   own outcomes using each token's last trade looked reasonable and produced a table where
   every band from 0.05 to 0.75 realized **0.000**. The two sides' last-trade prices sum to a
@@ -240,7 +263,7 @@ adapters/     polymarket/ (SDK, venue rules, streams, games, mapping), persisten
 pipeline/     discovery, classifier, resolution, features, orchestrator
 engines/      ev, microstructure, sports/{rules,models}, crypto, politics, geopolitics,
               event_driven (shared prior+events machinery), smart_money
-risk/         safety_gate (17 checks), limits (RiskEngine), exposure, sizing
+risk/         safety_gate (18 checks), limits (RiskEngine), exposure, sizing
 execution/    order manager, reconciliation, engine  ← complete; venue writes unverified
 positions/    manager, exit engine                    ← Phase 6, stubs
 journal/      recorder
@@ -269,8 +292,8 @@ exchange rules, imports nothing, and any layer may import it (ADR-0003).
 
 ## Current shape of the work
 
-Phases 1, 2, 4 and 5 complete; Phase 3 is 5 of 6 (`FootballEngine` is the last item);
-Phase 6 is 3 of 4 (cross-market deferred); Phases 7–8 not started.
+Phases 1, 2, 4, 5 complete; **Phase 3 complete**; Phase 6 is 3 of 4 (cross-market
+deferred); Phases 7–8 not started.
 
 **The pipeline now runs end to end for one instrument.** Discovery, classification,
 streaming, the live-game join, EV, the 17-check gate, risk, exposure, exits, positions,
@@ -291,14 +314,24 @@ unstartable, because nothing in the schema had ever recorded how a market resolv
 of every (prediction, outcome) pair was thrown away. `pipeline/settlement.py` and the
 `predictions` / `market_resolutions` / `calibration_fits` tables close that.
 
-Next most useful piece of work is `FootballEngine` — more valuable than the BTC model and
-slower to verify, with the join, live fixtures and score/period/clock all already in place.
-**Two traps ahead of writing it**, both found while auditing the roadmap: it is typed against
-`FootballState`, which *nothing anywhere constructs* — the live-verified parser produces
-`MatchState`, so the engine is wired to the dead half of a split state hierarchy. And its
-docstring promises red cards, xG and team strength, none of which the venue feed sends; the
-honest model is score, clock and the assumed stoppage constants `rules/soccer.py` already
-carries.
+`FootballEngine` is **written, wired and verified live** — score, clock and assumed
+stoppage into a three-way Poisson result distribution, matched to the right member of a
+result group by `group_item_title`. It is league-agnostic (the feed sends no team ratings),
+so it is confidently wrong on a mismatch and that is what `PROBABILITY_IN_BAND` now
+contains: on a live fixture it priced the favourite at 0.42 against a market at 0.79.
+
+**The three remaining sport engines are still typed against a dead state hierarchy.**
+`TennisState`, `CricketState` and `BadmintonState` are constructed *nowhere* in `src/` or
+`tests/`; the live-verified parser produces `MatchState`, which is what `FootballEngine`
+was moved onto. Those three also still `raise NotImplementedError` while their docstrings
+describe models that do not exist — unreachable today, so it costs nothing, but it is the
+`is_modellable` / `sports_feed` pattern for the third time.
+
+Next most useful work, in order: **calibration data** (the recorder now collects it, so the
+floors of 200 samples from 50 markets are a matter of running time), then Phase 6's
+`CrossMarketEngine` or Phase 7. `DiscoveryService` also remains unwired — the orchestrator
+now writes classification verdicts itself, but the lifecycle state machine and rejection
+journalling in that module are still reachable from nothing.
 
 ## Working style the owner has asked for
 

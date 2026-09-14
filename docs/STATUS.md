@@ -1,11 +1,10 @@
 # Status and handover
 
 **As of:** 2026-09-14 · **Branch:** `claude/adoring-hypatia-pxi7up`
-· **846 tests passing, 0 skipped** · **44 stubs remain** · 90 findings recorded
+· **904 tests passing, 0 skipped** · **44 stubs remain** · 93 findings recorded
 · 115 source files
 
-**Phases 1, 2, 4, 5** complete · **Phase 3** 5 of 6 (`FootballEngine` remains)
-· **Phase 6** 3 of 4 (cross-market deferred) · Phases 7–8 not started
+**Phases 1–5 complete** · **Phase 6** 3 of 4 (cross-market deferred) · Phases 7–8 not started
 
 > An earlier version of this line read "395 tests green" while 30 of those were
 > integration tests **skipped** for want of a database — a skipped test reporting as
@@ -268,9 +267,8 @@ is right 0.93 of the time turns a positive edge negative.
 | `adapters/cache` | 3 | `RedisCache` |
 | `engines/crypto` | 0 | complete — `Btc5mEngine` implemented and verified live |
 
-**Phase 3 — probability (1 remaining).** `Btc5mEngine` is **done and verified against the
-live feed** — the first model in this system that produces a number — and **calibration is
-done**. Left: `FootballEngine`.
+**Phase 3 — probability: complete.** `Btc5mEngine` and `FootballEngine` both produce
+numbers and are verified against live data, and calibration is wired end to end.
 
 **Calibration was not unstarted work, it was unstartable.** `_calibrate` returned its input
 unchanged for the life of this repo, and the cause turned out not to be the fit: `signals`
@@ -475,7 +473,44 @@ only, enforced nowhere*. Needs deciding before live.
 
 ## 8. Recommended next step
 
-**`FootballEngine`** — the last Phase 3 item, and more valuable than the BTC model.
+**Let it run, so calibration has something to fit.** The recorder collects (prediction,
+outcome) pairs now and the floors are 200 samples from 50 distinct markets; that is a
+matter of running time rather than code. Watch `predictions` climbing with `settled`
+following on the health line.
+
+Then, in order: `CrossMarketEngine` (Phase 6, deferred at the owner's request), or Phase 7.
+`DiscoveryService` also remains unwired — the orchestrator writes classification verdicts
+itself now, but that module's lifecycle state machine and rejection journalling are still
+reachable from nothing, and closing that means reconciling its sweep with the
+orchestrator's two-part one.
+
+**Before touching the other sport engines**, note what the football work uncovered:
+`TennisState`, `CricketState` and `BadmintonState` are constructed nowhere in `src/` or
+`tests/`. The live-verified parser produces `MatchState`, which is what `FootballEngine`
+now uses. Those three engines also still `raise NotImplementedError` behind docstrings
+describing models that do not exist.
+
+---
+
+### What the last audit found
+
+Five defects, all of the same shape — configured, documented or tested, and reachable from
+nothing on the running path:
+
+| Defect | Evidence | Status |
+| --- | --- | --- |
+| Entry gate admitted `DEGRADED` books | `entries_allowed` had no callers; full suite passed either way | fixed (§91) |
+| Snapshot writes inline on the consumer path | 529,756 events dropped in 90 s vs 0 without; 97.4% of 2.7M rows DEGRADED | fixed (§91) |
+| `candidate_band` read by nothing | football model 0.42 vs market 0.79; `POSITIVE_NET_EV` *passed* the fabricated edge | fixed (§93) |
+| `up-or-down` tag mapped to CRYPTO | Apple, Tesla, Nvidia classified CRYPTO at 0.95 | fixed (§92) |
+| Process never recorded its own verdicts | 398 rows at DISCOVERED / NOT_CHECKED / UNKNOWN | fixed |
+| `FeatureEngine.compute` never called | 2,737,376 snapshots, zero non-null imbalance | fixed |
+
+Still open and recorded rather than fixed: `DiscoveryService` unwired; `MicrostructureEngine`
+and its `FlowAssessment` have no consumer; `LateGameThresholds` is configured and unread;
+`flow_imbalance` cannot be computed because the streamed snapshot carries no trades;
+`SqlPositionRepository`, `RedisCache`, `SignalEngine` and `streams.subscribe_user` remain
+stubs.
 
 Two traps sit in front of it, both found while auditing the roadmap rather than while
 writing code:
@@ -502,7 +537,7 @@ slowly — a live score — rather than for the ones where it cannot.
 
 ---
 
-Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (90 findings).
+Full finding list: `docs/POLYMARKET-API-CONFORMANCE.md` (93 findings).
 Venue surface map and the method for not misreading it:
 `docs/POLYMARKET-SURFACE-AUDIT.md` — 9 hosts, 223 operations, plus
 `make audit-surface`.

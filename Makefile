@@ -1,6 +1,6 @@
 .PHONY: install test test-integration lint fmt typecheck check verify capture-fixtures \
 	audit-surface verify-account verify-btc verify-calibration calibrate \
-	db-local redis-local up down migrate run api clean
+	verify-football db-local redis-local up down migrate run api clean
 
 install:
 	python -m venv .venv
@@ -46,6 +46,11 @@ verify-btc:
 # evidence a future fit trains on, and a probe must not be able to teach the system.
 verify-calibration:
 	.venv/bin/python scripts/verify_calibration.py
+
+# Reports "nothing to check" rather than passing when no soccer is in play: a
+# verification that cannot see its subject has not verified anything.
+verify-football:
+	.venv/bin/python scripts/verify_football.py
 
 # Reports only. Add --activate to make the fitted curves live, which changes every
 # probability the affected engines produce from then on.
