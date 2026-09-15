@@ -167,3 +167,26 @@ class TradingHaltedError(DeepFlowError):
     def __init__(self, reason: BreakerReason, *, detail: str = "") -> None:
         self.reason = reason
         super().__init__(f"trading halted: {reason}{f' ({detail})' if detail else ''}")
+
+
+class AuthenticationError(DeepFlowError):
+    """A dashboard caller could not be identified, or claimed something we do not grant.
+
+    Deliberately one error for "no credential", "bad credential" and "credential we do
+    not recognise": the caller learns only that it failed, which is the whole point of
+    not distinguishing them. The *log* records which it was.
+    """
+
+
+class AuthorizationError(DeepFlowError):
+    """The caller is known and is not permitted to do this.
+
+    Separate from :class:`AuthenticationError` because the responses differ -- 401 invites
+    a retry with a credential, 403 says the credential is fine and the answer is still no.
+    """
+
+    def __init__(self, action: str, *, required: str, held: str) -> None:
+        self.action = action
+        self.required = required
+        self.held = held
+        super().__init__(f"{action} requires {required}; caller holds {held}")

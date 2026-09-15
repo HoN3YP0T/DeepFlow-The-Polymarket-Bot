@@ -159,14 +159,40 @@ class RedisSettings(BaseModel):
     enabled: bool = True
 
 
+class OperatorConfig(BaseModel):
+    """One dashboard login.
+
+    The password is stored only as a hash -- generate one with
+    ``scripts/hash_password.py``. Plaintext in configuration would put the credential for
+    an emergency-stop button into every process listing and every backup of the env file.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    password_hash: str = Field(min_length=16)
+    """``scrypt$salt$key``, from :func:`deepflow.api.auth.hash_password`."""
+
+    role: str = "VIEWER"
+    """VIEWER, OPERATOR or ADMIN. Defaults to the least privilege, so a role typo grants
+    the least rather than the most -- an unrecognised value is refused at login."""
+
+
 class ApiSettings(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     host: str = "127.0.0.1"
+    """Loopback by default. The dashboard exposes kill switches, so binding it to every
+    interface is a decision an operator makes explicitly, not a default they inherit."""
+
     port: int = Field(default=8000, gt=0, le=65535)
     jwt_secret: SecretStr | None = None
     jwt_ttl_seconds: int = Field(default=3600, gt=0)
     cors_origins: tuple[str, ...] = ("http://localhost:3000",)
+
+    operators: dict[str, OperatorConfig] = Field(default_factory=dict)
+    """Username -> credential. Empty means nobody can log in, which is the correct
+    default: the read-only panels are still reachable on a local paper run, and every
+    control refuses until an operator exists to be held responsible for it."""
 
 
 class Settings(BaseSettings):

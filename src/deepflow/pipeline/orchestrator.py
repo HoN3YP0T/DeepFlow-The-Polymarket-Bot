@@ -513,6 +513,34 @@ class Orchestrator:
     def snapshots_written(self) -> int:
         return self._snapshots_written
 
+    @property
+    def sessions(self) -> async_sessionmaker[AsyncSession] | None:
+        """The database session factory, for the dashboard to read and audit through.
+
+        Shared rather than re-created: a second engine against the same database would
+        double the connection pool and make "who holds a connection" unanswerable when one
+        of the two is leaking.
+        """
+        return self._sessions
+
+    @property
+    def breakers(self) -> CircuitBreakerRegistry | None:
+        """The halt authority, so a dashboard control trips the same one the trading path
+        consults. A second registry would be a switch wired to nothing."""
+        return self._breakers
+
+    @property
+    def risk(self) -> RiskEngine | None:
+        return self._risk
+
+    @property
+    def engines(self) -> EngineRegistry | None:
+        return self._engines
+
+    @property
+    def tracked_markets(self) -> tuple[Market, ...]:
+        return self._tracked
+
     # --- Tasks ------------------------------------------------------------
     def _spawn(self, coro: Coroutine[Any, Any, None], *, name: str) -> None:
         task: asyncio.Task[None] = asyncio.create_task(coro, name=name)

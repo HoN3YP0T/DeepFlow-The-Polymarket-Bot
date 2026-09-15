@@ -1,6 +1,6 @@
 .PHONY: install test test-integration lint fmt typecheck check verify capture-fixtures \
 	audit-surface verify-account verify-btc verify-calibration calibrate \
-	verify-football db-local redis-local up down migrate run api clean
+	verify-football hash-password db-local redis-local up down migrate run api clean
 
 install:
 	python -m venv .venv
@@ -97,8 +97,14 @@ migrate:
 run:
 	.venv/bin/deepflow
 
+# The dashboard ALONE, for frontend work: app.state.orchestrator is None, so every
+# control refuses. `make run` starts the orchestrator and the dashboard in one process,
+# which is the only arrangement in which the controls act on anything.
 api:
 	.venv/bin/uvicorn deepflow.api.app:create_app --factory --reload
+
+hash-password:
+	.venv/bin/python scripts/hash_password.py
 
 clean:
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
