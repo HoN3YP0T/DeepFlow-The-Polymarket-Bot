@@ -157,18 +157,48 @@ def test_roles_are_ordered_and_do_not_leak_upward() -> None:
     assert not Principal("o", Role.OPERATOR).can(Role.ADMIN)
 
 
-def test_no_role_can_arm_live_mode() -> None:
+def test_no_api_route_can_reach_live_mode() -> None:
     """Hard rule 1. ``Role.ADMIN`` was documented as "may arm live mode"; nothing in the
-    API exposes that, and this asserts the absence so adding one has to break a test."""
+    API exposes that, and this asserts the absence so adding one has to break a test.
+
+    Checks the things that would actually enable LIVE -- writing the confirmation
+    settings, or referencing ``RunMode.LIVE`` at all -- rather than searching for the word
+    "arm". The first version of this test did search for "arm", and it failed on the
+    sentence in ``risk.py`` that *documents* the guarantee. A guard that trips on its own
+    documentation teaches you to weaken the guard.
+    """
     import inspect
 
     from deepflow.api import app as app_module
-    from deepflow.api.routers import risk
+    from deepflow.api import deps
+    from deepflow.api.routers import auth_routes, risk
 
-    for module in (app_module, risk):
+    forbidden = ("live_trading_confirmed", "live_trading_ack", "runmode.live", "mode =")
+    for module in (app_module, deps, auth_routes, risk):
         source = inspect.getsource(module).lower()
-        assert "live_trading_confirmed" not in source
-        assert "arm" not in source.replace("alarm", "")
+        for token in forbidden:
+            assert token not in source, f"{module.__name__} touches {token!r}"
+
+
+def test_no_api_route_is_named_for_live_mode() -> None:
+    """The route table is the surface an operator can reach. Nothing on it may be a path
+    to arming live trading, whatever the handlers do."""
+    from deepflow.api.app import create_app
+
+    app = create_app(Settings(_env_file=None))
+    # The OpenAPI schema rather than ``app.routes``: this FastAPI version keeps included
+    # routers in wrapper objects that carry no ``path``, so walking ``app.routes`` sees
+    # four framework endpoints and none of ours -- which would pass this check while
+    # inspecting nothing.
+    paths = [path.lower() for path in app.openapi()["paths"]]
+    assert sum(1 for path in paths if path.startswith("/api")) > 3, paths
+
+    # Named routes, not substrings. ``/api/health/live`` is a liveness probe and has
+    # nothing to do with live *trading* -- a substring check on "live" flags it, and a
+    # guard that cries wolf on a health check is a guard someone deletes.
+    forbidden = {"arm", "go-live", "live-mode", "live-trading", "enable-live"}
+    offending = [path for path in paths if forbidden & set(path.strip("/").split("/"))]
+    assert not offending, offending
 
 
 # --- over HTTP -----------------------------------------------------------

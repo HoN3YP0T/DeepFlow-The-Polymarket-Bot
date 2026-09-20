@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Request, status
 
+from deepflow.api.audit import AuditLog
 from deepflow.api.auth import Principal, Role, verify_token
 from deepflow.config.settings import Settings
 from deepflow.core.errors import AuthenticationError
@@ -43,6 +44,16 @@ def get_orchestrator(request: Request) -> Orchestrator | None:
     """
     orchestrator: Orchestrator | None = request.app.state.orchestrator
     return orchestrator
+
+
+def get_audit(request: Request) -> AuditLog:
+    """The audit log, from application state.
+
+    From state rather than constructed per request so it shares the orchestrator's session
+    factory -- a second engine against the same database would double the pool.
+    """
+    audit: AuditLog = request.app.state.audit
+    return audit
 
 
 def require_orchestrator(request: Request) -> Orchestrator:

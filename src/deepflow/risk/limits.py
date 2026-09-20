@@ -186,3 +186,34 @@ class RiskEngine:
     @property
     def bankroll(self) -> BankrollState:
         return self._bankroll
+
+    @property
+    def limits(self) -> RiskLimits:
+        return self._limits
+
+    def replace_limits(self, limits: RiskLimits) -> None:
+        """Swap the limits a subsequent decision will be judged against.
+
+        Exists for the dashboard: restarting the process to change a position cap means
+        losing the feed, the TWAP warm-up and every subscription, which is a real cost to
+        pay for turning a number down during an incident.
+
+        **It takes effect from the next decision and changes nothing already approved.**
+        A tighter limit does not unwind an open position -- that is what the exit path is
+        for -- and this is worth being explicit about, because an operator who tightens a
+        limit mid-incident may believe they have just reduced their exposure.
+
+        ``RiskLimits`` is frozen and validated, so an out-of-range value cannot arrive
+        here; the caller builds the replacement with ``model_copy(update=...)`` and
+        pydantic refuses anything the field constraints reject.
+        """
+        previous = self._limits
+        self._limits = limits
+        log.warning(
+            "risk.limits_replaced",
+            changed={
+                field: f"{getattr(previous, field)} -> {getattr(limits, field)}"
+                for field in type(limits).model_fields
+                if getattr(previous, field) != getattr(limits, field)
+            },
+        )
