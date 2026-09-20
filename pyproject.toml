@@ -64,6 +64,9 @@ deepflow = "deepflow.main:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/deepflow"]
+# The dashboard page ships with the package; without this the wheel installs an
+# API that 500s on its own index.
+artifacts = ["src/deepflow/api/static/*"]
 
 # ---------------------------------------------------------------------------
 [tool.ruff]

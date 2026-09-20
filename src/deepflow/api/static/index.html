@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DeepFlow</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='%232a78d6'/%3E%3C/svg%3E">
+<style>
+/* Palette roles from the validated reference instance. Status colours only -- this
+   dashboard has no series, so there is no categorical palette to validate. Every status
+   colour is paired with an icon and a word, because warning and serious sit below 3:1 on
+   the light surface by design and must never carry meaning alone. */
+:root {
+  color-scheme: light;
+  --page:       #f9f9f7;
+  --surface:    #fcfcfb;
+  --ink:        #0b0b0b;
+  --ink-2:      #52514e;
+  --muted:      #898781;
+  --rule:       #e1e0d9;
+  --border:     rgba(11,11,11,0.10);
+  --good:       #0ca30c;
+  --warning:    #fab219;
+  --serious:    #ec835a;
+  --critical:   #d03b3b;
+  --accent:     #2a78d6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page:    #0d0d0d;
+    --surface: #1a1a19;
+    --ink:     #ffffff;
+    --ink-2:   #c3c2b7;
+    --muted:   #898781;
+    --rule:    #2c2c2a;
+    --border:  rgba(255,255,255,0.10);
+    --accent:  #3987e5;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page:#0d0d0d; --surface:#1a1a19; --ink:#fff; --ink-2:#c3c2b7;
+  --rule:#2c2c2a; --border:rgba(255,255,255,0.10); --accent:#3987e5;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--page); color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 64px; }
+header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+h1 { font-size: 17px; margin: 0; letter-spacing: -0.01em; }
+h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .07em;
+     color: var(--muted); margin: 26px 0 10px; font-weight: 600; }
+.spacer { flex: 1; }
+.badge { font-size: 11px; font-weight: 700; letter-spacing: .06em; padding: 3px 8px;
+         border-radius: 5px; border: 1px solid var(--border); color: var(--ink-2); }
+.badge.mode { color: var(--accent); border-color: var(--accent); }
+
+/* The single most important fact on the page gets the most room. */
+.banner { display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+          border-radius: 10px; border: 1px solid var(--border); background: var(--surface);
+          margin-bottom: 6px; }
+.banner .dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+.banner strong { font-size: 15px; }
+.banner .why { color: var(--ink-2); font-size: 13px; }
+
+.grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+        padding: 12px 13px; }
+.tile .k { font-size: 11px; color: var(--muted); text-transform: uppercase;
+           letter-spacing: .05em; }
+.tile .v { font-size: 22px; font-weight: 600; margin-top: 3px;
+           font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.tile .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.card { background: var(--surface); border: 1px solid var(--border);
+        border-radius: 10px; padding: 4px 14px; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th { text-align: left; font-size: 11px; color: var(--muted); font-weight: 600;
+     text-transform: uppercase; letter-spacing: .05em; padding: 9px 8px 9px 0; }
+td { padding: 8px 8px 8px 0; border-top: 1px solid var(--rule); vertical-align: top; }
+td.num { text-align: right; padding-right: 0; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.wrapcell { max-width: 430px; color: var(--ink-2); }
+
+.status { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12px; }
+.status .ico { font-size: 13px; line-height: 1; }
+
+button { font: inherit; font-weight: 600; padding: 8px 13px; border-radius: 8px;
+         border: 1px solid var(--border); background: var(--surface); color: var(--ink);
+         cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--ink-2); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button.danger { color: var(--critical); border-color: var(--critical); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.note { color: var(--muted); font-size: 12px; margin: 8px 0 12px; }
+input { font: inherit; padding: 8px 10px; border-radius: 8px; color: var(--ink);
+        border: 1px solid var(--border); background: var(--surface); }
+.login { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+#msg { margin-top: 10px; font-size: 13px; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>DeepFlow</h1>
+    <span class="badge mode" id="mode">—</span>
+    <span class="badge" id="who">not signed in</span>
+    <span class="spacer"></span>
+    <span class="badge" id="clock">—</span>
+    <button id="theme" title="Toggle theme">◐</button>
+  </header>
+
+  <!-- Sign-in gates everything, reads included. The overview carries balance, available
+       capital and drawdown: "read-only" is not "safe to publish". With no signing secret
+       configured the whole dashboard is unreachable, which is intended, not a fault. -->
+  <section id="loginBox" class="card" style="padding:14px">
+    <div class="login">
+      <input id="u" placeholder="username" autocomplete="username">
+      <input id="p" type="password" placeholder="password" autocomplete="current-password">
+      <button class="primary" id="loginBtn">Sign in</button>
+      <span class="note" style="margin:0">Every panel needs a sign-in — the overview shows capital.</span>
+    </div>
+    <div id="msg"></div>
+  </section>
+
+  <div id="app" class="hidden">
+    <div class="banner" id="banner">
+      <span class="dot" id="bannerDot"></span>
+      <strong id="bannerText">—</strong>
+      <span class="why" id="bannerWhy"></span>
+    </div>
+
+    <h2>Capital</h2>
+    <div class="grid" id="capital"></div>
+
+    <h2>Decision chain</h2>
+    <div class="grid" id="chain"></div>
+
+    <h2>Controls</h2>
+    <p class="note" id="controlNote"></p>
+    <div class="controls" id="controls"></div>
+    <div id="controlMsg" class="note"></div>
+
+    <h2>Component health</h2>
+    <div class="card"><table id="health"></table></div>
+
+    <h2>Recent decisions</h2>
+    <div class="card"><table id="journal"></table></div>
+
+    <h2>Audit trail</h2>
+    <div class="card"><table id="audit"></table></div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let TOKEN = sessionStorage.getItem("df_token") || null;
+let ME = null;
+
+const STATUS = {
+  UP:       { ico: "●", word: "up",       color: "var(--good)" },
+  DEGRADED: { ico: "▲", word: "degraded", color: "var(--warning)" },
+  DOWN:     { ico: "■", word: "down",     color: "var(--critical)" },
+  UNKNOWN:  { ico: "○", word: "not running", color: "var(--muted)" },
+};
+
+// Status is icon + word + colour, never colour alone: two of the four status hues sit
+// below 3:1 on the light surface by design.
+function statusCell(s) {
+  const m = STATUS[s] || STATUS.UNKNOWN;
+  return `<span class="status" style="color:${m.color}">
+            <span class="ico">${m.ico}</span>${m.word}</span>`;
+}
+
+async function api(path, opts = {}) {
+  const headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
+  if (TOKEN) headers["Authorization"] = "Bearer " + TOKEN;
+  const res = await fetch("/api" + path, Object.assign({}, opts, { headers }));
+  if (res.status === 401) { signOut("Session expired — sign in again."); throw new Error("401"); }
+  let body = null;
+  try { body = await res.json(); } catch (_) { body = null; }
+  if (!res.ok) throw new Error((body && body.detail) || res.status);
+  return body;
+}
+
+const money = (v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+const pct = (v) => (Number(v) * 100).toFixed(1) + "%";
+const num = (v) => Number(v).toLocaleString();
+
+function tile(k, v, sub) {
+  return `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div>
+          ${sub ? `<div class="sub">${sub}</div>` : ""}</div>`;
+}
+
+function renderBanner(o) {
+  const halted = o.entries_halted;
+  $("bannerDot").style.background = halted ? "var(--critical)" : "var(--good)";
+  $("bannerText").textContent = halted ? "Entries halted" : "Trading — entries allowed";
+  $("bannerWhy").textContent = halted
+    ? (o.halt_reasons || []).join(", ")
+    : "exits are never gated by a breaker";
+}
+
+function renderCapital(o) {
+  $("capital").innerHTML =
+      tile("Balance", money(o.balance_usdc) + " USDC", o.mode + " mode")
+    + tile("Available", money(o.available_capital_usdc) + " USDC", "after reserve")
+    + tile("Reserved", money(o.reserved_capital_usdc) + " USDC", "never deployed")
+    + tile("Exposure", money(o.total_exposure_usdc) + " USDC", "cost basis")
+    + tile("Drawdown", pct(o.drawdown_fraction), "from peak")
+    + tile("Open positions", num(o.open_positions), "no position manager runs here");
+}
+
+function renderChain(c) {
+  $("chain").innerHTML =
+      tile("Priceable markets", num(c.priceable_markets), "an engine claims these")
+    + tile("Estimates", num(c.estimates), num(c.abstained) + " abstained")
+    + tile("Decisions", num(c.decisions), num(c.journal_failures) + " write failures")
+    + tile("Predictions stored", num(c.predictions), num(c.settled) + " scored")
+    + tile("Snapshots written", num(c.snapshots_written), num(c.snapshots_evicted) + " evicted")
+    + tile("Priors applied", num(c.priors_applied), "operator base rates");
+}
+
+function renderHealth(h) {
+  $("health").innerHTML =
+    "<tr><th>Component</th><th>Status</th><th>Age</th><th>Reconnects</th><th>Errors</th><th>Detail</th></tr>"
+    + h.components.map((c) => `<tr>
+        <td>${c.name}</td>
+        <td>${statusCell(c.status)}</td>
+        <td class="mono">${c.data_age_seconds == null ? "—" : c.data_age_seconds.toFixed(1) + "s"}</td>
+        <td class="mono">${c.reconnect_count}</td>
+        <td class="mono">${c.error_count}</td>
+        <td class="wrapcell">${c.detail || ""}</td></tr>`).join("");
+}
+
+function renderJournal(rows) {
+  $("journal").innerHTML =
+    "<tr><th>When</th><th>Kind</th><th>Reason</th></tr>"
+    + (rows.length ? rows.slice(0, 25).map((r) => `<tr>
+        <td class="mono">${new Date(r.recorded_at).toISOString().slice(11, 19)}</td>
+        <td>${r.kind}</td>
+        <td class="wrapcell">${(r.reason || "").slice(0, 160)}</td></tr>`).join("")
+      : `<tr><td colspan="3" style="color:var(--muted)">No decisions recorded yet.</td></tr>`);
+}
+
+function renderAudit(rows) {
+  $("audit").innerHTML =
+    "<tr><th>When</th><th>Actor</th><th>Action</th><th>Reason</th></tr>"
+    + (rows.length ? rows.map((r) => `<tr>
+        <td class="mono">${new Date(r.occurred_at).toISOString().slice(11, 19)}</td>
+        <td>${r.actor}</td>
+        <td class="mono">${r.action}</td>
+        <td class="wrapcell">${(r.detail && r.detail.reason) || ""}</td></tr>`).join("")
+      : `<tr><td colspan="4" style="color:var(--muted)">Nothing has been done through the dashboard.</td></tr>`);
+}
+
+// Each control carries its own confirmation phrase. A shared "yes" trains an operator to
+// type it without reading, and then Close All Positions is one stale submission away.
+const CONTROLS = [
+  { path: "pause",               label: "Pause entries",       confirm: "PAUSE",               role: "may_operate" },
+  { path: "resume",              label: "Resume entries",      confirm: "RESUME",              role: "may_operate" },
+  { path: "emergency-stop",      label: "Emergency stop",      confirm: "EMERGENCY STOP",      role: "may_administer", danger: true },
+  { path: "cancel-all-orders",   label: "Cancel all orders",   confirm: "CANCEL ALL ORDERS",   role: "may_administer", danger: true },
+  { path: "close-all-positions", label: "Close all positions", confirm: "CLOSE ALL POSITIONS", role: "may_administer", danger: true },
+];
+
+function renderControls() {
+  if (!ME) {
+    $("controlNote").textContent = "Sign in to use the controls.";
+    $("controls").innerHTML = ""; return;
+  }
+  $("controlNote").textContent =
+    "Each action asks you to type its phrase. Every use is written to the audit trail "
+    + "before it runs. Cancel/close report honestly that nothing can act — no execution "
+    + "adapter runs in this process.";
+  $("controls").innerHTML = CONTROLS.map((c) =>
+    `<button data-p="${c.path}" class="${c.danger ? "danger" : ""}" ${ME[c.role] ? "" : "disabled"}
+       title="${ME[c.role] ? "type: " + c.confirm : "your role does not permit this"}">${c.label}</button>`
+  ).join("");
+  $("controls").querySelectorAll("button").forEach((b) =>
+    b.addEventListener("click", () => run(CONTROLS.find((c) => c.path === b.dataset.p))));
+}
+
+async function run(c) {
+  const typed = window.prompt(`This will ${c.label.toLowerCase()}.\n\nType exactly:  ${c.confirm}`);
+  if (typed === null) return;
+  const out = $("controlMsg");
+  try {
+    const r = await api("/risk/" + c.path, {
+      method: "POST",
+      body: JSON.stringify({ confirm: typed, reason: "via dashboard" }),
+    });
+    // `applied: false` is a successful call that decided not to act. Shown as its own
+    // state, because rendering it as success is the one lie that matters here.
+    out.innerHTML = `<span class="status" style="color:${r.applied ? "var(--good)" : "var(--warning)"}">
+        <span class="ico">${r.applied ? "●" : "▲"}</span>${r.applied ? "applied" : "not applied"}</span>
+        — ${r.detail}`;
+  } catch (e) {
+    out.innerHTML = `<span class="status" style="color:var(--critical)"><span class="ico">■</span>refused</span> — ${e.message}`;
+  }
+  refresh();
+}
+
+async function refresh() {
+  $("clock").textContent = new Date().toISOString().slice(11, 19) + "Z";
+  try {
+    const [o, h] = await Promise.all([api("/overview"), api("/health/components")]);
+    $("mode").textContent = o.mode;
+    renderBanner(o); renderCapital(o); renderHealth(h);
+    if (o.counters) renderChain(o.counters);
+  } catch (e) { /* 401 already handled; a blip must not blank the page */ }
+  try { renderJournal(await api("/journal?limit=25")); } catch (e) {}
+  try { renderAudit(await api("/journal/audit?limit=15")); } catch (e) {}
+}
+
+function signOut(why) {
+  TOKEN = null; ME = null; sessionStorage.removeItem("df_token");
+  $("who").textContent = "not signed in";
+  $("loginBox").classList.remove("hidden");
+  $("app").classList.add("hidden");
+  if (why) $("msg").textContent = why;
+  renderControls();
+}
+
+async function afterLogin() {
+  ME = await api("/auth/whoami");
+  $("who").textContent = ME.subject + " · " + ME.role;
+  $("loginBox").classList.add("hidden");
+  $("app").classList.remove("hidden");
+  renderControls(); refresh();
+}
+
+$("loginBtn").addEventListener("click", async () => {
+  $("msg").textContent = "";
+  try {
+    const r = await api("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ username: $("u").value, password: $("p").value }),
+    });
+    TOKEN = r.token; sessionStorage.setItem("df_token", TOKEN);
+    $("p").value = "";
+    await afterLogin();
+  } catch (e) { $("msg").innerHTML =
+    `<span class="status" style="color:var(--critical)"><span class="ico">■</span>${e.message}</span>`; }
+});
+$("p").addEventListener("keydown", (e) => { if (e.key === "Enter") $("loginBtn").click(); });
+
+$("theme").addEventListener("click", () => {
+  const now = document.documentElement.getAttribute("data-theme");
+  document.documentElement.setAttribute("data-theme", now === "dark" ? "light" : "dark");
+});
+
+(async () => {
+  // The app stays hidden until a session exists: every panel behind it is authenticated,
+  // so rendering the shell first would just show a page of failed requests.
+  if (TOKEN) { try { await afterLogin(); } catch (e) { signOut(); } }
+  setInterval(() => { if (ME) refresh(); }, 5000);
+})();
+</script>
+</body>
+</html>

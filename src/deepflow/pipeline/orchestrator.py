@@ -514,6 +514,44 @@ class Orchestrator:
         return self._snapshots_written
 
     @property
+    def counters(self) -> dict[str, int]:
+        """The decision-chain counters the health line reports.
+
+        Exposed as one dict rather than seven properties because they are only ever
+        meaningful together: "estimates" without "decisions" says the model spoke and
+        nothing acted, and "decisions" without "journal_failures" once meant 3,642 rows
+        that were never written (§83).
+        """
+        return {
+            "considered": self._considered,
+            "abstained": self._abstained,
+            "estimates": self._estimates,
+            "decisions": self._decisions,
+            "unpriceable": self._unpriceable,
+            "predictions": self._predictions_written,
+            "prediction_failures": self._prediction_failures,
+            "journal_failures": self._journal.write_failures if self._journal else 0,
+            "snapshots_written": self._snapshots_written,
+            "snapshots_evicted": self._snapshots_evicted,
+            "priceable_markets": len(self._context),
+            "priors_applied": self._priors_applied,
+            "settled": self._settlement.recorded if self._settlement else 0,
+            "awaiting_settlement": self._settlement.pending if self._settlement else 0,
+        }
+
+    @property
+    def streams(self) -> PolymarketStreams | None:
+        return self._streams
+
+    @property
+    def reference(self) -> TwapReference | None:
+        return self._reference
+
+    @property
+    def in_play(self) -> tuple[GameLink, ...]:
+        return self._in_play
+
+    @property
     def sessions(self) -> async_sessionmaker[AsyncSession] | None:
         """The database session factory, for the dashboard to read and audit through.
 

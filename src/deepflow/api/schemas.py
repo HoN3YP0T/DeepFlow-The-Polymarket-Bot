@@ -35,6 +35,14 @@ class OverviewResponse(Schema):
     entries_halted: bool
     halt_reasons: tuple[str, ...] = ()
 
+    counters: dict[str, int] = Field(default_factory=dict)
+    """The decision-chain counters, carried here so the dashboard shows them beside the
+    capital figures rather than in a second request.
+
+    Together, because each alone misleads: estimates without decisions says the model
+    spoke and nothing acted, and decisions without the journal's write failures once meant
+    3,642 rows that were never written (§83)."""
+
 
 class SmartMoneyEntryView(Schema):
     wallet: str

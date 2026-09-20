@@ -4,12 +4,20 @@ Runtime components are resolved from application state rather than module-level 
 so tests can substitute fakes and the API never constructs a second copy of anything the
 orchestrator owns.
 
-**The decision this module encodes.** ``Settings`` requires a JWT secret in SHADOW and
-LIVE and allows PAPER without one, so a local paper run needs no credentials. That cannot
-mean the controls are open: an unauthenticated emergency-stop is a remote kill switch for
-anyone who can reach the port. So without a configured secret the API serves the read-only
-panels and **refuses every control** -- fail-closed on the half that acts, usable on the
-half that only looks.
+**The decision this module encodes: no secret, no dashboard.** ``Settings`` requires a
+JWT secret in SHADOW and LIVE and allows PAPER without one, so a local paper run can boot
+with no credentials -- and then every authenticated route, read or write, answers 401. The
+only things reachable are the liveness probe and the page itself, which will ask you to
+sign in and get nowhere.
+
+That is deliberate and it is stricter than the first version of this docstring claimed.
+The earlier wording said the read-only panels would serve without a secret and only the
+controls would refuse. They do not, and they should not: the overview carries balance,
+available capital and drawdown, and a reader who can reach the port can see the size of
+the book. "Read-only" is not "safe to publish".
+
+To use the dashboard, set ``DEEPFLOW_API__JWT_SECRET`` and at least one operator --
+``make hash-password`` prints both lines.
 """
 
 from __future__ import annotations

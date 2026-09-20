@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from deepflow.api import ws
 from deepflow.api.audit import AuditLog
@@ -29,6 +31,9 @@ if TYPE_CHECKING:
     from deepflow.pipeline.orchestrator import Orchestrator
 
 log = get_logger(__name__)
+
+#: Where the single-page dashboard lives.
+STATIC_DIR = Path(__file__).parent / "static"
 
 
 @asynccontextmanager
@@ -94,5 +99,15 @@ def create_app(
     ):
         app.include_router(router, prefix="/api")
     app.include_router(ws.router)
+
+    @app.get("/", include_in_schema=False)
+    async def dashboard() -> FileResponse:
+        """The dashboard itself.
+
+        One self-contained file, served by the API that feeds it. No build step and no
+        second origin, which also means the CORS allowlist is not load-bearing for the
+        dashboard's own use -- it is same-origin.
+        """
+        return FileResponse(STATIC_DIR / "index.html")
 
     return app
