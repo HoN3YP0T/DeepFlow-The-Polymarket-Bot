@@ -81,7 +81,10 @@ table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nu
 th { text-align: left; font-size: 11px; color: var(--muted); font-weight: 600;
      text-transform: uppercase; letter-spacing: .05em; padding: 9px 8px 9px 0; }
 td { padding: 8px 8px 8px 0; border-top: 1px solid var(--rule); vertical-align: top; }
-td.num { text-align: right; padding-right: 0; }
+/* Right-aligned numbers still need a gutter: without one the value runs straight
+   into the next column and reads as a single token (0.0003SPREAD_ACCEPTABLE). */
+td.num { text-align: right; padding-right: 14px; }
+th.num { text-align: right; padding-right: 14px; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 .wrapcell { max-width: 430px; color: var(--ink-2); }
 
@@ -145,6 +148,25 @@ input { font: inherit; padding: 8px 10px; border-radius: 8px; color: var(--ink);
     <p class="note" id="controlNote"></p>
     <div class="controls" id="controls"></div>
     <div id="controlMsg" class="note"></div>
+
+    <h2>Strategies</h2>
+    <p class="note" id="stratNote">Disabling an engine stops it forming opinions. It is not a halt — that is Pause entries.</p>
+    <div class="card"><table id="strategies"></table></div>
+
+    <h2>What is blocking trades</h2>
+    <div class="card"><table id="blockers"></table></div>
+
+    <h2>Approved trades</h2>
+    <div class="card"><table id="available"></table></div>
+
+    <h2>Refused trades</h2>
+    <div class="card"><table id="rejected"></table></div>
+
+    <h2>Open positions</h2>
+    <div class="card"><table id="positions"></table></div>
+
+    <h2>Smart money</h2>
+    <div class="card"><table id="whales"></table></div>
 
     <h2>Component health</h2>
     <div class="card"><table id="health"></table></div>
@@ -224,6 +246,105 @@ function renderChain(c) {
     + tile("Predictions stored", num(c.predictions), num(c.settled) + " scored")
     + tile("Snapshots written", num(c.snapshots_written), num(c.snapshots_evicted) + " evicted")
     + tile("Priors applied", num(c.priors_applied), "operator base rates");
+}
+
+// A panel whose subsystem does not run says so. An empty table and a missing subsystem
+// look identical, and the difference is the whole question being asked.
+function unavailable(cols, detail) {
+  return `<tr><td colspan="${cols}" style="color:var(--muted);padding:12px 0">
+            <span class="status" style="color:var(--warning)"><span class="ico">▲</span>not running</span>
+            — ${detail}</td></tr>`;
+}
+
+function renderStrategies(rows) {
+  $("strategies").innerHTML =
+    "<tr><th>Engine</th><th>Categories</th><th>State</th><th>Calibration</th><th></th></tr>"
+    + rows.map((r) => `<tr>
+        <td>${r.name}</td>
+        <td class="mono" style="color:var(--ink-2)">${r.categories.join(", ")}</td>
+        <td>${r.enabled
+              ? `<span class="status" style="color:var(--good)"><span class="ico">●</span>enabled</span>`
+              : `<span class="status" style="color:var(--muted)"><span class="ico">○</span>disabled</span>`}</td>
+        <td style="color:var(--ink-2)">${r.calibrated ? "fitted curve" : "identity (uncalibrated)"}</td>
+        <td class="num">${ME && ME.may_operate
+              ? `<button data-eng="${r.name}" data-on="${r.enabled ? 0 : 1}">${r.enabled ? "Disable" : "Enable"}</button>`
+              : ""}</td></tr>`).join("");
+  $("strategies").querySelectorAll("button").forEach((b) =>
+    b.addEventListener("click", () => toggleEngine(b.dataset.eng, b.dataset.on === "1")));
+}
+
+async function toggleEngine(name, enabled) {
+  const typed = window.prompt(`${enabled ? "Enable" : "Disable"} ${name}.\n\nType exactly:  TOGGLE STRATEGY`);
+  if (typed === null) return;
+  try {
+    await api(`/strategies/${encodeURIComponent(name)}/toggle`, {
+      method: "POST",
+      body: JSON.stringify({ enabled, confirm: typed, reason: "via dashboard" }),
+    });
+  } catch (e) {
+    $("controlMsg").innerHTML =
+      `<span class="status" style="color:var(--critical)"><span class="ico">■</span>refused</span> — ${e.message}`;
+  }
+  refresh();
+}
+
+// "What is stopping us" — the question the approvals alone cannot answer. A system that
+// refuses everything and one with no opportunities look identical without this.
+function renderBlockers(b) {
+  const total = b.rejected || 1;
+  $("blockers").innerHTML =
+    `<tr><th>Check</th><th>Refusals</th><th>Share of refused</th></tr>`
+    + (b.blockers.length ? b.blockers.map((x) => `<tr>
+        <td class="mono">${x.check}</td>
+        <td class="num mono">${num(x.count)}</td>
+        <td class="num mono">${((x.count / total) * 100).toFixed(0)}%</td></tr>`).join("")
+      : `<tr><td colspan="3" style="color:var(--muted)">Nothing refused in the last ${num(b.scanned)} journal rows.</td></tr>`)
+    + `<tr><td colspan="3" style="color:var(--muted);font-size:12px">
+         ${num(b.scanned)} rows scanned · ${num(b.approved)} approved · ${num(b.rejected)} refused.
+         A decision can be blocked by several checks, so these sum to more than the refusals.</td></tr>`;
+}
+
+function tradeRows(rows, showBlocking) {
+  if (!rows.length) return `<tr><td colspan="${showBlocking ? 7 : 6}" style="color:var(--muted)">None recorded.</td></tr>`;
+  return rows.map((r) => `<tr>
+      <td class="mono">${r.recorded_at ? new Date(r.recorded_at).toISOString().slice(11,19) : ""}</td>
+      <td class="wrapcell" style="max-width:280px">${(r.title || "").slice(0,90)}</td>
+      <td class="mono">${r.category || ""}</td>
+      <td class="num mono">${r.market_probability ? Number(r.market_probability).toFixed(3) : "—"}</td>
+      <td class="num mono">${r.model_probability ? Number(r.model_probability).toFixed(3) : "—"}</td>
+      <td class="num mono">${r.net_ev ? Number(r.net_ev).toFixed(4) : "—"}</td>
+      ${showBlocking ? `<td class="wrapcell mono" style="max-width:230px;font-size:11px">${(r.blocking||[]).join(", ")}</td>` : ""}
+    </tr>`).join("");
+}
+
+function renderTrades(id, rows, showBlocking) {
+  $(id).innerHTML =
+    `<tr><th>When</th><th>Market</th><th>Category</th><th>Market p</th><th>Model p</th><th>Net EV</th>`
+    + (showBlocking ? "<th>Blocked by</th>" : "") + "</tr>" + tradeRows(rows, showBlocking);
+}
+
+function renderPositions(d) {
+  $("positions").innerHTML =
+    "<tr><th>Position</th><th>Market</th><th>Shares</th><th>Entry</th><th>Realized</th></tr>"
+    + (!d.available ? unavailable(5, d.detail)
+       : d.positions.map((p) => `<tr>
+           <td class="mono">${p.position_id}</td>
+           <td class="mono">${p.condition_id.slice(0,18)}…</td>
+           <td class="num mono">${p.shares}</td>
+           <td class="num mono">${p.average_entry_price}</td>
+           <td class="num mono">${p.realized_pnl}</td></tr>`).join(""));
+}
+
+function renderWhales(d) {
+  $("whales").innerHTML =
+    "<tr><th>When</th><th>Wallet</th><th>Side</th><th>Notional</th><th>Entry odds</th></tr>"
+    + (!d.available ? unavailable(5, d.detail)
+       : d.events.map((e) => `<tr>
+           <td class="mono">${new Date(e.observed_at).toISOString().slice(11,19)}</td>
+           <td class="mono">${e.wallet.slice(0,14)}…</td>
+           <td>${e.is_exit ? "EXIT" : e.side}</td>
+           <td class="num mono">${money(e.notional_usdc)}</td>
+           <td class="num mono">${e.entry_price}</td></tr>`).join(""));
 }
 
 function renderHealth(h) {
@@ -314,8 +435,21 @@ async function refresh() {
     renderBanner(o); renderCapital(o); renderHealth(h);
     if (o.counters) renderChain(o.counters);
   } catch (e) { /* 401 already handled; a blip must not blank the page */ }
-  try { renderJournal(await api("/journal?limit=25")); } catch (e) {}
-  try { renderAudit(await api("/journal/audit?limit=15")); } catch (e) {}
+  // Each panel is fetched independently: one slow or failing endpoint must not blank
+  // the panels beside it, which on an ops dashboard reads as "the system is down".
+  const panels = [
+    ["/strategies",         renderStrategies],
+    ["/trades/blockers",    renderBlockers],
+    ["/trades/available?limit=12", (r) => renderTrades("available", r, false)],
+    ["/trades/rejected?limit=12",  (r) => renderTrades("rejected", r, true)],
+    ["/positions",          renderPositions],
+    ["/whales/activity?limit=12",  renderWhales],
+    ["/journal?limit=25",   renderJournal],
+    ["/journal/audit?limit=15", renderAudit],
+  ];
+  await Promise.all(panels.map(async ([path, render]) => {
+    try { render(await api(path)); } catch (e) { /* leave the last good render in place */ }
+  }));
 }
 
 function signOut(why) {

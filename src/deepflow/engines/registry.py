@@ -20,6 +20,7 @@ class EngineRegistry:
 
     def __init__(self) -> None:
         self._by_category: dict[MarketCategory, ProbabilityEnginePort] = {}
+        self._disabled: set[str] = set()
 
     def register(self, engine: ProbabilityEnginePort) -> None:
         """Register ``engine`` for each category it claims.
@@ -44,7 +45,38 @@ class EngineRegistry:
         """
         if not classification.is_tradeable:
             return None
-        return self._by_category.get(classification.category)
+        engine = self._by_category.get(classification.category)
+        if engine is not None and engine.name in self._disabled:
+            # A disabled engine abstains exactly as an absent one does, so the market
+            # falls out of the decision context rather than being priced and then
+            # refused later. Turning a strategy off must stop it forming an opinion,
+            # not merely stop it acting on one -- otherwise the journal fills with
+            # decisions about a strategy nobody is running.
+            return None
+        return engine
+
+    def set_enabled(self, name: str, enabled: bool) -> bool:
+        """Turn one engine on or off by name. Returns ``False`` if no such engine.
+
+        Runtime rather than configuration because the alternative during an incident is
+        a restart, which costs the feed, the TWAP warm-up and every subscription -- a
+        high price for silencing one misbehaving model.
+
+        **Disabling is not a safety mechanism and must not be used as one.** It stops an
+        engine forming opinions; it does nothing about a position already open, and it
+        is not a halt. Pausing entries is the halt, and it is a different control.
+        """
+        if name not in {engine.name for engine in self.engines}:
+            return False
+        if enabled:
+            self._disabled.discard(name)
+        else:
+            self._disabled.add(name)
+        log.warning("engine.toggled", engine=name, enabled=enabled)
+        return True
+
+    def is_enabled(self, name: str) -> bool:
+        return name not in self._disabled
 
     @property
     def registered_categories(self) -> frozenset[MarketCategory]:

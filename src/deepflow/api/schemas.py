@@ -137,6 +137,18 @@ class StrategyToggle(Schema):
     enabled: bool
 
 
+class StrategyToggleRequest(Schema):
+    """Turning an engine off is a deliberate act, so it carries a confirmation too.
+
+    A lighter phrase than the risk controls': this stops one model forming opinions and
+    is reversible in a click, where Close All Positions is neither.
+    """
+
+    enabled: bool
+    confirm: str
+    reason: str = ""
+
+
 class RiskActionRequest(Schema):
     """Destructive controls require an explicit typed confirmation, so a
     mis-click cannot close the book."""

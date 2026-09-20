@@ -13,7 +13,7 @@ ordering is a dependency order — nothing here is optional scaffolding.
 | 4 · EV and safety | ✅ complete | decides in full, on injected probabilities |
 | 5 · Execution | ✅ complete | reads verified live; **every write unverified** — no order has been submitted |
 | 6 · Positions and intelligence | 3 of 4 | exits, positions, smart money, events; cross-market deferred |
-| 7 · Dashboard | not started | 24 API stubs; frontend is scaffolding |
+| 7 · Dashboard | 3 of 4 | auth, panels, controls and WS push done and driven live; Next.js not started |
 | 8 · Validation before live | not started | |
 
 The pipeline is finished at both ends and hollow in the middle: everything up to the
@@ -333,10 +333,35 @@ one pass. Until then the writes are code, not behaviour.
     backtested
 
 ## Phase 7 — Dashboard
-31. Auth, then the read-only panels
-32. Risk controls with typed confirmation and audit
-33. WebSocket push
-34. Next.js frontend
+31. ~~Auth, then the read-only panels~~ **done** — scrypt from the standard library rather
+    than the declared `passlib[bcrypt]`, which does not run (passlib 1.7 reads
+    `bcrypt.__about__`, removed in modern bcrypt). Unknown roles are refused rather than
+    downgraded, failed logins cost the same as successful ones (scrypt against a decoy
+    hash, so usernames cannot be enumerated by timing), and **no secret means no
+    dashboard** — every route including the reads, because the overview carries balance
+    and drawdown and "read-only" is not "safe to publish".
+
+    Panels: overview, component health, strategies, blockers, approved and refused
+    trades, positions, smart money, decision journal, audit trail. The ones with no
+    subsystem behind them — positions, smart money — return an envelope saying so rather
+    than an empty list, because an empty table and a missing subsystem look identical and
+    the difference is the question being asked.
+32. ~~Risk controls with typed confirmation and audit~~ **done** — pause, resume,
+    emergency stop, cancel-all-orders, close-all-positions, live risk limits, engine
+    toggles. Per-action confirmation phrases (a shared "yes" trains you to type it
+    without reading); audit written **before** the action, and a failure to record
+    refuses it. Resume clears only the manual halt and refuses while any other breaker is
+    open. Cancel/close report `applied: false` with the reason — no execution adapter
+    runs, so there is nothing to cancel, and a cheerful 200 would tell an operator their
+    exposure was withdrawn.
+33. ~~WebSocket push~~ **done** — authenticated *before* the socket is accepted, a token
+    query parameter because browsers cannot set handshake headers, a per-send timeout so
+    a suspended laptop is dropped rather than allowed to apply backpressure to the loop
+    the market-data fold runs on (§91).
+34. `Next.js frontend` — **not started, and no longer the only option.** A single
+    self-contained page is served at `/` by the API that feeds it: no build step, no
+    second origin, same-origin so the CORS allowlist is not load-bearing for the
+    dashboard's own use. A Next.js app would replace that page without changing the API
 
 ## Phase 8 — Validation before live
 35. `BacktestRunner` with no-lookahead enforcement

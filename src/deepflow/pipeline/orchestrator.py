@@ -513,6 +513,16 @@ class Orchestrator:
     def snapshots_written(self) -> int:
         return self._snapshots_written
 
+    def rebuild_decision_context(self) -> None:
+        """Re-derive which markets an engine can price, now rather than at the next sweep.
+
+        Public so the dashboard can make a strategy toggle take effect immediately: an
+        operator who disables an engine and watches the priceable count stay put will
+        reasonably conclude the button did nothing.
+        """
+        if self._classifier is not None and self._engines is not None:
+            self._rebuild_decision_context()
+
     @property
     def counters(self) -> dict[str, int]:
         """The decision-chain counters the health line reports.

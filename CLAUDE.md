@@ -272,7 +272,7 @@ risk/         safety_gate (18 checks), limits (RiskEngine), exposure, sizing
 execution/    order manager, reconciliation, engine  ← complete; venue writes unverified
 positions/    manager, exit engine                    ← Phase 6, stubs
 journal/      recorder
-api/          FastAPI routers                         ← Phase 7, stubs
+api/          auth, audit, controls, panels, ws       ← Phase 7; Next.js not started
 ```
 
 Nothing in `core/` or `ports/` imports an adapter. Only `adapters/polymarket/` imports
@@ -292,7 +292,7 @@ exchange rules, imports nothing, and any layer may import it (ADR-0003).
   implemented — that has happened twice (`is_modellable`, `sports_feed`).
 - **Dead code gets deleted, not justified.** Five constants were once kept alive by a
   circular argument.
-- **Stubs raise `NotImplementedError`**, never return a plausible default. 44 remain
+- **Stubs raise `NotImplementedError`**, never return a plausible default. 18 remain
   and the count is a tracked figure in `docs/STATUS.md`.
 
 ## Current shape of the work
